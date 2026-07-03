@@ -46,6 +46,11 @@ def _gpl_annot_url(gpl: str) -> str:
     return f"https://ftp.ncbi.nlm.nih.gov/geo/platforms/{stub}/{gpl}/annot/{gpl}.annot.gz"
 
 
+def _gse_suppl_url(gse: str, filename: str) -> str:
+    stub = re.sub(r"\d{1,3}$", "nnn", gse)
+    return f"https://ftp.ncbi.nlm.nih.gov/geo/series/{stub}/{gse}/suppl/{filename}"
+
+
 def _download(url: str, dest: Path) -> Path:
     if not dest.exists():
         print(f"  fetching {url}")
@@ -83,6 +88,127 @@ RULES: dict[str, list[SampleRule]] = {
     ],
     "GSE21610": [],  # ChIP-seq platform partner; not expression -> unmapped
 }
+
+
+@dataclass
+class ScrnaDataset:
+    """A GEO scRNA-seq series delivered as a genes x cells CSV + a per-cell
+    label CSV. Maps the authors' cell-type annotation onto model programs; the
+    cue is applied uniformly (the whole experiment is one perturbation)."""
+    counts_file: str          # suppl filename: genes (rows) x cells (cols) CSV
+    labels_file: str          # suppl filename: barcode, ..., <label_col>
+    label_col: str
+    cue: str
+    program_map: dict[str, str]   # celltypeLabel -> model program (or Quiescent)
+    level: float = 1.0
+    drop_unmapped: bool = True    # cells whose label isn't in program_map
+
+# scRNA-seq datasets keyed by GEO accession.
+SCRNA: dict[str, ScrnaDataset] = {
+    # Ma et al. 2021, pancreatic acinar-to-ductal metaplasia. YFP+ lineage-traced
+    # acinar cells, all under repeated caerulein injury. Label = authors' cell-
+    # type call (whole-transcriptome clustering), so ADM vs acinar is not a
+    # threshold on the KG input genes.
+    "GSE172380": ScrnaDataset(
+        counts_file="GSE172380_Feature_Barcode_rawCountMatrix_Filtered-YFP%2B_all-samples_QCed.csv.gz",
+        labels_file="GSE172380_Cluster%2BCelltypeLabel_YFP%2B_all-samples_QCed.csv.gz",
+        label_col="celltypeLabel",
+        cue="Caerulein",
+        program_map={
+            "Acinar": "Quiescent",
+            "Acinar.Prolif": "Quiescent",
+            "MucinDuctal": "ADM",
+            "Ductal-like": "ADM",
+            "Acinar/MucinDuctal": "ADM",
+            # Tuft, EEC, Tuft/EEC.Progenitor: metaplastic but not ADM -> dropped
+        },
+    ),
+}
+
+
+def _norm_barcode(b: str) -> str:
+    return re.sub(r"[.\-]", "-", str(b).strip().strip('"'))
+
+
+def ingest_scrna(gse: str, out: Path, cache: Path,
+                 include_program_marker_nodes: bool = True) -> None:
+    """Build a per-cell training CSV from a genes x cells scRNA count matrix."""
+    import pandas as pd
+
+    ds = SCRNA.get(gse)
+    if ds is None:
+        raise SystemExit(f"No scRNA dataset registered for {gse}. Add to geo.SCRNA.")
+    kg = load_kg()
+    cache.mkdir(parents=True, exist_ok=True)
+
+    counts = _download(_gse_suppl_url(gse, ds.counts_file),
+                       cache / ds.counts_file.replace("%2B", "+"))
+    labels = _download(_gse_suppl_url(gse, ds.labels_file),
+                       cache / ds.labels_file.replace("%2B", "+"))
+
+    # per-cell label + program
+    lab = pd.read_csv(labels, index_col=0)
+    lab.index = [_norm_barcode(b) for b in lab.index]
+    lab["__prog"] = lab[ds.label_col].map(ds.program_map)
+    if ds.drop_unmapped:
+        lab = lab[lab["__prog"].notna()]
+    cell_prog = lab["__prog"].to_dict()
+
+    # KG gene nodes -> mouse symbol (upper). Optionally drop program-marker genes
+    # (Sox9 etc.) that co-define the label, to avoid an easy shortcut.
+    marker_nodes = {"Sox9", "Autophagy", "mTORC1"} if not include_program_marker_nodes else set()
+    want = {sym.upper(): node for node, sym in kg.gene_map.items()
+            if node in kg.node_index and node not in marker_nodes}
+
+    # stream the genes x cells matrix in row chunks: accumulate per-cell totals
+    # and capture the target gene rows.
+    node_counts, cell_ids, totals = {}, None, None
+    for chunk in pd.read_csv(counts, index_col=0, chunksize=4000):
+        if cell_ids is None:
+            cell_ids = [_norm_barcode(c) for c in chunk.columns]
+            totals = np.zeros(len(cell_ids), dtype=float)
+        totals += chunk.to_numpy(dtype=float).sum(axis=0)
+        up = {str(g).upper(): g for g in chunk.index}
+        for sym, node in want.items():
+            if sym in up:
+                node_counts[node] = chunk.loc[up[sym]].to_numpy(dtype=float)
+
+    # CP10K + log1p per captured gene, then min-max scale across cells
+    node_cols = list(kg.node_ids)
+    ncells = len(cell_ids)
+    X = np.zeros((ncells, len(node_cols)), dtype=float)
+    safe_tot = np.where(totals > 0, totals, 1.0)
+    for node, cnt in node_counts.items():
+        norm = np.log1p(cnt / safe_tot * 1e4)
+        lo, hi = norm.min(), norm.max()
+        X[:, node_cols.index(node)] = 0.0 if hi <= lo else (norm - lo) / (hi - lo)
+
+    # write one row per labelled cell
+    header = node_cols + ["label"]
+    lines = [",".join(header)]
+    kept, prog_count = 0, {}
+    for i, bc in enumerate(cell_ids):
+        prog = cell_prog.get(bc)
+        if prog is None:
+            continue
+        row = {node_cols[j]: X[i, j] for j in range(len(node_cols))}
+        if ds.cue in kg.node_index:
+            row[ds.cue] = ds.level
+        vals = [f"{row[c]}" if c != "label" else prog for c in header]
+        lines.append(",".join(vals))
+        kept += 1
+        prog_count[prog] = prog_count.get(prog, 0) + 1
+    out.write_text("\n".join(lines) + "\n")
+
+    print(f"\nIngested {gse} scRNA ({ncells} cells) -> {out}")
+    print(f"  mapped gene nodes: {', '.join(sorted(node_counts))}")
+    print(f"  cue: {ds.cue}={ds.level} (uniform)")
+    print(f"  wrote {kept} labelled cells: " +
+          ", ".join(f"{p}={n}" for p, n in sorted(prog_count.items())))
+    if include_program_marker_nodes:
+        print("  NOTE: program-marker genes (Sox9, mTORC1/MTOR, Autophagy/ATG7) are"
+              "\n  included as inputs; they correlate with the ADM label. Pass"
+              "\n  --no-marker-nodes for a harder, less-circular task.")
 
 
 def _parse_series_matrix(path: Path):
@@ -221,12 +347,21 @@ def main() -> None:
     import argparse
     ap = argparse.ArgumentParser(description="Ingest a GEO expression series to the model CSV schema")
     ap.add_argument("--gse", required=True, help="GEO series accession, e.g. GSE21608")
+    ap.add_argument("--scrna", action="store_true",
+                    help="genes x cells scRNA path (dataset must be in geo.SCRNA)")
+    ap.add_argument("--no-marker-nodes", action="store_true",
+                    help="scRNA: drop program-marker genes (Sox9/mTORC1/ATG7) from inputs")
     ap.add_argument("--out", default=None, help="output CSV (default data/<gse>.csv)")
     ap.add_argument("--cache", default=None, help="download cache dir")
     args = ap.parse_args()
-    out = Path(args.out) if args.out else DATA_DIR / f"{args.gse}.csv"
     cache = Path(args.cache) if args.cache else DATA_DIR / "geo_cache"
-    ingest(args.gse, out, cache)
+    if args.scrna:
+        out = Path(args.out) if args.out else DATA_DIR / f"{args.gse}_scrna.csv"
+        ingest_scrna(args.gse, out, cache,
+                     include_program_marker_nodes=not args.no_marker_nodes)
+    else:
+        out = Path(args.out) if args.out else DATA_DIR / f"{args.gse}.csv"
+        ingest(args.gse, out, cache)
 
 
 if __name__ == "__main__":
