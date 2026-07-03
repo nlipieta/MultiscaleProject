@@ -25,11 +25,14 @@ from .oracle import all_classes
 ARTIFACTS = Path(__file__).resolve().parents[2] / "artifacts"
 
 
-def evaluate(model, X, y, device) -> float:
+def evaluate(model, X, y, device, batch_size: int = 1024) -> float:
     model.eval()
+    correct = 0
     with torch.no_grad():
-        pred = model(X.to(device)).argmax(-1).cpu()
-    return float((pred == y).float().mean())
+        for i in range(0, X.size(0), batch_size):
+            pred = model(X[i:i + batch_size].to(device)).argmax(-1).cpu()
+            correct += int((pred == y[i:i + batch_size]).sum())
+    return correct / X.size(0)
 
 
 def evaluate_anchors(model, kg, contexts, classes, device):
@@ -52,6 +55,8 @@ def main() -> None:
     ap.add_argument("--kg", default=None, help="path to kg.yaml")
     ap.add_argument("--data", default=None, help="real-data CSV (skips bootstrap)")
     ap.add_argument("--epochs", type=int, default=250)
+    ap.add_argument("--batch-size", type=int, default=0,
+                    help="minibatch size; 0 = full-batch (needed for large scRNA sets)")
     ap.add_argument("--lr", type=float, default=5e-3)
     ap.add_argument("--hidden", type=int, default=64)
     ap.add_argument("--steps", type=int, default=6, help="GNN message-passing rounds")
@@ -97,12 +102,25 @@ def main() -> None:
     print(f"device={device}  train={Xtr.size(0)}  val={Xva.size(0)}  "
           f"nodes={kg.num_nodes}  relations={kg.num_relations}  classes={len(classes)}")
 
+    bs = args.batch_size
+    n = Xtr_d.size(0)
+    full_batch = bs <= 0 or bs >= n
+    gen = torch.Generator(device="cpu").manual_seed(args.seed)
     for ep in range(1, args.epochs + 1):
         model.train()
-        opt.zero_grad()
-        loss = lossf(model(Xtr_d), ytr_d)
-        loss.backward()
-        opt.step()
+        if full_batch:
+            opt.zero_grad()
+            loss = lossf(model(Xtr_d), ytr_d)
+            loss.backward()
+            opt.step()
+        else:
+            perm = torch.randperm(n, generator=gen)
+            for i in range(0, n, bs):
+                idx = perm[i:i + bs]
+                opt.zero_grad()
+                loss = lossf(model(Xtr_d[idx]), ytr_d[idx])
+                loss.backward()
+                opt.step()
         if ep % 50 == 0 or ep == 1:
             va = evaluate(model, Xva, yva, device)
             print(f"  epoch {ep:4d}  loss {loss.item():.4f}  val_acc {va:.3f}")
