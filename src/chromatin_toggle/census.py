@@ -69,36 +69,49 @@ def fetch_mean_expression(
     import scipy.sparse as sp
 
     gene_filter = ", ".join(f"'{g}'" for g in genes)
+    org_key = organism.lower().replace(" ", "_")
+    rng = np.random.default_rng(seed)
+    print(f"[census] opening Census ({census_version}); {len(genes)} genes x "
+          f"{len(cell_type_labels)} cell types, <= {max_cells_per_type} cells/type ...")
+
     ct_filter = ", ".join(f"'{c}'" for c in cell_type_labels)
-    obs_filter = (
-        f"cell_type in [{ct_filter}] and is_primary_data == True"
-    )
-    print(f"[census] opening Census ({census_version}); pulling {len(genes)} "
-          f"genes x {len(cell_type_labels)} cell types ...")
     with cxg.open_soma(census_version=census_version) as census:
+        exp = census["census_data"][org_key]
+        # 1) ONE obs scan for all cell types (reading soma_joinid + cell_type
+        #    only), then subsample per type in-memory BEFORE touching expression
+        #    (common types match millions of cells; a full expression pull is
+        #    what made the naive version take ~30 min).
+        obs_df = (
+            exp.obs.read(
+                value_filter=f"cell_type in [{ct_filter}] and is_primary_data == True",
+                column_names=["soma_joinid", "cell_type"],
+            )
+            .concat()
+            .to_pandas()
+        )
+        print(f"[census] matched {len(obs_df)} cells across "
+              f"{obs_df['cell_type'].nunique()} types; subsampling ...")
+        coords: list[int] = []
+        for c in cell_type_labels:
+            ids = obs_df.loc[obs_df["cell_type"] == c, "soma_joinid"].to_numpy()
+            if ids.size == 0:
+                print(f"[census] WARNING: no cells for '{c}'")
+                continue
+            if ids.size > max_cells_per_type:
+                ids = rng.choice(ids, max_cells_per_type, replace=False)
+            print(f"[census]   {c}: {ids.size} cells")
+            coords.extend(int(i) for i in ids)
+
+        # 2) fetch expression for ONLY the subsampled cells x mapped genes
         adata = cxg.get_anndata(
             census,
             organism=organism,
-            obs_value_filter=obs_filter,
+            obs_coords=np.sort(np.asarray(coords)),
             var_value_filter=f"feature_name in [{gene_filter}]",
             obs_column_names=["cell_type"],
             var_column_names=["feature_name"],
         )
     print(f"[census] fetched {adata.n_obs} cells x {adata.n_vars} genes")
-
-    # subsample per cell type for a bounded, balanced estimate
-    rng = np.random.default_rng(seed)
-    ct = np.asarray(adata.obs["cell_type"])
-    keep = []
-    for c in cell_type_labels:
-        idx = np.where(ct == c)[0]
-        if idx.size == 0:
-            print(f"[census] WARNING: no cells for '{c}'")
-            continue
-        if idx.size > max_cells_per_type:
-            idx = rng.choice(idx, max_cells_per_type, replace=False)
-        keep.append(idx)
-    adata = adata[np.sort(np.concatenate(keep))].copy()
 
     X = adata.X
     X = X.tocsr() if sp.issparse(X) else sp.csr_matrix(X)

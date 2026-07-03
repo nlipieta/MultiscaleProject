@@ -86,6 +86,13 @@ uv run chromatin-census --make-training data/real_train.csv
 uv run chromatin-train  --data data/real_train.csv
 ```
 
+A prebuilt `data/cellxgene_contexts.csv` is committed (Census 2025-11-08, 200
+cells/type). The lineage-defining TFs land correctly — **PU1 highest in
+macrophage, MyoD highest in myoblast** — validating the gene→node grounding.
+Caveat: the "embryonic stem cell" label is thin in this Census slice (~34 cells),
+so ESC is under-sampled and its markers are unreliable; regenerate with a larger
+panel or higher `--max-cells`, or keep the hand-set ESC context for that row.
+
 **What CELLxGENE does and doesn't give you.** It supplies real, data-driven
 values for the lineage-TF / signaling *memory* nodes. It does **not** contain an
 "applied cue" or a measured *response-program* label — the Census catalogs cell
