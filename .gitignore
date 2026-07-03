@@ -8,3 +8,6 @@ uv.lock
 data/geo_cache/
 data/scperturb_cache/
 data/scperturb_adamson_demo.csv
+data/gse172380_adm.csv
+data/gse172380_adm_nomarker.csv
+data/cross_pathway_full.csv

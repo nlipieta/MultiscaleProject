@@ -136,7 +136,20 @@ uv run chromatin-geo --gse GSE21608          # Mullen 2011 TGF-beta (pathways 5/
 uv run --with anndata chromatin-scperturb --list                  # inventory
 uv run --with anndata chromatin-scperturb --file <name>.h5ad \
     --map perturbation_to_program.json                            # ingest + label
+
+# pool per-pathway CSVs into ONE cross-pathway training set (+ provenance cols)
+uv run chromatin-combine --cap-per-class 1500 --out data/cross_pathway.csv
 ```
+
+**Cross-pathway pooling.** `chromatin-combine` aligns any number of per-pathway
+CSVs onto the shared KG node columns, tags each row with `dataset`/`pathway`/
+`assay`, and concatenates so one model learns every program jointly over the
+graph. `--cap-per-class` subsamples over-represented (pathway, label) groups so a
+single-cell pathway doesn't drown the bulk ones. **Caveat:** the pooled set is
+only as balanced as its inputs — single-cell pathways (ADM: thousands of cells)
+dwarf bulk pathways (Mullen TGF-beta: n=6), so classes like MyogenicDiff /
+Pluripotency are currently too small to train. Genuine cross-pathway training
+needs a *single-cell* dataset per pathway; see the feasibility table above.
 
 **What the literature search found (feasibility per pathway).** Real
 perturbation->label datasets exist for 4 of the 7 pathways; 2 are weak proxies;
@@ -170,6 +183,7 @@ src/chromatin_toggle/
   predict.py    inference + mechanistic trace      device.py   MPS/CPU selection
   census.py     CELLxGENE Census -> real memory contexts (optional --extra census)
   geo.py        NCBI GEO series -> CSV schema     scperturb.py  scPerturb pool -> CSV schema
+  combine.py    pool per-pathway CSVs -> one cross-pathway training set
 artifacts/                 model.pt + metrics.json (created by training)
 ```
 
