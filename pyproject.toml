@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Knowledge-graph GNN that predicts cell-state phenotype bias from an extrinsic cue plus intrinsic (chromatin/lineage) memory. Derived from the 'Synthetic Chromatin Toggle' literature review."
 requires-python = ">=3.10,<3.13"
 dependencies = [
-    "torch>=2.2",
+    "torch>=2.2,<2.12",
     "numpy>=1.24",
     "pyyaml>=6.0",
     "pandas>=2.0",

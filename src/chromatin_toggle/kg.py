@@ -43,7 +43,9 @@ class KnowledgeGraph:
     def dense_adjacency(self) -> torch.Tensor:
         """Return [R, N, N] tensor A where A[r, dst, src] = signed weight.
 
-        Used by the GNN for batched relational message passing.
+        This carries the oracle's mechanistic edge weights and signs. Use it for
+        the mechanistic oracle ONLY -- NOT as GNN input, or the model is handed
+        the label-generating function as a constant (see structural_adjacency).
         """
         N, R = self.num_nodes, self.num_relations
         A = torch.zeros(R, N, N)
@@ -51,6 +53,15 @@ class KnowledgeGraph:
         for src, rel, dst, sw in self.edges:
             A[rel_idx[rel], dst, src] += sw
         return A
+
+    def structural_adjacency(self) -> torch.Tensor:
+        """Return [R, N, N] binary tensor: 1 where a typed edge exists, else 0.
+
+        This is what the GNN sees -- graph STRUCTURE only. Edge sign and
+        magnitude are not exposed; the model must learn them per relation via
+        its rel_lin transforms. Keeps the oracle's weights out of the model.
+        """
+        return (self.dense_adjacency() != 0).to(torch.float32)
 
 
 def load_kg(path: str | Path | None = None) -> KnowledgeGraph:

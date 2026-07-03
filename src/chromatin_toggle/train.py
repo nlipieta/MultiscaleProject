@@ -69,18 +69,26 @@ def main() -> None:
     classes = all_classes(kg)
     cues = [n for n in kg.node_ids if kg.node_type[kg.node_index[n]] == "cue"]
 
+    groups = None
     if args.data:
         X, y = load_csv(kg, args.data, classes)
         print(f"Loaded {X.size(0)} real observations from {args.data}")
     else:
-        X, y, classes = build_bootstrap(
+        # Hold the literature anchors out of the bootstrap so the anchor
+        # scorecard measures generalization, not memorization.
+        anchor_cases = yaml.safe_load(
+            (DATA_DIR / "literature_cases.yaml").read_text()
+        )["cases"]
+        exclude = {(c["context"], c["cue"], c["level"]) for c in anchor_cases}
+        X, y, groups, classes = build_bootstrap(
             kg, contexts, cues, replicas=args.replicas,
-            noise=args.noise, seed=args.seed,
+            noise=args.noise, seed=args.seed, exclude=exclude,
         )
         print(f"Built {X.size(0)} bootstrap examples "
-              f"(context x cue x level, oracle-labeled). WIRING HARNESS.")
+              f"(context x cue x level, oracle-labeled; {len(exclude)} anchor "
+              f"combos held out). WIRING HARNESS.")
 
-    (Xtr, ytr), (Xva, yva) = split(X, y, seed=args.seed)
+    (Xtr, ytr), (Xva, yva) = split(X, y, seed=args.seed, groups=groups)
     model = ToggleGNN(kg, hidden=args.hidden, steps=args.steps).to(device)
     opt = torch.optim.Adam(model.parameters(), lr=args.lr)
     lossf = nn.CrossEntropyLoss()

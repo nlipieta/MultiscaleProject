@@ -9,8 +9,10 @@ Design mirrors the report's Section 5 architecture:
   * readout on the response-program nodes -> phenotype logits (+ a Quiescent
     class from global pooling)
 
-The model never sees the mechanistic biases/edge weights used by the oracle to
-generate labels; it must learn signal x memory -> phenotype from the inputs.
+The model sees only the graph STRUCTURE (binary typed adjacency) plus the
+observed initial state (cue + intrinsic memory). It never sees the oracle's
+node biases OR its signed edge weights -- edge sign and magnitude are learned
+per relation via rel_lin. It must learn signal x memory -> phenotype itself.
 """
 from __future__ import annotations
 
@@ -51,7 +53,9 @@ class ToggleGNN(nn.Module):
             "node_types",
             torch.tensor([kg.type_index[t] for t in kg.node_type], dtype=torch.long),
         )
-        self.register_buffer("adjacency", kg.dense_adjacency())  # [R, N, N] signed
+        # STRUCTURE only (binary). The oracle's signed weights are deliberately
+        # withheld so the model can't shortcut to the label-generating function.
+        self.register_buffer("adjacency", kg.structural_adjacency())  # [R, N, N] 0/1
         self.register_buffer(
             "program_index", torch.tensor(kg.program_index, dtype=torch.long)
         )
