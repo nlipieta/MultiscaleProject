@@ -122,6 +122,41 @@ CSV schema — one row per observation:
 
 Only the node-init encoding changes; the KG, GNN, and readout are unchanged.
 
+## Real data ingestion (GEO + scPerturb)
+
+Two loaders bridge real public data into the generic CSV interface above. Both
+map assay genes onto the KG `gene_map` nodes and write the model's node-column
+schema; you still supply the cue/label semantics.
+
+```bash
+# NCBI GEO expression series -> CSV (sample metadata -> cue/label via geo.RULES)
+uv run chromatin-geo --gse GSE21608          # Mullen 2011 TGF-beta (pathways 5/6)
+
+# scPerturb harmonized single-cell pool (Zenodo) -> CSV
+uv run --with anndata chromatin-scperturb --list                  # inventory
+uv run --with anndata chromatin-scperturb --file <name>.h5ad \
+    --map perturbation_to_program.json                            # ingest + label
+```
+
+**What the literature search found (feasibility per pathway).** Real
+perturbation->label datasets exist for 4 of the 7 pathways; 2 are weak proxies;
+1 has no matching data:
+
+| Pathway | Best public dataset | Verdict |
+|---|---|---|
+| macrophage + LPS -> InnateMemory | GEO **GSE85246** (Novakovic 2016) + THP1 Perturb-seq | strong |
+| ESC / myoblast + TGF-beta (5,6)   | GEO **GSE21608/GSE21621** (Mullen 2011)             | strong but tiny (n=6, two-color ratios) |
+| cardiomyocyte + stretch -> Hypertrophy | GEO **GSE186208** (human) / GSE107551 (rat)    | good, bulk only |
+| acinar + caerulein -> ADM         | GEO **GSE172380** (mouse scRNA)                     | partial, small |
+| epithelial + stiff ECM -> Fibrosis | GSE272029 (prostate proxy)                         | proxy only — wrong phenotype |
+| bioelectric -> Regeneration       | none (only mechanical amputation, PMC6986927)       | **no matching data** |
+
+Because the pathways span human/mouse/rat/Xenopus and bulk/single-cell assays
+with no shared label space, **per-pathway models are the realistic approach**,
+not one CSV training all classes. scPerturb's perturbations are genetic/chemical
+in cell lines and do **not** map to these cues/programs — use it only if
+reframing the task to general perturbation-response (cf. CellCap / STATE).
+
 ## Files
 
 ```
@@ -134,6 +169,7 @@ src/chromatin_toggle/
   model.py      the relational temporal GNN        train.py    train + anchor evaluation
   predict.py    inference + mechanistic trace      device.py   MPS/CPU selection
   census.py     CELLxGENE Census -> real memory contexts (optional --extra census)
+  geo.py        NCBI GEO series -> CSV schema     scperturb.py  scPerturb pool -> CSV schema
 artifacts/                 model.pt + metrics.json (created by training)
 ```
 

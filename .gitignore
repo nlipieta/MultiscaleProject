@@ -4,3 +4,7 @@ __pycache__/
 *.pyc
 .uv/
 uv.lock
+
+data/geo_cache/
+data/scperturb_cache/
+data/scperturb_adamson_demo.csv

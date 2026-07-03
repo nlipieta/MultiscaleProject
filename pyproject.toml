@@ -27,6 +27,8 @@ census = [
 chromatin-train = "chromatin_toggle.train:main"
 chromatin-predict = "chromatin_toggle.predict:main"
 chromatin-census = "chromatin_toggle.census:main"
+chromatin-geo = "chromatin_toggle.geo:main"
+chromatin-scperturb = "chromatin_toggle.scperturb:main"
 
 [build-system]
 requires = ["hatchling"]
