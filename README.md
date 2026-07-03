@@ -103,6 +103,39 @@ measured phenotype labels (e.g. Perturb-seq) via the generic CSV path below.
 Xenopus/planarian contexts have no human-Census equivalent and keep their
 hand-set memory.
 
+## Real-label benchmark (non-circular numbers)
+
+`chromatin-train`'s accuracy is high but *circular*: its labels come from the KG
+oracle, so the GNN just relearns the rules it was given. `chromatin-realbench`
+fixes this — it trains and evaluates on **real CELLxGENE annotations**, split
+**by dataset** (test datasets unseen in training → no batch/donor leakage), and
+compares the KG-GNN against a majority-class floor and a logistic-regression
+baseline.
+
+```bash
+uv sync --extra census
+uv run chromatin-realbench                       # predict cell_type from KG genes
+uv run chromatin-realbench --obs-column disease --classes normal "pulmonary fibrosis"
+```
+
+Measured result (Census 2025-11-08, 4 lineages, 400 cells/type, held out by
+dataset — 58 train / 25 test datasets, 219 test cells):
+
+| model                | accuracy | macro-F1 |
+|----------------------|:--------:|:--------:|
+| majority-class       |  0.000   |    –     |
+| logistic regression  |  0.712   |  0.382   |
+| KG-GNN               |  0.699   |  0.375   |
+
+Honest reading: the KG-gene signature carries **real, generalizable signal**
+(~70% cell-type accuracy on unseen datasets vs a 0% majority floor), but the
+**GNN only matches the linear baseline** — the graph structure adds nothing for
+this *static identity* task. That's expected: the KG dynamics are built for
+*cue → program* propagation, not reading cell type off lineage-marker genes. This
+benchmark validates the feature/representation layer on real data; testing the
+toggle *dynamics* with real labels still needs a perturbation dataset
+(Perturb-seq) fed through the generic CSV path below.
+
 ## Using any real observations (generic CSV)
 
 Bypass the bootstrap entirely and train on measured data:
@@ -134,6 +167,7 @@ src/chromatin_toggle/
   model.py      the relational temporal GNN        train.py    train + anchor evaluation
   predict.py    inference + mechanistic trace      device.py   MPS/CPU selection
   census.py     CELLxGENE Census -> real memory contexts (optional --extra census)
+  realbench.py  real-label benchmark: KG-GNN vs baselines, held out by dataset
 artifacts/                 model.pt + metrics.json (created by training)
 ```
 
