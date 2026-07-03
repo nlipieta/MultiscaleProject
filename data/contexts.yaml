@@ -1,0 +1,16 @@
+# Cell contexts = the intrinsic (chromatin / lineage) memory a cell carries
+# before any extrinsic cue is applied. Each context lists the memory nodes that
+# are ON (activation = 1.0). This is the "intrinsic memory biases interpretation"
+# layer from Section 3 of the report -- the same cue routes to different programs
+# depending on which lineage TFs are present.
+
+contexts:
+  macrophage:   [PU1]      # lineage TF that primes latent enhancers
+  ESC:          [Oct4]     # pluripotency factor routes Smad3
+  myoblast:     [MyoD]     # muscle factor routes Smad3
+  cardiomyocyte: []
+  epithelial:   []
+  acinar:       []
+  xenopus:      [AP1]      # regeneration-competent: functional AP-1 RREs
+  planarian:    [AP1]
+  neutral:      []

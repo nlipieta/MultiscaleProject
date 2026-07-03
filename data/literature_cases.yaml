@@ -1,0 +1,14 @@
+# Literature-anchored ground-truth cases, taken directly from Tables 2/3/4 of the
+# report. These are the biological facts the trained model MUST reproduce. They
+# are held out from training and used as the meaningful evaluation set: does the
+# learned GNN recover known signal x memory -> phenotype relationships?
+
+cases:
+  - {context: macrophage,    cue: LPS,                       level: high, expected: InnateMemory,  source: "Ostuni 2013 (ref 26)"}
+  - {context: epithelial,    cue: MechanicalStiffness,       level: high, expected: Fibrosis,      source: "Chang 2018 (ref 31)"}
+  - {context: cardiomyocyte, cue: MechanicalStretch,         level: high, expected: Hypertrophy,   source: "Backs 2006 (ref 40)"}
+  - {context: xenopus,       cue: BioelectricDepolarization, level: high, expected: Regeneration,  source: "Levin/Tseng (ref 51)"}
+  - {context: planarian,     cue: BioelectricDepolarization, level: high, expected: Regeneration,  source: "Levin (ref 51)"}
+  - {context: ESC,           cue: TGFbeta,                   level: high, expected: Pluripotency,  source: "Mullen 2011 (ref 65)"}
+  - {context: myoblast,      cue: TGFbeta,                   level: high, expected: MyogenicDiff,  source: "Mullen 2011 (ref 65)"}
+  - {context: acinar,        cue: Caerulein,                 level: high, expected: ADM,           source: "Mills 2017 (ref 78)"}

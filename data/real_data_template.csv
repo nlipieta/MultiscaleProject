@@ -1,0 +1,2 @@
+LPS,MechanicalStiffness,MechanicalStretch,BioelectricDepolarization,Caerulein,TGFbeta,Factin,Piezo1,CaMKII,PKD,ARID1A,mTORC1,Autophagy,SLC5A8,Butyrate,NFkB,PU1,YAP_TAZ,TEAD,Smad3,MyoD,Oct4,AP1,MEF2,Sox9,HDAC4,HDAC5,HDAC1_3,SWI_SNF,LatentEnhancer,H3K4me1,H3K27ac,inhba_RRE,Paligenosis,Metaplasia,Blastema,InnateMemory,Fibrosis,Hypertrophy,Regeneration,Pluripotency,MyogenicDiff,ADM,label
+0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,MyogenicDiff

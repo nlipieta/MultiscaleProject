@@ -1,0 +1,177 @@
+# Literature-derived Knowledge Graph for the Synthetic Chromatin Toggle.
+#
+# Encoded from "Predicting Cell-State Bias: A Deep Literature Review and
+# Computational Framework for Synthetic Chromatin Toggles" (Table 5 + Sections 2-4).
+#
+# Each node has a type and a resting `bias` (the logit offset used by the
+# mechanistic KG-propagation oracle in oracle.py, which GENERATES training
+# labels). The GNN itself never sees these biases -- it only sees the observed
+# initial state (extrinsic cue + intrinsic memory) and must learn the mapping.
+#
+# bias conventions:
+#   +1.5  node is ON at rest (basal repressors: ARID1A, mTORC1, HDACs)
+#   +1.5  node is derepressible (held off by a strong inhibitory edge)
+#   -0.5  node needs a single positive driver to switch on
+#   -1.5  AND-gate: needs coincidence of two positive drivers
+#   -2.5  strict AND-gate (lineage-primed enhancer deposition)
+#    0.0  externally set (cues) or memory-preset (lineage TFs)
+
+relation_signs:
+  ACTIVATES: 1
+  PRIMES_CHROMATIN: 1
+  RECRUITS: 1
+  OPENS_CHROMATIN_AT: 1
+  INCREASES_FLUX_OF: 1
+  BIASES_BINDING_TOWARD: 1
+  INHIBITS: -1
+  EXPORTS_FROM_NUCLEUS: -1
+
+# Nodes that can be set by the "cell context / intrinsic memory" (lineage TFs
+# and marks a cell carries before any cue is applied).
+memory_nodes: [PU1, Oct4, MyoD, AP1]
+
+# Map KG nodes to human gene symbols so real expression (CZ CELLxGENE Census)
+# can initialize node activations. Only expressed factors are mappable; cues,
+# chromatin marks, plasticity states, and response programs have no gene.
+gene_map:
+  PU1: SPI1
+  Oct4: POU5F1
+  MyoD: MYOD1
+  AP1: JUN
+  NFkB: RELA
+  YAP_TAZ: YAP1
+  TEAD: TEAD1
+  Smad3: SMAD3
+  MEF2: MEF2C
+  Sox9: SOX9
+  ARID1A: ARID1A
+  SWI_SNF: SMARCA4
+  HDAC4: HDAC4
+  HDAC5: HDAC5
+  HDAC1_3: HDAC1
+  Piezo1: PIEZO1
+  CaMKII: CAMK2D
+  PKD: PRKD1
+  mTORC1: MTOR
+  Autophagy: ATG7
+  SLC5A8: SLC5A8
+  Factin: ACTB
+
+# Nodes whose activation is read out as the predicted phenotype.
+program_nodes:
+  [InnateMemory, Fibrosis, Hypertrophy, Regeneration, Pluripotency, MyogenicDiff, ADM]
+
+nodes:
+  # --- Extrinsic cues (inputs) ---
+  - {id: LPS, type: cue, bias: 0.0}
+  - {id: MechanicalStiffness, type: cue, bias: 0.0}
+  - {id: MechanicalStretch, type: cue, bias: 0.0}
+  - {id: BioelectricDepolarization, type: cue, bias: 0.0}
+  - {id: Caerulein, type: cue, bias: 0.0}
+  - {id: TGFbeta, type: cue, bias: 0.0}
+
+  # --- Signaling / metabolites ---
+  - {id: Factin, type: signaling, bias: -0.5}
+  - {id: Piezo1, type: signaling, bias: -0.5}
+  - {id: CaMKII, type: signaling, bias: -0.5}
+  - {id: PKD, type: signaling, bias: -0.5}
+  - {id: ARID1A, type: signaling, bias: 1.5}
+  - {id: mTORC1, type: signaling, bias: 1.5}
+  - {id: Autophagy, type: signaling, bias: 1.5}
+  - {id: SLC5A8, type: signaling, bias: -0.5}
+  - {id: Butyrate, type: signaling, bias: -0.5}
+
+  # --- Transcription factors ---
+  - {id: NFkB, type: tf, bias: -0.5}
+  - {id: PU1, type: tf, bias: 0.0}
+  - {id: YAP_TAZ, type: tf, bias: 1.5}
+  - {id: TEAD, type: tf, bias: -0.5}
+  - {id: Smad3, type: tf, bias: -0.5}
+  - {id: MyoD, type: tf, bias: 0.0}
+  - {id: Oct4, type: tf, bias: 0.0}
+  - {id: AP1, type: tf, bias: 0.0}
+  - {id: MEF2, type: tf, bias: 1.5}
+  - {id: Sox9, type: tf, bias: -0.5}
+
+  # --- Chromatin modifiers ---
+  - {id: HDAC4, type: modifier, bias: 1.5}
+  - {id: HDAC5, type: modifier, bias: 1.5}
+  - {id: HDAC1_3, type: modifier, bias: 1.5}
+  - {id: SWI_SNF, type: modifier, bias: -0.5}
+
+  # --- Chromatin marks / regions ---
+  - {id: LatentEnhancer, type: mark, bias: -0.5}
+  - {id: H3K4me1, type: mark, bias: -2.5}
+  - {id: H3K27ac, type: mark, bias: 1.5}
+  - {id: inhba_RRE, type: mark, bias: -1.5}
+
+  # --- Plasticity states ---
+  - {id: Paligenosis, type: plasticity, bias: -0.5}
+  - {id: Metaplasia, type: plasticity, bias: -0.5}
+  - {id: Blastema, type: plasticity, bias: -0.5}
+
+  # --- Response programs (outputs) ---
+  - {id: InnateMemory, type: program, bias: -0.5}
+  - {id: Fibrosis, type: program, bias: -0.5}
+  - {id: Hypertrophy, type: program, bias: -0.5}
+  - {id: Regeneration, type: program, bias: -0.5}
+  - {id: Pluripotency, type: program, bias: -1.5}
+  - {id: MyogenicDiff, type: program, bias: -1.5}
+  - {id: ADM, type: program, bias: -0.5}
+
+edges:
+  # Inflammatory latent-enhancer priming -> innate memory (Ostuni 2013; Heinz 2010)
+  - {src: LPS, rel: ACTIVATES, dst: NFkB, w: 1.5}
+  - {src: PU1, rel: PRIMES_CHROMATIN, dst: LatentEnhancer, w: 1.5}
+  - {src: NFkB, rel: ACTIVATES, dst: H3K4me1, w: 2.0}
+  - {src: LatentEnhancer, rel: ACTIVATES, dst: H3K4me1, w: 2.0}
+  - {src: H3K4me1, rel: ACTIVATES, dst: InnateMemory, w: 1.5}
+
+  # Mechanical stiffness -> SWI/SNF -> YAP/TAZ -> fibrosis (Chang 2018)
+  - {src: MechanicalStiffness, rel: ACTIVATES, dst: Factin, w: 1.5}
+  - {src: Factin, rel: INHIBITS, dst: ARID1A, w: 3.0}
+  - {src: ARID1A, rel: INHIBITS, dst: YAP_TAZ, w: 3.0}
+  - {src: YAP_TAZ, rel: ACTIVATES, dst: TEAD, w: 1.5}
+  - {src: YAP_TAZ, rel: RECRUITS, dst: SWI_SNF, w: 1.5}
+  - {src: TEAD, rel: ACTIVATES, dst: Fibrosis, w: 1.0}
+  - {src: SWI_SNF, rel: ACTIVATES, dst: Fibrosis, w: 1.0}
+
+  # Mechanical stretch -> Piezo1/CaMKII -> HDAC export -> MEF2 -> hypertrophy (Backs 2006)
+  - {src: MechanicalStretch, rel: ACTIVATES, dst: Piezo1, w: 1.5}
+  - {src: Piezo1, rel: ACTIVATES, dst: CaMKII, w: 1.5}
+  - {src: Piezo1, rel: ACTIVATES, dst: PKD, w: 1.5}
+  - {src: CaMKII, rel: EXPORTS_FROM_NUCLEUS, dst: HDAC4, w: 3.0}
+  - {src: CaMKII, rel: EXPORTS_FROM_NUCLEUS, dst: HDAC5, w: 3.0}
+  - {src: PKD, rel: EXPORTS_FROM_NUCLEUS, dst: HDAC5, w: 3.0}
+  - {src: HDAC4, rel: INHIBITS, dst: MEF2, w: 1.5}
+  - {src: HDAC5, rel: INHIBITS, dst: MEF2, w: 1.5}
+  - {src: MEF2, rel: ACTIVATES, dst: Hypertrophy, w: 1.5}
+
+  # Bioelectric depolarization -> butyrate -> HDAC inhibition -> RRE -> regeneration (Levin/Tseng)
+  - {src: BioelectricDepolarization, rel: ACTIVATES, dst: SLC5A8, w: 1.5}
+  - {src: SLC5A8, rel: INCREASES_FLUX_OF, dst: Butyrate, w: 1.5}
+  - {src: Butyrate, rel: INHIBITS, dst: HDAC1_3, w: 3.0}
+  - {src: HDAC1_3, rel: INHIBITS, dst: H3K27ac, w: 3.0}
+  - {src: H3K27ac, rel: OPENS_CHROMATIN_AT, dst: inhba_RRE, w: 1.0}
+  - {src: AP1, rel: OPENS_CHROMATIN_AT, dst: inhba_RRE, w: 1.0}
+  - {src: inhba_RRE, rel: ACTIVATES, dst: Blastema, w: 1.5}
+  - {src: Blastema, rel: ACTIVATES, dst: Regeneration, w: 1.5}
+
+  # TGF-beta / Smad3 routed by master TF (Mullen 2011)
+  - {src: TGFbeta, rel: ACTIVATES, dst: Smad3, w: 1.5}
+  - {src: Smad3, rel: BIASES_BINDING_TOWARD, dst: MyogenicDiff, w: 1.0}
+  - {src: MyoD, rel: ACTIVATES, dst: MyogenicDiff, w: 1.0}
+  - {src: Smad3, rel: BIASES_BINDING_TOWARD, dst: Pluripotency, w: 1.0}
+  - {src: Oct4, rel: ACTIVATES, dst: Pluripotency, w: 1.0}
+
+  # Chronic injury -> paligenosis / ADM (Mills 2017)
+  - {src: Caerulein, rel: INHIBITS, dst: mTORC1, w: 3.0}
+  - {src: mTORC1, rel: INHIBITS, dst: Autophagy, w: 3.0}
+  - {src: Autophagy, rel: ACTIVATES, dst: Paligenosis, w: 1.5}
+  - {src: Paligenosis, rel: ACTIVATES, dst: Sox9, w: 1.5}
+  - {src: Sox9, rel: ACTIVATES, dst: Metaplasia, w: 1.5}
+  - {src: Metaplasia, rel: ACTIVATES, dst: ADM, w: 1.5}
+
+  # The toggle: mutual cross-inhibition between competing programs
+  - {src: Regeneration, rel: INHIBITS, dst: Fibrosis, w: 1.0}
+  - {src: Fibrosis, rel: INHIBITS, dst: Regeneration, w: 1.0}
