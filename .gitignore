@@ -15,3 +15,7 @@ data/gse120064_hypertrophy.csv
 data/gse168776_myogenesis.csv
 data/gse135893_fibrosis.csv
 data/emtab9702_macrophage.csv
+data/gse113049_regeneration.csv
+data/gse143437_regeneration.csv
+data/eb_pluripotency.csv
+data/cross_pathway_3seed.csv

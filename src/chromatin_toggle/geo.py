@@ -106,7 +106,8 @@ class ScrnaDataset:
     program_map: dict[str, str]   # celltypeLabel -> model program (or Quiescent)
     level: float = 1.0
     drop_unmapped: bool = True
-    label_sep: str = ","          # labels file delimiter ("\t" for .txt)
+    label_sep: str = ","          # labels file delimiter ("\t" for .txt/.tsv)
+    counts_sep: str = ","         # counts matrix delimiter ("\t" for .tsv)
     labeler: "object" = None      # optional callable(row)->program|None
     cue_of: "object" = None       # optional callable(row)->float cue level
 
@@ -120,6 +121,29 @@ def _gse120064_label(row):
 
 def _gse120064_cue(row):
     return 0.0 if str(row.get("condition")) == "0w" else 1.0  # stretch only post-TAC
+
+
+def _gse113049_label(row):
+    """GSE113049: alveolar epithelium after LPS lung injury. Injured AEC2
+    substates -> Regeneration; naive alveolar cells -> Quiescent."""
+    ct = str(row.get("cell_type"))
+    if ct.startswith("Injured AEC2"):
+        return "Regeneration"
+    if ct in ("Naive AEC2", "Naive AEC1"):
+        return "Quiescent"
+    return None
+
+
+def _gse113049_cue(row):
+    return 1.0 if str(row.get("cell_type")).startswith("Injured") else 0.0
+
+
+def _gse143437_label(row):
+    """GSE143437: notexin muscle injury. Satellite/progenitor lineage only:
+    uninjured (Day 0) = Quiescent satellite; post-injury = Regeneration."""
+    if str(row.get("cell_annotation")) != "MuSCs and progenitors":
+        return None
+    return "Quiescent" if str(row.get("injury")) == "Day 0" else "Regeneration"
 
 # scRNA-seq datasets keyed by GEO accession.
 SCRNA: dict[str, ScrnaDataset] = {
@@ -149,6 +173,27 @@ SCRNA: dict[str, ScrnaDataset] = {
         label_col="", cue="MechanicalStretch", program_map={},
         label_sep="\t", labeler=_gse120064_label, cue_of=_gse120064_cue,
     ),
+    # Riemondy/Zepp 2019, LPS lung injury -> alveolar regeneration. Injured AEC2
+    # substates = Regeneration; naive alveolar cells = Quiescent. Same LPS cue as
+    # trained immunity but a DIFFERENT context/program (alveolar epithelium vs
+    # monocyte) -- a real instance of the thesis's context-dependent routing.
+    "GSE113049": ScrnaDataset(
+        counts_file="GSE113049_count_matrix.tsv.gz",
+        labels_file="GSE113049_cell_metadata.tsv.gz",
+        label_col="", cue="LPS", program_map={},
+        label_sep="\t", counts_sep="\t",
+        labeler=_gse113049_label, cue_of=_gse113049_cue,
+    ),
+    # De Micheli 2020, notexin skeletal-muscle regeneration (34k cells). MuSC/
+    # progenitor lineage: uninjured = Quiescent satellite, post-injury =
+    # Regeneration. A second regeneration tissue (muscle) alongside GSE113049
+    # (lung). No matching KG cue node for notexin -> cue left absent.
+    "GSE143437": ScrnaDataset(
+        counts_file="GSE143437_DeMicheli_MuSCatlas_rawdata.txt.gz",
+        labels_file="GSE143437_DeMicheli_MuSCatlas_metadata.txt.gz",
+        label_col="", cue="none", program_map={},
+        label_sep="\t", counts_sep="\t", labeler=_gse143437_label,
+    ),
 }
 
 
@@ -172,6 +217,22 @@ H5AD: dict[str, H5adDataset] = {
         cell_type_col="sample",
         program_map={"MT_nuclei": "MyogenicDiff",
                      "MB_cells": "Quiescent", "MB_nuclei": "Quiescent"},
+        cue=None,
+    ),
+    # Wellington 2024 iPSC embryoid bodies (CELLxGENE). Pluripotent compartment
+    # -> Pluripotency; differentiated lineages -> Quiescent. Finally gives the
+    # Pluripotency program real cells (was n=2 from bulk Mullen).
+    "EB_pluripotency": H5adDataset(
+        url="https://datasets.cellxgene.cziscience.com/734538f1-f640-4618-a78a-b180b9106156.h5ad",
+        cell_type_col="cell_type",
+        program_map={
+            "pluripotent stem cell": "Pluripotency",
+            "epithelial cell": "Quiescent", "endothelial cell": "Quiescent",
+            "vein endothelial cell": "Quiescent", "cardiac endothelial cell": "Quiescent",
+            "hematopoietic precursor cell": "Quiescent",
+            "myeloid lineage restricted progenitor cell": "Quiescent",
+            "progenitor cell": "Quiescent", "kidney interstitial fibroblast": "Quiescent",
+        },
         cue=None,
     ),
 }
@@ -234,7 +295,7 @@ def ingest_scrna(gse: str, out: Path, cache: Path,
     # stream the genes x cells matrix in row chunks: accumulate per-cell totals
     # and capture the target gene rows.
     node_counts, cell_ids, totals = {}, None, None
-    for chunk in pd.read_csv(counts, index_col=0, chunksize=4000):
+    for chunk in pd.read_csv(counts, index_col=0, chunksize=4000, sep=ds.counts_sep):
         if cell_ids is None:
             cell_ids = [_norm_barcode(c) for c in chunk.columns]
             totals = np.zeros(len(cell_ids), dtype=float)
@@ -309,7 +370,10 @@ def ingest_h5ad_percell(h5ad: Path, out: Path, cell_type_col: str,
     adata = adata[idx]
     prog = prog.iloc[idx]
 
-    var_up = {str(v).upper(): i for i, v in enumerate(adata.var_names)}
+    # CELLxGENE h5ads index var by Ensembl ID; gene symbols live in feature_name.
+    symbols = (adata.var["feature_name"] if "feature_name" in adata.var.columns
+               else adata.var_names)
+    var_up = {str(v).upper(): i for i, v in enumerate(symbols)}
     want = {node: var_up[sym.upper()] for node, sym in kg.gene_map.items()
             if node in kg.node_index and sym.upper() in var_up}
 
