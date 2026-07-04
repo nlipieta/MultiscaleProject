@@ -90,6 +90,7 @@ DEFAULT_SOURCES = [
     ("data/hcm_hypertrophy.csv",         "cardiac_hcm_human",   "scRNA"),       # Hypertrophy (human)
     ("data/gse254185_fibrosis.csv",      "kidney_fibrosis",     "scRNA"),       # Fibrosis (kidney)
     ("data/gse149451_myogenesis.csv",    "myogenesis_human",    "scRNA"),       # MyogenicDiff (human)
+    ("data/gse184241_innate.csv",        "trained_immunity2",   "sortseq"),     # InnateMemory (BCG, human)
 ]
 
 
