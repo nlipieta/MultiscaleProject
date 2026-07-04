@@ -64,7 +64,10 @@ class ToggleDynamics(nn.Module):
         self.register_buffer("cue_mask", cue.float().view(1, -1, 1))
         self.register_buffer("intrinsic_mask", (~cue & ~prog).float().view(1, -1, 1))
 
-    def forward(self, x0, plasticity=1.0):
+    def forward(self, x0, plasticity=1.0, cue_window=None):
+        """cue_window: if set, the extrinsic cue is injected only for steps
+        t < cue_window, then removed -- used by the hysteresis test to see
+        whether a flipped program persists after the cue is withdrawn."""
         B = x0.size(0)
         if not torch.is_tensor(plasticity):
             plasticity = torch.full((B,), float(plasticity), device=x0.device)
@@ -83,6 +86,8 @@ class ToggleDynamics(nn.Module):
                 g_mem = g_cue = 1.0                                # symmetric baseline
             if self.use_plasticity:
                 g_cue = g_cue * p                                  # extrinsic gated by plasticity
+            if cue_window is not None and t >= cue_window:
+                g_cue = g_cue * 0.0                                # cue withdrawn
             inj = g_mem * mem_inj + g_cue * cue_inj
 
             msg = self.self_lin(h)
@@ -130,56 +135,106 @@ def train(model, X, y, epochs, bs, lr, seed, plasticity_train=1.0):
     return model
 
 
-@torch.no_grad()
-def sweep(model, X, y, classes, df, levels=(0.0, 0.25, 0.5, 0.75, 1.0)):
-    """For each pathway, sweep plasticity and report the predicted-program mix.
-    The thesis predicts: low plasticity -> intrinsic default (mostly Quiescent);
-    high plasticity -> the cue-driven program appears."""
-    model.eval()
-    qi = classes.index(QUIESCENT)
-    print("\nPLASTICITY SWEEP  (fraction predicting the pathway's activated program "
-          "| fraction Quiescent)\n")
-    print(f"{'pathway':<18}{'activated program':<16}" + "".join(f"{f'p={l}':>14}" for l in levels))
-    print("-" * (34 + 14 * len(levels)))
+def _pathway_programs(y, df, qi):
+    """Return {pathway: activated_program_index} for pathways that have one."""
+    out = {}
     for pw in sorted(df["pathway"].unique()):
-        mask = (df["pathway"] == pw).to_numpy()
-        Xp = X[mask]
-        yp = y[mask]
-        act = yp[yp != qi]
-        if len(act) == 0:
-            continue
-        prog_i = int(torch.mode(act).values)      # the pathway's dominant activated program
-        cells = []
-        for lv in levels:
-            pred = model(Xp, plasticity=lv).argmax(-1)
-            f_act = float((pred == prog_i).float().mean())
-            f_q = float((pred == qi).float().mean())
-            cells.append(f"{f_act:.2f}|{f_q:.2f}")
-        print(f"{pw:<18}{classes[prog_i]:<16}" + "".join(f"{c:>14}" for c in cells))
+        act = y[(df["pathway"] == pw).to_numpy()]
+        act = act[act != qi]
+        if len(act):
+            out[pw] = int(torch.mode(act).values)
+    return out
+
+
+@torch.no_grad()
+def sweep(model, X, df, prog_of, qi, levels):
+    """{pathway: [fraction predicting its activated program at each plasticity]}."""
+    model.eval()
+    res = {}
+    for pw, prog_i in prog_of.items():
+        Xp = X[(df["pathway"] == pw).to_numpy()]
+        res[pw] = [float((model(Xp, plasticity=lv).argmax(-1) == prog_i).float().mean())
+                   for lv in levels]
+    return res
+
+
+@torch.no_grad()
+def hysteresis(model, X, df, prog_of, window):
+    """Fraction predicting the cue program under NEVER / TRANSIENT / SUSTAINED cue.
+    TRANSIENT = cue on for `window` steps at high plasticity then withdrawn.
+    Persistence (memory) = TRANSIENT stays high after the cue is gone."""
+    model.eval()
+    res = {}
+    for pw, prog_i in prog_of.items():
+        Xp = X[(df["pathway"] == pw).to_numpy()]
+        never = float((model(Xp, plasticity=0.0).argmax(-1) == prog_i).float().mean())
+        trans = float((model(Xp, plasticity=1.0, cue_window=window).argmax(-1) == prog_i).float().mean())
+        sust = float((model(Xp, plasticity=1.0).argmax(-1) == prog_i).float().mean())
+        res[pw] = (never, trans, sust)
+    return res
+
+
+def _agg(dicts, key):
+    """Stack a per-seed list of {pathway: array} into mean/std over seeds."""
+    pws = dicts[0].keys()
+    return {pw: (np.mean([np.array(d[pw]) for d in dicts], 0),
+                 np.std([np.array(d[pw]) for d in dicts], 0)) for pw in pws}
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Thesis dynamical model: train + plasticity sweep")
-    ap.add_argument("--data", default=str(DATA_DIR / "cross_pathway_small.csv"))
-    ap.add_argument("--epochs", type=int, default=40)
+    ap = argparse.ArgumentParser(description="Thesis dynamical model: plasticity sweep + hysteresis")
+    ap.add_argument("--data", default=str(DATA_DIR / "cross_pathway.csv"))
+    ap.add_argument("--epochs", type=int, default=35)
     ap.add_argument("--batch-size", type=int, default=256)
     ap.add_argument("--lr", type=float, default=1e-3)
     ap.add_argument("--steps", type=int, default=8)
     ap.add_argument("--hidden", type=int, default=32)
-    ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--seeds", type=int, nargs="*", default=[0, 1, 2])
+    ap.add_argument("--window", type=int, default=4, help="hysteresis: cue-on steps")
     ap.add_argument("--ablate", choices=["none", "asymmetric", "plasticity", "attractor"],
-                    default="none", help="turn OFF one mechanism to ablate it")
+                    default="none")
     args = ap.parse_args()
 
     kg = load_kg()
     X, y, classes, df = _load(args.data, kg)
+    qi = classes.index(QUIESCENT)
+    prog_of = _pathway_programs(y, df, qi)
     flags = dict(asymmetric=True, plasticity=True, attractor=True)
     if args.ablate != "none":
         flags[args.ablate] = False
-    print(f"ToggleDynamics {flags} | data={Path(args.data).name} n={len(df)}")
-    model = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps, **flags)
-    train(model, X, y, args.epochs, args.batch_size, args.lr, args.seed)
-    sweep(model, X, y, classes, df)
+    levels = (0.0, 0.25, 0.5, 0.75, 1.0)
+    print(f"ToggleDynamics {flags} | data={Path(args.data).name} n={len(df)} "
+          f"| seeds={args.seeds}")
+
+    sweeps, hysts = [], []
+    for s in args.seeds:
+        torch.manual_seed(s)
+        m = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps, **flags)
+        train(m, X, y, args.epochs, args.batch_size, args.lr, s)
+        sweeps.append(sweep(m, X, df, prog_of, qi, levels))
+        hysts.append(hysteresis(m, X, df, prog_of, args.window))
+        print(f"  seed {s} done")
+
+    sw = _agg(sweeps, None)
+    print("\nPLASTICITY SWEEP  (mean fraction predicting cue program, +/- std over "
+          f"{len(args.seeds)} seeds)")
+    print(f"{'pathway':<18}{'program':<14}" + "".join(f"{f'p={l}':>14}" for l in levels))
+    print("-" * (32 + 14 * len(levels)))
+    for pw, prog_i in prog_of.items():
+        mean, std = sw[pw]
+        print(f"{pw:<18}{classes[prog_i]:<14}" +
+              "".join(f"{m:.2f}±{sd:.2f}".rjust(14) for m, sd in zip(mean, std)))
+
+    hy = _agg(hysts, None)
+    print("\nHYSTERESIS  (mean fraction predicting cue program; TRANSIENT = cue "
+          f"withdrawn after {args.window} steps)")
+    print(f"{'pathway':<18}{'program':<14}{'NEVER':>14}{'TRANSIENT':>14}{'SUSTAINED':>14}")
+    print("-" * 74)
+    for pw, prog_i in prog_of.items():
+        mean, std = hy[pw]
+        n, t, s = mean
+        print(f"{pw:<18}{classes[prog_i]:<14}{n:>14.2f}{t:>14.2f}{s:>14.2f}")
+    print("\n(persistence/memory = TRANSIENT stays well above NEVER after cue removal)")
 
 
 if __name__ == "__main__":
