@@ -37,6 +37,7 @@ chromatin-interpret = "chromatin_toggle.interpret:main"
 chromatin-classify = "chromatin_toggle.classify:main"
 chromatin-scaling = "chromatin_toggle.scaling:main"
 chromatin-figures = "chromatin_toggle.figures:main"
+chromatin-cv = "chromatin_toggle.cv:main"
 
 [build-system]
 requires = ["hatchling"]
