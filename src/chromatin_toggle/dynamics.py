@@ -147,6 +147,28 @@ def train(model, X, y, epochs, bs, lr, seed, plasticity_train=1.0):
     return model
 
 
+MARKER_NODES = ["Sox9", "mTORC1", "Autophagy"]  # program-proximal readouts
+
+
+def _mask_input(X, kg, mode):
+    """Zero node inputs to control the marker-gene shortcut. none / no_markers /
+    lineage_only (keep only cue + lineage-TF memory)."""
+    if mode == "none":
+        return X
+    X = X.clone()
+    if mode == "no_markers":
+        for n in MARKER_NODES:
+            if n in kg.node_index:
+                X[:, kg.node_index[n]] = 0.0
+    elif mode == "lineage_only":
+        keep = {kg.node_index[n] for n in kg.memory_nodes if n in kg.node_index}
+        keep |= {i for i, t in enumerate(kg.node_type) if t == "cue"}
+        for j in range(kg.num_nodes):
+            if j not in keep:
+                X[:, j] = 0.0
+    return X
+
+
 def _pathway_programs(y, df, qi):
     """Return {pathway: activated_program_index} for pathways that have one."""
     out = {}
@@ -205,10 +227,13 @@ def main():
     ap.add_argument("--window", type=int, default=4, help="hysteresis: cue-on steps")
     ap.add_argument("--ablate", choices=["none", "asymmetric", "plasticity", "attractor"],
                     default="none")
+    ap.add_argument("--mask", choices=["none", "no_markers", "lineage_only"],
+                    default="none", help="marker-shortcut control on the inputs")
     args = ap.parse_args()
 
     kg = load_kg()
     X, y, classes, df = _load(args.data, kg)
+    X = _mask_input(X, kg, args.mask)
     qi = classes.index(QUIESCENT)
     prog_of = _pathway_programs(y, df, qi)
     flags = dict(asymmetric=True, plasticity=True, attractor=True)
@@ -216,7 +241,7 @@ def main():
         flags[args.ablate] = False
     levels = (0.0, 0.25, 0.5, 0.75, 1.0)
     print(f"ToggleDynamics {flags} | data={Path(args.data).name} n={len(df)} "
-          f"| seeds={args.seeds}")
+          f"| seeds={args.seeds} | mask={args.mask}")
 
     sweeps, hysts = [], []
     for s in args.seeds:
