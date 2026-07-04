@@ -131,9 +131,16 @@ def _load(data, kg):
     return X, y, classes, df
 
 
-def train(model, X, y, epochs, bs, lr, seed, plasticity_train=1.0):
+def class_weights(y, n_classes):
+    """Inverse-frequency class weights (normalized) to counter imbalance."""
+    counts = torch.bincount(y, minlength=n_classes).float()
+    w = 1.0 / counts.clamp(min=1)
+    return (w / w.sum() * n_classes)
+
+
+def train(model, X, y, epochs, bs, lr, seed, plasticity_train=1.0, weights=None):
     opt = torch.optim.Adam(model.parameters(), lr=lr)
-    lossf = nn.CrossEntropyLoss()
+    lossf = nn.CrossEntropyLoss(weight=weights)
     g = torch.Generator().manual_seed(seed)
     for ep in range(epochs):
         model.train()

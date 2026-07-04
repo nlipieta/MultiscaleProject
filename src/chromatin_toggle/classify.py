@@ -20,7 +20,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from .dynamics import ToggleDynamics, _load, train
+from .dynamics import ToggleDynamics, _load, train, class_weights
 from .kg import DATA_DIR, load_kg
 from .oracle import QUIESCENT, all_classes
 
@@ -62,6 +62,8 @@ def main():
     ap.add_argument("--seeds", type=int, nargs="*", default=[0, 1])
     ap.add_argument("--val-frac", type=float, default=0.25)
     ap.add_argument("--subsample", type=int, default=0, help="cap total cells (0=all)")
+    ap.add_argument("--lr", type=float, default=1e-3)
+    ap.add_argument("--class-weight", action="store_true", help="inverse-frequency class weights")
     args = ap.parse_args()
 
     kg = load_kg()
@@ -82,11 +84,12 @@ def main():
         perm = torch.randperm(X.size(0), generator=g)
         k = int(X.size(0) * args.val_frac)
         va, tr = perm[:k], perm[k:]
+        w = class_weights(y[tr], n_classes) if args.class_weight else None
         for m in modes:
             Xm = _masked(X, kg, m)
             torch.manual_seed(s)
             model = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps)
-            train(model, Xm[tr], y[tr], args.epochs, 256, 1e-3, s)
+            train(model, Xm[tr], y[tr], args.epochs, 256, args.lr, s, weights=w)
             pred = _predict(model, Xm[va])
             results[m]["acc"].append(float((pred == y[va]).float().mean()))
             # mean recall over the activated (non-Quiescent) programs
