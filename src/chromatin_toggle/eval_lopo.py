@@ -46,11 +46,11 @@ class BagOfGenesMLP(nn.Module):
         return self.net(x)
 
 
-def _build(kind: str, kg, n_classes: int, seed: int):
+def _build(kind: str, kg, n_classes: int, seed: int, hidden: int = 64, steps: int = 6):
     torch.manual_seed(seed)
     if kind == "mlp":
-        return BagOfGenesMLP(kg.num_nodes, n_classes)
-    model = ToggleGNN(kg)
+        return BagOfGenesMLP(kg.num_nodes, n_classes, hidden=hidden)
+    model = ToggleGNN(kg, hidden=hidden, steps=steps)
     if kind == "shuffled":
         # permute the SOURCE axis of each relation's adjacency: keeps per-dst
         # in-degree, destroys which biological source feeds which target.
@@ -89,7 +89,8 @@ def _predict(model, X, device, bs=1024):
 
 
 def run(data: str, epochs: int, bs: int, lr: float, seed: int,
-        pathways: list[str] | None, device: str) -> None:
+        pathways: list[str] | None, device: str,
+        hidden: int = 64, steps: int = 6) -> None:
     kg = load_kg()
     classes = all_classes(kg)
     cls_idx = {c: i for i, c in enumerate(classes)}
@@ -131,7 +132,7 @@ def run(data: str, epochs: int, bs: int, lr: float, seed: int,
 
         cells = []
         for kind in kinds:
-            m = _build(kind, kg, len(classes), seed)
+            m = _build(kind, kg, len(classes), seed, hidden=hidden, steps=steps)
             m = _train(m, Xtr, ytr, dev, epochs, bs, lr, seed)
             pred = _predict(m, Xte, dev)
             acc = float((pred == yte).float().mean())
@@ -151,9 +152,11 @@ def main() -> None:
     ap.add_argument("--pathways", nargs="*", default=None,
                     help="subset of held-out pathways (default: all)")
     ap.add_argument("--device", default="cpu")
+    ap.add_argument("--hidden", type=int, default=64)
+    ap.add_argument("--steps", type=int, default=6, help="GNN message-passing rounds")
     args = ap.parse_args()
     run(args.data, args.epochs, args.batch_size, args.lr, args.seed,
-        args.pathways, args.device)
+        args.pathways, args.device, hidden=args.hidden, steps=args.steps)
 
 
 if __name__ == "__main__":
