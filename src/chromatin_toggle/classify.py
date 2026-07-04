@@ -66,6 +66,9 @@ def main():
     ap.add_argument("--class-weight", action="store_true", help="inverse-frequency class weights")
     ap.add_argument("--group-split", action="store_true",
                     help="hold out whole datasets (removes batch confound)")
+    ap.add_argument("--layernorm", action="store_true")
+    ap.add_argument("--dropout", type=float, default=0.0)
+    ap.add_argument("--weight-decay", type=float, default=0.0)
     args = ap.parse_args()
 
     kg = load_kg()
@@ -101,8 +104,10 @@ def main():
         for m in modes:
             Xm = _masked(X, kg, m)
             torch.manual_seed(s)
-            model = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps)
-            train(model, Xm[tr], y[tr], args.epochs, 256, args.lr, s, weights=w)
+            model = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps,
+                                   layernorm=args.layernorm, dropout=args.dropout)
+            train(model, Xm[tr], y[tr], args.epochs, 256, args.lr, s, weights=w,
+                  weight_decay=args.weight_decay)
             pred = _predict(model, Xm[va])
             results[m]["acc"].append(float((pred == y[va]).float().mean()))
             # mean recall over the activated (non-Quiescent) programs

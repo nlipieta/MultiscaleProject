@@ -36,8 +36,11 @@ from .oracle import QUIESCENT, all_classes
 class ToggleDynamics(nn.Module):
     def __init__(self, kg, hidden=32, steps=8, asymmetric=True, plasticity=True,
                  attractor=True, mem_gain=1.0, cue_gain=1.0, cue_decay=0.6,
-                 wta_gain=0.5, wta_iters=3, node_ann=None, context_dim=0):
+                 wta_gain=0.5, wta_iters=3, node_ann=None, context_dim=0,
+                 layernorm=False, dropout=0.0):
         super().__init__()
+        self.ln = nn.LayerNorm(hidden) if layernorm else None
+        self.drop = nn.Dropout(dropout) if dropout > 0 else None
         self.N, self.steps, self.hidden = kg.num_nodes, steps, hidden
         self.asymmetric, self.use_plasticity, self.attractor = asymmetric, plasticity, attractor
         self.mem_gain, self.cue_gain, self.cue_decay = mem_gain, cue_gain, cue_decay
@@ -105,8 +108,11 @@ class ToggleDynamics(nn.Module):
             msg = self.self_lin(h)
             for r in range(self.adjacency.size(0)):
                 msg = msg + torch.einsum("ds,bsh->bdh", self.adjacency[r], self.rel_lin[r](h))
-            h = self.gru((msg + inj).reshape(B * self.N, -1),
-                         h.reshape(B * self.N, -1)).reshape(B, self.N, -1)
+            h_new = self.gru((msg + inj).reshape(B * self.N, -1),
+                             h.reshape(B * self.N, -1)).reshape(B, self.N, -1)
+            if self.ln is not None:            # LayerNorm + residual (anti over-smoothing)
+                h_new = self.ln(h_new) + h
+            h = self.drop(h_new) if self.drop is not None else h_new
 
         prog_logits = self.prog_head(h[:, self.program_index, :]).squeeze(-1)   # [B,P]
         quiescent = self.quiescent_head(h.mean(dim=1))                          # [B,1]
@@ -138,8 +144,9 @@ def class_weights(y, n_classes):
     return (w / w.sum() * n_classes)
 
 
-def train(model, X, y, epochs, bs, lr, seed, plasticity_train=1.0, weights=None):
-    opt = torch.optim.Adam(model.parameters(), lr=lr)
+def train(model, X, y, epochs, bs, lr, seed, plasticity_train=1.0, weights=None,
+          weight_decay=0.0):
+    opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     lossf = nn.CrossEntropyLoss(weight=weights)
     g = torch.Generator().manual_seed(seed)
     for ep in range(epochs):
