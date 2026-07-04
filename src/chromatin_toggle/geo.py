@@ -348,6 +348,232 @@ def ingest_h5ad_percell(h5ad: Path, out: Path, cell_type_col: str,
     print("  " + ", ".join(f"{k}={v}" for k, v in sorted(counts.items())))
 
 
+@dataclass
+class MtxDataset:
+    """A 10x-style dataset: sparse matrix.mtx (genes x cells) + genes.tsv +
+    barcodes.tsv + a per-cell metadata CSV. Labelled via labeler(meta_row)."""
+    mtx_file: str
+    genes_file: str
+    barcodes_file: str
+    meta_file: str
+    labeler: "object"          # callable(meta_row_dict) -> program | None
+    cue: str
+    cue_of: "object" = None    # callable(meta_row_dict) -> float
+    meta_sep: str = ","
+
+
+def _gse135893_label(row):
+    ct, diag = str(row.get("celltype")), str(row.get("Diagnosis"))
+    activated = {"HAS1 High Fibroblasts", "PLIN2+ Fibroblasts", "Myofibroblasts"}
+    if ct in activated and diag == "IPF":
+        return "Fibrosis"
+    if ct == "Fibroblasts" and diag == "Control":
+        return "Quiescent"
+    return None
+
+
+def _gse135893_cue(row):
+    return 1.0 if str(row.get("Diagnosis")) == "IPF" else 0.0  # stiffness in fibrotic only
+
+
+MTX: dict[str, MtxDataset] = {
+    # Habermann et al. 2020, human IPF/ILD lung 10x scRNA-seq. Activated
+    # fibroblast states (IPF) -> Fibrosis; homeostatic fibroblasts (control) ->
+    # Quiescent. Only labelled fibroblast cells are kept.
+    "GSE135893": MtxDataset(
+        mtx_file="GSE135893_matrix.mtx.gz",
+        genes_file="GSE135893_genes.tsv.gz",
+        barcodes_file="GSE135893_barcodes.tsv.gz",
+        meta_file="GSE135893_IPF_metadata.csv.gz",
+        labeler=_gse135893_label, cue="MechanicalStiffness", cue_of=_gse135893_cue,
+    ),
+}
+
+
+def ingest_mtx(gse: str, out: Path, cache: Path) -> None:
+    """Stream a genes x cells .mtx (COO), keeping only KG-gene rows and labelled
+    cell columns; CP10K+log1p normalize, min-max scale, write one row per cell."""
+    import pandas as pd
+
+    ds = MTX.get(gse)
+    if ds is None:
+        raise SystemExit(f"No MTX dataset registered for {gse}. Add to geo.MTX.")
+    kg = load_kg()
+    cache.mkdir(parents=True, exist_ok=True)
+    mtx = _download(_gse_suppl_url(gse, ds.mtx_file), cache / ds.mtx_file)
+    genes = _download(_gse_suppl_url(gse, ds.genes_file), cache / ds.genes_file)
+    barcodes = _download(_gse_suppl_url(gse, ds.barcodes_file), cache / ds.barcodes_file)
+    meta = _download(_gse_suppl_url(gse, ds.meta_file), cache / ds.meta_file)
+
+    # gene symbols (1-based row idx) -> KG node
+    want = {sym.upper(): node for node, sym in kg.gene_map.items() if node in kg.node_index}
+    row_node = {}
+    with gzip.open(genes, "rt") as fh:
+        for i, line in enumerate(fh, start=1):
+            sym = line.rstrip("\n").split("\t")[-1].strip().upper()
+            if sym in want:
+                row_node[i] = want[sym]
+
+    # barcodes (1-based col idx) -> barcode string
+    with gzip.open(barcodes, "rt") as fh:
+        bc_list = [l.strip() for l in fh]
+    bc_to_col = {b: i for i, b in enumerate(bc_list, start=1)}
+
+    # metadata -> per-barcode (program, cue); then target columns
+    md = pd.read_csv(meta, index_col=0, sep=ds.meta_sep)
+    col_prog, col_cue = {}, {}
+    for bc, r in md.iterrows():
+        prog = ds.labeler(r)
+        if prog is None:
+            continue
+        col = bc_to_col.get(str(bc).strip())
+        if col is None:
+            continue
+        col_prog[col] = prog
+        col_cue[col] = float(ds.cue_of(r)) if ds.cue_of else 1.0
+    target_cols = set(col_prog)
+    print(f"  target: {len(row_node)} gene rows, {len(target_cols)} labelled cells")
+
+    # stream the COO matrix
+    colsum = {c: 0.0 for c in target_cols}
+    cell_gene = {c: {} for c in target_cols}
+    with gzip.open(mtx, "rt") as fh:
+        line = fh.readline()
+        while line.startswith("%"):
+            line = fh.readline()
+        # line now holds dims; iterate entries
+        for line in fh:
+            r_s, c_s, v_s = line.split()
+            c = int(c_s)
+            if c in target_cols:
+                v = float(v_s)
+                colsum[c] += v
+                r = int(r_s)
+                if r in row_node:
+                    cell_gene[c][row_node[r]] = v
+
+    node_cols = list(kg.node_ids)
+    cols = sorted(target_cols)
+    raw = {node: np.zeros(len(cols)) for node in set(row_node.values())}
+    for k, c in enumerate(cols):
+        tot = colsum[c] if colsum[c] > 0 else 1.0
+        for node, v in cell_gene[c].items():
+            raw[node][k] = np.log1p(v / tot * 1e4)
+    scaled = {}
+    for node, arr in raw.items():
+        lo, hi = arr.min(), arr.max()
+        scaled[node] = np.zeros_like(arr) if hi <= lo else (arr - lo) / (hi - lo)
+
+    header = node_cols + ["label"]
+    lines = [",".join(header)]
+    counts = {}
+    for k, c in enumerate(cols):
+        row = {nc: 0.0 for nc in node_cols}
+        for node in scaled:
+            row[node] = scaled[node][k]
+        if ds.cue in kg.node_index:
+            row[ds.cue] = col_cue[c]
+        prog = col_prog[c]
+        lines.append(",".join(f"{row[nc]}" if nc != "label" else prog for nc in header))
+        counts[prog] = counts.get(prog, 0) + 1
+    out.write_text("\n".join(lines) + "\n")
+    print(f"\nIngested {gse} MTX ({len(cols)} cells) -> {out}")
+    print(f"  mapped {len(scaled)} gene nodes; cue={ds.cue}")
+    print("  " + ", ".join(f"{k}={v}" for k, v in sorted(counts.items())))
+
+
+_EMTAB9702 = "https://ftp.ebi.ac.uk/biostudies/fire/E-MTAB-/702/E-MTAB-9702/Files"
+
+
+def ingest_emtab9702(out: Path, cache: Path, min_counts: int = 500) -> None:
+    """Assemble the Bakker 2022 trained-immunity SORT-seq plates (E-MTAB-9702).
+
+    Each plate is one condition; each of its 384 wells is a cell. At the T2 LPS-
+    restimulation timepoint, beta-glucan-primed cells -> InnateMemory, RPMI
+    (unprimed) -> Quiescent; the cue (LPS) is applied to both, so the trained
+    signal lives in the priming-shaped memory, not the cue (matches the theory:
+    same cue, different memory -> different program).
+    """
+    import csv as _csv
+    import urllib.request
+
+    kg = load_kg()
+    cache.mkdir(parents=True, exist_ok=True)
+    meta = _download(f"{_EMTAB9702}/Metadata_TrainedImmunity.csv", cache / "emtab9702_meta.csv")
+
+    # plate -> program (T2 only; BG=InnateMemory, RPMI=Quiescent), skip conflicts
+    plate_prog, seen = {}, {}
+    with open(meta) as fh:
+        for r in _csv.DictReader(fh):
+            if "T2" not in r["Timepoint"]:
+                continue
+            prog = {"BG": "InnateMemory", "RPMI": "Quiescent"}.get(r["Training stimulus"])
+            if prog is None:
+                continue
+            pid = r["Plate_ID"]
+            seen.setdefault(pid, set()).add(prog)
+    plate_prog = {p: next(iter(v)) for p, v in seen.items() if len(v) == 1}
+
+    # map plate_id -> ReadCounts filename from the directory listing
+    listing = urllib.request.urlopen(f"{_EMTAB9702}/").read().decode("utf-8", "ignore")
+    file_of = {}
+    for fn in re.findall(r"RMC-SM-\d+_[A-Za-z0-9_]*\.ReadCounts\.tsv", listing):
+        pid = re.match(r"(RMC-SM-\d+)", fn).group(1)
+        file_of[pid] = fn
+
+    want = {sym.upper(): node for node, sym in kg.gene_map.items() if node in kg.node_index}
+    node_cols = list(kg.node_ids)
+    cell_rows = []  # (program, {node: cp10k_log1p_value})
+
+    for pid, prog in sorted(plate_prog.items()):
+        fn = file_of.get(pid)
+        if fn is None:
+            continue
+        tsv = _download(f"{_EMTAB9702}/{fn}", cache / fn)
+        with open(tsv) as fh:
+            header = fh.readline().rstrip("\n").split("\t")
+            nwell = len(header) - 1
+            totals = np.zeros(nwell)
+            gene_counts = {}  # node -> per-well array
+            for line in fh:
+                parts = line.rstrip("\n").split("\t")
+                vals = np.array(parts[1:], dtype=float)
+                totals += vals
+                sym = parts[0].split("__")[0].upper()
+                if sym in want:
+                    gene_counts[want[sym]] = gene_counts.get(want[sym], 0) + vals
+        keep = np.where(totals >= min_counts)[0]
+        for w in keep:
+            tot = totals[w]
+            row = {node: float(np.log1p(gene_counts[node][w] / tot * 1e4))
+                   for node in gene_counts}
+            cell_rows.append((prog, row))
+        print(f"  {pid} {prog:<12} wells kept {len(keep)}/{nwell}")
+
+    # min-max scale each node across all kept cells
+    mapped = sorted({n for _, row in cell_rows for n in row})
+    arrs = {n: np.array([row.get(n, 0.0) for _, row in cell_rows]) for n in mapped}
+    for n, a in arrs.items():
+        lo, hi = a.min(), a.max()
+        arrs[n] = np.zeros_like(a) if hi <= lo else (a - lo) / (hi - lo)
+
+    header = node_cols + ["label"]
+    lines = [",".join(header)]
+    counts = {}
+    for i, (prog, _) in enumerate(cell_rows):
+        row = {nc: 0.0 for nc in node_cols}
+        for n in mapped:
+            row[n] = arrs[n][i]
+        if "LPS" in kg.node_index:
+            row["LPS"] = 1.0
+        lines.append(",".join(f"{row[nc]}" if nc != "label" else prog for nc in header))
+        counts[prog] = counts.get(prog, 0) + 1
+    out.write_text("\n".join(lines) + "\n")
+    print(f"\nIngested E-MTAB-9702 ({len(cell_rows)} cells) -> {out}")
+    print(f"  mapped {len(mapped)} gene nodes; cue=LPS (uniform, T2 restimulation)")
+    print("  " + ", ".join(f"{k}={v}" for k, v in sorted(counts.items())))
+
+
 def _parse_series_matrix(path: Path):
     """Return (sample_titles, platform_id, probe_ids, value_matrix [P x S])."""
     titles: list[str] = []
@@ -487,12 +713,22 @@ def main() -> None:
     ap.add_argument("--h5ad-dataset", help="registered h5ad dataset key (geo.H5AD), e.g. GSE168776")
     ap.add_argument("--scrna", action="store_true",
                     help="genes x cells scRNA path (dataset must be in geo.SCRNA)")
+    ap.add_argument("--mtx", action="store_true",
+                    help="10x MTX path (dataset must be in geo.MTX)")
+    ap.add_argument("--emtab9702", action="store_true",
+                    help="assemble the Bakker 2022 trained-immunity SORT-seq plates")
+    ap.add_argument("--min-counts", type=int, default=500,
+                    help="emtab9702: min total READ counts per well to call it a cell")
     ap.add_argument("--no-marker-nodes", action="store_true",
                     help="scRNA: drop program-marker genes (Sox9/mTORC1/ATG7) from inputs")
     ap.add_argument("--out", default=None, help="output CSV (default data/<gse>.csv)")
     ap.add_argument("--cache", default=None, help="download cache dir")
     args = ap.parse_args()
     cache = Path(args.cache) if args.cache else DATA_DIR / "geo_cache"
+    if args.emtab9702:
+        out = Path(args.out) if args.out else DATA_DIR / "emtab9702_trained_immunity.csv"
+        ingest_emtab9702(out, cache, min_counts=args.min_counts)
+        return
     if args.h5ad_dataset:
         ds = H5AD.get(args.h5ad_dataset)
         if ds is None:
@@ -505,6 +741,10 @@ def main() -> None:
         return
     if not args.gse:
         raise SystemExit("pass --gse <accession> or --h5ad-dataset <key>")
+    if args.mtx:
+        out = Path(args.out) if args.out else DATA_DIR / f"{args.gse}_mtx.csv"
+        ingest_mtx(args.gse, out, cache)
+        return
     if args.scrna:
         out = Path(args.out) if args.out else DATA_DIR / f"{args.gse}_scrna.csv"
         ingest_scrna(args.gse, out, cache,

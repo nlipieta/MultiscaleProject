@@ -129,17 +129,28 @@ map assay genes onto the KG `gene_map` nodes and write the model's node-column
 schema; you still supply the cue/label semantics.
 
 ```bash
-# NCBI GEO expression series -> CSV (sample metadata -> cue/label via geo.RULES)
-uv run chromatin-geo --gse GSE21608          # Mullen 2011 TGF-beta (pathways 5/6)
+# NCBI GEO — several deposition formats, one CLI (dataset rules in geo.py):
+uv run chromatin-geo --gse GSE21608                       # bulk series matrix (Mullen TGF-b)
+uv run chromatin-geo --gse GSE172380 --scrna              # genes x cells CSV (ADM)
+uv run chromatin-geo --gse GSE120064 --scrna              # genes x cells CSV (cardiac hypertrophy)
+uv run chromatin-geo --gse GSE135893 --mtx                # 10x MTX, streamed (lung fibrosis)
+uv run --with anndata chromatin-geo --h5ad-dataset GSE168776   # AnnData h5ad (myogenesis)
+uv run chromatin-geo --emtab9702 --min-counts 5000        # SORT-seq plates (trained immunity)
 
 # scPerturb harmonized single-cell pool (Zenodo) -> CSV
 uv run --with anndata chromatin-scperturb --list                  # inventory
-uv run --with anndata chromatin-scperturb --file <name>.h5ad \
-    --map perturbation_to_program.json                            # ingest + label
+uv run --with anndata chromatin-scperturb --file <name>.h5ad --map map.json
 
 # pool per-pathway CSVs into ONE cross-pathway training set (+ provenance cols)
-uv run chromatin-combine --cap-per-class 1500 --out data/cross_pathway.csv
+uv run chromatin-combine --cap-per-class 3000 --out data/cross_pathway.csv
+uv run chromatin-train --data data/cross_pathway.csv --batch-size 256
 ```
+
+The bundled cross-pathway set spans **6 pathways / 7 program classes**: ADM
+(GSE172380), Hypertrophy (GSE120064), Fibrosis (GSE135893), InnateMemory
+(E-MTAB-9702 trained immunity), MyogenicDiff (GSE168776), Pluripotency
+(GSE21608), and Quiescent baselines from all. Six are at scale (~2–6k cells);
+Pluripotency is still n=2 (needs an ESC single-cell arm).
 
 **Cross-pathway pooling.** `chromatin-combine` aligns any number of per-pathway
 CSVs onto the shared KG node columns, tags each row with `dataset`/`pathway`/

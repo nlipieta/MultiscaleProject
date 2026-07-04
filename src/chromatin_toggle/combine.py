@@ -76,10 +76,12 @@ def combine(sources: list[tuple[str, str, str]], out: Path,
 # Registered cross-pathway composition (source CSVs must exist; build them with
 # chromatin-geo / chromatin-scperturb first).
 DEFAULT_SOURCES = [
-    ("data/gse172380_adm.csv",         "ADM_pancreas",    "scRNA"),       # pathway 7
-    ("data/gse120064_hypertrophy.csv", "cardiac_stretch", "scRNA"),       # pathway 3
-    ("data/gse168776_myogenesis.csv",  "myogenesis",      "scRNA"),       # pathway 6
-    ("data/GSE21608.csv",              "TGFb_lineage",    "microarray"),  # pathways 5/6
+    ("data/gse172380_adm.csv",         "ADM_pancreas",     "scRNA"),       # pathway 7
+    ("data/gse120064_hypertrophy.csv", "cardiac_stretch",  "scRNA"),       # pathway 3
+    ("data/gse135893_fibrosis.csv",    "lung_fibrosis",    "scRNA"),       # pathway 2
+    ("data/emtab9702_macrophage.csv",  "trained_immunity", "scRNA"),       # pathway 1
+    ("data/gse168776_myogenesis.csv",  "myogenesis",       "scRNA"),       # pathway 6
+    ("data/GSE21608.csv",              "TGFb_lineage",     "microarray"),  # pathways 5/6
 ]
 
 
