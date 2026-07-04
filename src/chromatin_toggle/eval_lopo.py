@@ -90,7 +90,7 @@ def _predict(model, X, device, bs=1024):
 
 def run(data: str, epochs: int, bs: int, lr: float, seed: int,
         pathways: list[str] | None, device: str,
-        hidden: int = 64, steps: int = 6) -> None:
+        hidden: int = 64, steps: int = 6, mask: str = "none") -> None:
     kg = load_kg()
     classes = all_classes(kg)
     cls_idx = {c: i for i, c in enumerate(classes)}
@@ -107,8 +107,20 @@ def run(data: str, epochs: int, bs: int, lr: float, seed: int,
     full = torch.zeros(len(df), kg.num_nodes)
     for c in node_cols:
         full[:, kg.node_index[c]] = X_all[:, node_cols.index(c)]
+    # marker-shortcut control (same regimes as classify/dynamics)
+    if mask == "no_markers":
+        for n in ["Sox9", "mTORC1", "Autophagy"]:
+            if n in kg.node_index:
+                full[:, kg.node_index[n]] = 0.0
+    elif mask == "lineage_only":
+        keep = {kg.node_index[n] for n in kg.memory_nodes if n in kg.node_index}
+        keep |= {i for i, t in enumerate(kg.node_type) if t == "cue"}
+        for j in range(kg.num_nodes):
+            if j not in keep:
+                full[:, j] = 0.0
     y_all = torch.tensor([cls_idx[l] for l in df["label"]], dtype=torch.long)
     pw_all = df["pathway"].to_numpy()
+    print(f"(input mask: {mask})")
 
     folds = pathways or sorted(set(pw_all))
     kinds = ["kg_gnn", "shuffled", "mlp"]
@@ -154,9 +166,10 @@ def main() -> None:
     ap.add_argument("--device", default="cpu")
     ap.add_argument("--hidden", type=int, default=64)
     ap.add_argument("--steps", type=int, default=6, help="GNN message-passing rounds")
+    ap.add_argument("--mask", choices=["none", "no_markers", "lineage_only"], default="none")
     args = ap.parse_args()
     run(args.data, args.epochs, args.batch_size, args.lr, args.seed,
-        args.pathways, args.device, hidden=args.hidden, steps=args.steps)
+        args.pathways, args.device, hidden=args.hidden, steps=args.steps, mask=args.mask)
 
 
 if __name__ == "__main__":
