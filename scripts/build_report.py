@@ -78,8 +78,12 @@ h("3. Results")
 
 h("3.1 Main result — the model predicts meaningful cell states", 2)
 p("Held-out confusion matrix over the 10 programs, marker-controlled (label-defining 'marker' "
-  "genes removed from the inputs). Overall held-out accuracy ~0.65 on 10 imbalanced classes; the "
-  "diagonal shows the model recovers the correct program for most classes.")
+  "genes removed from the inputs) using the reported model configuration (hidden width 64, "
+  "inverse-frequency class weighting). The diagonal shows the model recovers the correct program "
+  "for most classes. Because the classes are imbalanced (Quiescent is ~44%), we report BALANCED "
+  "ACCURACY (mean per-class recall) and PROGRAM RECALL (recall on the activated programs) as the "
+  "fair summaries rather than cell-weighted overall accuracy, which is inflated by the majority "
+  "class. See Section 3.7 for the cross-validated values.")
 fig("main_result_confusion.png", 5.2, "Figure 1. Held-out confusion matrix (row-normalized), marker-controlled.")
 doc.add_page_break()
 
@@ -142,11 +146,21 @@ p("Training on increasing numbers of cells: performance climbs up to ~16,000 cel
   "representation (Section 3.3) was the effective lever, not raw data volume.")
 fig("scaling_law.png", 4.8, "Figure 5. Held-out performance vs. training-set size (marker-controlled).")
 
-h("3.7 Generalization — cross-validation", 2)
-p("Five-fold, class-balanced cross-validation of the marker-controlled model: "
-  "accuracy 0.628 +/- 0.065, mean program recall 0.356 +/- 0.120. Consistent with the "
-  "held-out and cross-dataset estimates. The fold-to-fold spread is real (accuracy 0.55-0.69) "
-  "and reported rather than hidden — expected for small models on 10 imbalanced classes.")
+h("3.7 Generalization — cross-validation & model configuration", 2)
+p("Increasing model capacity (hidden width 32 -> 64) and adding inverse-frequency class "
+  "weighting (so the model stops defaulting to the dominant Quiescent class) substantially "
+  "improved the biologically meaningful metric. Five-fold, class-balanced cross-validation of "
+  "the marker-controlled, class-weighted model:")
+table(["Metric", "5-fold CV (mean +/- std)", "Prior config"],
+      [["Program recall (activated programs)", "0.633 +/- 0.025", "0.356"],
+       ["Balanced accuracy (per-class mean)", "0.597 +/- 0.029", "~0.50"],
+       ["Overall accuracy (cell-weighted)", "0.481 +/- 0.078", "0.628"]])
+p("Program recall nearly doubled (0.36 -> 0.63) and is stable across folds (+/-0.025). Balanced "
+  "accuracy ~0.60. Overall (cell-weighted) accuracy DROPPED (0.63 -> 0.48): this is the intended "
+  "effect of class weighting -- the model no longer inflates its score by predicting the majority "
+  "Quiescent class, so it identifies far more activated-program cells at the cost of some "
+  "Quiescent errors. Program recall / balanced accuracy therefore reflect the biology; overall "
+  "accuracy is reported only for completeness.")
 
 # ---------- 4 Limitations ----------
 h("4. Limitations")
