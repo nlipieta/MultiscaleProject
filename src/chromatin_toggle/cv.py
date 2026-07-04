@@ -13,7 +13,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from .dynamics import ToggleDynamics, _load, _mask_input, train
+from .dynamics import ToggleDynamics, _load, _mask_input, train, class_weights
 from .kg import DATA_DIR, load_kg
 from .oracle import QUIESCENT, all_classes
 
@@ -38,6 +38,7 @@ def main():
     ap.add_argument("--hidden", type=int, default=32)
     ap.add_argument("--subsample", type=int, default=8000)
     ap.add_argument("--mask", choices=["none", "no_markers", "lineage_only"], default="no_markers")
+    ap.add_argument("--class-weight", action="store_true")
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
 
@@ -51,25 +52,30 @@ def main():
     folds = _stratified_folds(y, args.kfolds, args.seed)
     print(f"CV | data={Path(args.data).name} n={X.size(0)} k={args.kfolds} mask={args.mask}\n")
 
-    accs, progs = [], []
+    accs, progs, bals = [], [], []
     for f in range(args.kfolds):
         te = torch.tensor(folds[f], dtype=torch.long)
         tr = torch.tensor(np.concatenate([folds[i] for i in range(args.kfolds) if i != f]), dtype=torch.long)
+        w = class_weights(y[tr], len(classes)) if args.class_weight else None
         torch.manual_seed(args.seed)
         m = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps)
-        train(m, X[tr], y[tr], args.epochs, 256, 1e-3, args.seed)
+        train(m, X[tr], y[tr], args.epochs, 256, 1e-3, args.seed, weights=w)
         m.eval()
         with torch.no_grad():
             pred = torch.cat([m(X[te][i:i+1024], plasticity=1.0).argmax(-1)
                               for i in range(0, len(te), 1024)])
         acc = float((pred == y[te]).float().mean())
-        recs = [float((pred[y[te] == c] == c).float().mean()) for c in prog_cols
-                if int((y[te] == c).sum())]
-        accs.append(acc); progs.append(float(np.mean(recs)))
-        print(f"  fold {f+1}/{args.kfolds}  acc {acc:.3f}  program-recall {progs[-1]:.3f}")
+        allrec = [float((pred[y[te] == c] == c).float().mean()) for c in range(len(classes))
+                  if int((y[te] == c).sum())]
+        progr = [float((pred[y[te] == c] == c).float().mean()) for c in prog_cols
+                 if int((y[te] == c).sum())]
+        accs.append(acc); bals.append(float(np.mean(allrec))); progs.append(float(np.mean(progr)))
+        print(f"  fold {f+1}/{args.kfolds}  acc {acc:.3f}  balanced-acc {bals[-1]:.3f}  program-recall {progs[-1]:.3f}")
 
-    print(f"\n{args.kfolds}-fold CV: accuracy {np.mean(accs):.3f} +/- {np.std(accs):.3f} | "
-          f"program recall {np.mean(progs):.3f} +/- {np.std(progs):.3f}")
+    print(f"\n{args.kfolds}-fold CV (mask={args.mask}, class_weight={args.class_weight}):")
+    print(f"  overall accuracy   {np.mean(accs):.3f} +/- {np.std(accs):.3f}")
+    print(f"  balanced accuracy  {np.mean(bals):.3f} +/- {np.std(bals):.3f}")
+    print(f"  program recall     {np.mean(progs):.3f} +/- {np.std(progs):.3f}")
 
 
 if __name__ == "__main__":
