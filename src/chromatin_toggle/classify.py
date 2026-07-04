@@ -69,6 +69,7 @@ def main():
     ap.add_argument("--layernorm", action="store_true")
     ap.add_argument("--dropout", type=float, default=0.0)
     ap.add_argument("--weight-decay", type=float, default=0.0)
+    ap.add_argument("--num-bases", type=int, default=0, help="R-GCN basis decomposition (0=off)")
     args = ap.parse_args()
 
     kg = load_kg()
@@ -105,7 +106,8 @@ def main():
             Xm = _masked(X, kg, m)
             torch.manual_seed(s)
             model = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps,
-                                   layernorm=args.layernorm, dropout=args.dropout)
+                                   layernorm=args.layernorm, dropout=args.dropout,
+                                   num_bases=args.num_bases)
             train(model, Xm[tr], y[tr], args.epochs, 256, args.lr, s, weights=w,
                   weight_decay=args.weight_decay)
             pred = _predict(model, Xm[va])

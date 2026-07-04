@@ -37,7 +37,7 @@ class ToggleDynamics(nn.Module):
     def __init__(self, kg, hidden=32, steps=8, asymmetric=True, plasticity=True,
                  attractor=True, mem_gain=1.0, cue_gain=1.0, cue_decay=0.6,
                  wta_gain=0.5, wta_iters=3, node_ann=None, context_dim=0,
-                 layernorm=False, dropout=0.0):
+                 layernorm=False, dropout=0.0, num_bases=0):
         super().__init__()
         self.ln = nn.LayerNorm(hidden) if layernorm else None
         self.drop = nn.Dropout(dropout) if dropout > 0 else None
@@ -49,8 +49,15 @@ class ToggleDynamics(nn.Module):
         self.id_emb = nn.Embedding(kg.num_nodes, hidden)
         self.type_emb = nn.Embedding(kg.num_types, hidden)
         self.in_proj = nn.Linear(1, hidden)
-        self.rel_lin = nn.ModuleList(
-            [nn.Linear(hidden, hidden, bias=False) for _ in range(kg.num_relations)])
+        self.n_rel = kg.num_relations
+        self.num_bases = num_bases
+        if num_bases:  # R-GCN basis decomposition (Schlichtkrull 2018): share B bases
+            self.bases = nn.Parameter(torch.randn(num_bases, hidden, hidden) * (hidden ** -0.5))
+            self.rel_coef = nn.Parameter(torch.randn(kg.num_relations, num_bases) * 0.1)
+            self.rel_lin = None
+        else:                                    # full per-relation weight matrix
+            self.rel_lin = nn.ModuleList(
+                [nn.Linear(hidden, hidden, bias=False) for _ in range(kg.num_relations)])
         self.self_lin = nn.Linear(hidden, hidden, bias=False)
         self.gru = nn.GRUCell(hidden, hidden)
         self.prog_head = nn.Sequential(nn.Linear(hidden, hidden), nn.ReLU(), nn.Linear(hidden, 1))
@@ -106,8 +113,11 @@ class ToggleDynamics(nn.Module):
             inj = g_mem * mem_inj + g_cue * cue_inj
 
             msg = self.self_lin(h)
+            if self.num_bases:                    # W_r = sum_b coef[r,b] * basis_b
+                W = torch.einsum("rb,bij->rij", self.rel_coef, self.bases)
             for r in range(self.adjacency.size(0)):
-                msg = msg + torch.einsum("ds,bsh->bdh", self.adjacency[r], self.rel_lin[r](h))
+                trans = torch.einsum("bsi,ji->bsj", h, W[r]) if self.num_bases else self.rel_lin[r](h)
+                msg = msg + torch.einsum("ds,bsh->bdh", self.adjacency[r], trans)
             h_new = self.gru((msg + inj).reshape(B * self.N, -1),
                              h.reshape(B * self.N, -1)).reshape(B, self.N, -1)
             if self.ln is not None:            # LayerNorm + residual (anti over-smoothing)
@@ -146,7 +156,7 @@ def class_weights(y, n_classes):
 
 def train(model, X, y, epochs, bs, lr, seed, plasticity_train=1.0, weights=None,
           weight_decay=0.0):
-    opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)  # decoupled WD
     lossf = nn.CrossEntropyLoss(weight=weights)
     g = torch.Generator().manual_seed(seed)
     for ep in range(epochs):
