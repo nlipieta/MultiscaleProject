@@ -30,6 +30,7 @@ chromatin-census = "chromatin_toggle.census:main"
 chromatin-geo = "chromatin_toggle.geo:main"
 chromatin-scperturb = "chromatin_toggle.scperturb:main"
 chromatin-combine = "chromatin_toggle.combine:main"
+chromatin-eval = "chromatin_toggle.eval_lopo:main"
 
 [build-system]
 requires = ["hatchling"]
