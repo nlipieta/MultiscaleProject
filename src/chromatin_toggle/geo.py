@@ -262,6 +262,20 @@ H5AD: dict[str, H5adDataset] = {
         program_map={"hypertrophic cardiomyopathy": "Hypertrophy", "normal": "Quiescent"},
         cue="MechanicalStretch", level=1.0,
     ),
+    # Reichart/Chaffin cardiomyopathy cardiac-fibroblast atlas (CELLxGENE, 143k
+    # nuclei). Diseased cardiomyopathy fibroblasts = Fibrosis, normal = Quiescent.
+    # Large, clean Fibrosis source (cardiac) for the scaling analysis.
+    "DCM_fibroblast": H5adDataset(
+        url="https://datasets.cellxgene.cziscience.com/9b7c7203-91cd-4e87-aff7-92ed572307dc.h5ad",
+        cell_type_col="disease",
+        program_map={
+            "dilated cardiomyopathy": "Fibrosis",
+            "arrhythmogenic right ventricular cardiomyopathy": "Fibrosis",
+            "non-compaction cardiomyopathy": "Fibrosis",
+            "normal": "Quiescent",
+        },
+        cue="MechanicalStiffness", level=1.0,
+    ),
 }
 
 

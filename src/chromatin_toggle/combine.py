@@ -91,6 +91,7 @@ DEFAULT_SOURCES = [
     ("data/gse254185_fibrosis.csv",      "kidney_fibrosis",     "scRNA"),       # Fibrosis (kidney)
     ("data/gse149451_myogenesis.csv",    "myogenesis_human",    "scRNA"),       # MyogenicDiff (human)
     ("data/gse184241_innate.csv",        "trained_immunity2",   "sortseq"),     # InnateMemory (BCG, human)
+    ("data/dcm_fibrosis.csv",             "cardiac_fibrosis",    "snRNA"),       # Fibrosis (cardiac, 143k)
 ]
 
 
