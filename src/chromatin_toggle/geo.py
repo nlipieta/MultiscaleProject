@@ -194,6 +194,15 @@ SCRNA: dict[str, ScrnaDataset] = {
         label_col="", cue="none", program_map={},
         label_sep="\t", counts_sep="\t", labeler=_gse143437_label,
     ),
+    # Zhou et al., caerulein acute pancreatitis (independent ADM replicate of
+    # GSE172380). Within the caerulein sample: Ductal = ADM, Acinar = Quiescent.
+    "GSE188819": ScrnaDataset(
+        counts_file="GSE188819_CER_counts.txt.gz",
+        labels_file="GSE188819_CER_metadata.txt.gz",
+        label_col="annotated_clusters", cue="Caerulein",
+        program_map={"Ductal": "ADM", "Acinar": "Quiescent"},
+        label_sep="\t", counts_sep="\t",
+    ),
 }
 
 
@@ -234,6 +243,24 @@ H5AD: dict[str, H5adDataset] = {
             "progenitor cell": "Quiescent", "kidney interstitial fibroblast": "Quiescent",
         },
         cue=None,
+    ),
+    # Reck 2024 human kidney UUO fibrosis (CELLxGENE). Author Annotation.Lvl2:
+    # Myofibroblast = Fibrosis, Fibroblast = Quiescent. Second fibrosis organ
+    # (kidney) alongside lung IPF (GSE135893).
+    "GSE254185": H5adDataset(
+        url="https://datasets.cellxgene.cziscience.com/0fe5eee4-380d-4bd9-8735-ada5e03021d9.h5ad",
+        cell_type_col="celltype_l2",
+        program_map={"Myofibroblast": "Fibrosis", "Fibroblast": "Quiescent"},
+        cue="MechanicalStiffness", level=1.0,
+    ),
+    # Fu/Wang human hypertrophic-cardiomyopathy cardiomyocytes (CELLxGENE).
+    # disease HCM = Hypertrophy, normal = Quiescent. Human complement to the
+    # mouse TAC set (GSE120064).
+    "HCM_cardiac": H5adDataset(
+        url="https://datasets.cellxgene.cziscience.com/47a98d37-ba8d-4146-b334-c8ed6385a9e5.h5ad",
+        cell_type_col="disease",
+        program_map={"hypertrophic cardiomyopathy": "Hypertrophy", "normal": "Quiescent"},
+        cue="MechanicalStretch", level=1.0,
     ),
 }
 
@@ -402,8 +429,8 @@ def ingest_h5ad_percell(h5ad: Path, out: Path, cell_type_col: str,
     labels = prog.to_numpy()
     for i in range(adata.n_obs):
         row = {node_cols[j]: X[i, j] for j in range(len(node_cols))}
-        if cue and cue in kg.node_index:
-            row[cue] = level
+        if cue and cue in kg.node_index:              # baseline (Quiescent) cells got no cue
+            row[cue] = level if labels[i] != "Quiescent" else 0.0
         lines.append(",".join(f"{row[c]}" if c != "label" else labels[i] for c in header))
         counts[labels[i]] = counts.get(labels[i], 0) + 1
     out.write_text("\n".join(lines) + "\n")

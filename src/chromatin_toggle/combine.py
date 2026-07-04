@@ -85,6 +85,11 @@ DEFAULT_SOURCES = [
     ("data/gse143437_regeneration.csv",  "muscle_regeneration", "scRNA"),       # Regeneration
     ("data/eb_pluripotency.csv",         "pluripotency",        "scRNA"),       # Pluripotency
     ("data/GSE21608.csv",                "TGFb_lineage",        "microarray"),  # TGF-beta
+    # breadth: second, independent source per program (different tissue/organism)
+    ("data/gse188819_adm.csv",           "pancreatitis2",       "scRNA"),       # ADM (caerulein)
+    ("data/hcm_hypertrophy.csv",         "cardiac_hcm_human",   "scRNA"),       # Hypertrophy (human)
+    ("data/gse254185_fibrosis.csv",      "kidney_fibrosis",     "scRNA"),       # Fibrosis (kidney)
+    ("data/gse149451_myogenesis.csv",    "myogenesis_human",    "scRNA"),       # MyogenicDiff (human)
 ]
 
 
