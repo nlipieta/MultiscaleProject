@@ -70,6 +70,17 @@ nodes:
   - {id: Caerulein, type: cue, bias: 0.0}
   - {id: TGFbeta, type: cue, bias: 0.0}
 
+  # --- Extrinsic MODALITY layer (theory: a cue acts through its physiological
+  #     modality; distinct cues sharing a modality share its machinery, so a
+  #     held-out cue integrates through what the model learned from its siblings.
+  #     Modalities then converge on a shared distributed PhysiologicalState --
+  #     the degeneracy / many-to-one bottleneck from the review) ---
+  - {id: Mechanotransduction, type: modality, bias: -0.5}
+  - {id: Bioelectric, type: modality, bias: -0.5}
+  - {id: InflammatorySignal, type: modality, bias: -0.5}
+  - {id: MorphogenSignal, type: modality, bias: -0.5}
+  - {id: PhysiologicalState, type: integration, bias: -0.5}
+
   # --- Signaling / metabolites ---
   - {id: Factin, type: signaling, bias: -0.5}
   - {id: Piezo1, type: signaling, bias: -0.5}
@@ -175,3 +186,26 @@ edges:
   # The toggle: mutual cross-inhibition between competing programs
   - {src: Regeneration, rel: INHIBITS, dst: Fibrosis, w: 1.0}
   - {src: Fibrosis, rel: INHIBITS, dst: Regeneration, w: 1.0}
+
+  # --- Modality integration layer (added in parallel to the direct cascades) ---
+  # cue -> its modality (the input's entry point into the architecture)
+  - {src: LPS, rel: ACTIVATES, dst: InflammatorySignal, w: 1.5}
+  - {src: Caerulein, rel: ACTIVATES, dst: InflammatorySignal, w: 1.5}
+  - {src: MechanicalStiffness, rel: ACTIVATES, dst: Mechanotransduction, w: 1.5}
+  - {src: MechanicalStretch, rel: ACTIVATES, dst: Mechanotransduction, w: 1.5}
+  - {src: BioelectricDepolarization, rel: ACTIVATES, dst: Bioelectric, w: 1.5}
+  - {src: TGFbeta, rel: ACTIVATES, dst: MorphogenSignal, w: 1.5}
+  # modality -> shared cascade entry points (so a held-out cue inherits the role
+  # its modality-siblings taught the model)
+  - {src: Mechanotransduction, rel: ACTIVATES, dst: Factin, w: 1.0}
+  - {src: Mechanotransduction, rel: ACTIVATES, dst: Piezo1, w: 1.0}
+  - {src: InflammatorySignal, rel: ACTIVATES, dst: NFkB, w: 1.0}
+  - {src: MorphogenSignal, rel: ACTIVATES, dst: Smad3, w: 1.0}
+  - {src: Bioelectric, rel: ACTIVATES, dst: SLC5A8, w: 1.0}
+  # modalities converge on the shared distributed physiological state
+  - {src: Mechanotransduction, rel: ACTIVATES, dst: PhysiologicalState, w: 1.0}
+  - {src: Bioelectric, rel: ACTIVATES, dst: PhysiologicalState, w: 1.0}
+  - {src: InflammatorySignal, rel: ACTIVATES, dst: PhysiologicalState, w: 1.0}
+  - {src: MorphogenSignal, rel: ACTIVATES, dst: PhysiologicalState, w: 1.0}
+  # distributed state biases the epigenetic/plasticity layer (theory)
+  - {src: PhysiologicalState, rel: PRIMES_CHROMATIN, dst: LatentEnhancer, w: 1.0}
