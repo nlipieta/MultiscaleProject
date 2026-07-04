@@ -55,10 +55,15 @@ def main():
     ap.add_argument("--hidden", type=int, default=32)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--val-frac", type=float, default=0.25)
+    ap.add_argument("--subsample", type=int, default=0, help="cap total cells (0=all)")
     args = ap.parse_args()
 
     kg = load_kg()
     X, y, classes, df = _load(args.data, kg)
+    if args.subsample and X.size(0) > args.subsample:
+        g0 = torch.Generator().manual_seed(0)
+        keep = torch.randperm(X.size(0), generator=g0)[:args.subsample]
+        X, y = X[keep], y[keep]
     n_classes = len(classes)
     torch.manual_seed(args.seed)
     g = torch.Generator().manual_seed(args.seed)
