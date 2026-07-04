@@ -33,6 +33,7 @@ chromatin-combine = "chromatin_toggle.combine:main"
 chromatin-eval = "chromatin_toggle.eval_lopo:main"
 chromatin-dynamics = "chromatin_toggle.dynamics:main"
 chromatin-annotate = "chromatin_toggle.annotate:main"
+chromatin-interpret = "chromatin_toggle.interpret:main"
 
 [build-system]
 requires = ["hatchling"]
