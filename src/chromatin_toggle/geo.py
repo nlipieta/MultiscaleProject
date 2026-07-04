@@ -138,6 +138,22 @@ def _gse113049_cue(row):
     return 1.0 if str(row.get("cell_type")).startswith("Injured") else 0.0
 
 
+def _gse147405_label(row):
+    """GSE147405 EMT time-course: 0d epithelial baseline = Quiescent, later
+    timepoints under the cue = EMT (transitioning/mesenchymal)."""
+    return "Quiescent" if str(row.get("Time")) == "0d" else "EMT"
+
+
+def _gse147405_cue(row):
+    return 0.0 if str(row.get("Time")) == "0d" else 1.0
+
+
+def _gse115301_label(row):
+    """GSE115301 OIS: RIS = Senescence, Growing = Quiescent baseline, GFP dropped."""
+    c = str(row.get("Condition2"))
+    return {"RIS": "Senescence", "Growing": "Quiescent"}.get(c)
+
+
 def _gse143437_label(row):
     """GSE143437: notexin muscle injury. Satellite/progenitor lineage only:
     uninjured (Day 0) = Quiescent satellite; post-injury = Regeneration."""
@@ -193,6 +209,22 @@ SCRNA: dict[str, ScrnaDataset] = {
         labels_file="GSE143437_DeMicheli_MuSCatlas_metadata.txt.gz",
         label_col="", cue="none", program_map={},
         label_sep="\t", counts_sep="\t", labeler=_gse143437_label,
+    ),
+    # Cook & Vanderhyden 2020, TNF-driven EMT time-course (A549). 0d epithelial
+    # = Quiescent, later timepoints = EMT. New program (program diversity).
+    "GSE147405": ScrnaDataset(
+        counts_file="GSE147405_A549_TNF_TimeCourse_UMI_matrix.csv.gz",
+        labels_file="GSE147405_A549_TNF_TimeCourse_metadata.csv.gz",
+        label_col="", cue="TNFalpha", program_map={},
+        labeler=_gse147405_label, cue_of=_gse147405_cue,
+    ),
+    # Hoare et al., oncogene-induced senescence (IMR90). RIS = Senescence,
+    # Growing = Quiescent. New program; genetic OIS trigger -> no matching cue.
+    "GSE115301": ScrnaDataset(
+        counts_file="GSE115301_Growing_Sen_10x_count.txt.gz",
+        labels_file="GSE115301_Growing_Sen_10x_metadata.txt.gz",
+        label_col="Condition2", cue="none", program_map={},
+        label_sep="\t", counts_sep="\t", labeler=_gse115301_label,
     ),
     # Zhou et al., caerulein acute pancreatitis (independent ADM replicate of
     # GSE172380). Within the caerulein sample: Ductal = ADM, Acinar = Quiescent.

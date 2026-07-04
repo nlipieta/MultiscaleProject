@@ -92,6 +92,8 @@ DEFAULT_SOURCES = [
     ("data/gse149451_myogenesis.csv",    "myogenesis_human",    "scRNA"),       # MyogenicDiff (human)
     ("data/gse184241_innate.csv",        "trained_immunity2",   "sortseq"),     # InnateMemory (BCG, human)
     ("data/dcm_fibrosis.csv",             "cardiac_fibrosis",    "snRNA"),       # Fibrosis (cardiac, 143k)
+    ("data/gse147405_emt.csv",            "emt_tnf",             "scRNA"),       # EMT (NEW program)
+    ("data/gse115301_senescence.csv",     "senescence_ois",      "scRNA"),       # Senescence (NEW program)
 ]
 
 

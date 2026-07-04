@@ -28,7 +28,7 @@ relation_signs:
 
 # Nodes that can be set by the "cell context / intrinsic memory" (lineage TFs
 # and marks a cell carries before any cue is applied).
-memory_nodes: [PU1, Oct4, MyoD, AP1]
+memory_nodes: [PU1, Oct4, MyoD, AP1, GATA3, CEBPB, RUNX1, KLF4, NANOG, SOX2, FOXA2, HNF4A, ZEB1, EZH2]
 
 # Map KG nodes to human gene symbols so real expression (CZ CELLxGENE Census)
 # can initialize node activations. Only expressed factors are mappable; cues,
@@ -56,10 +56,27 @@ gene_map:
   Autophagy: ATG7
   SLC5A8: SLC5A8
   Factin: ACTB
+  # EMT program drivers
+  Twist1: TWIST1
+  Snai1: SNAI1
+  # richer intrinsic-memory panel (identity / chromatin factors)
+  GATA3: GATA3
+  CEBPB: CEBPB
+  RUNX1: RUNX1
+  KLF4: KLF4
+  NANOG: NANOG
+  SOX2: SOX2
+  FOXA2: FOXA2
+  HNF4A: HNF4A
+  ZEB1: ZEB1
+  EZH2: EZH2
+  # senescence effectors (p21 / p16)
+  CDKN1A: CDKN1A
+  CDKN2A: CDKN2A
 
 # Nodes whose activation is read out as the predicted phenotype.
 program_nodes:
-  [InnateMemory, Fibrosis, Hypertrophy, Regeneration, Pluripotency, MyogenicDiff, ADM]
+  [InnateMemory, Fibrosis, Hypertrophy, Regeneration, Pluripotency, MyogenicDiff, ADM, EMT, Senescence]
 
 nodes:
   # --- Extrinsic cues (inputs) ---
@@ -121,6 +138,26 @@ nodes:
   - {id: Metaplasia, type: plasticity, bias: -0.5}
   - {id: Blastema, type: plasticity, bias: -0.5}
 
+  # --- New program: EMT (Twist1/Snai1-driven; TNF-alpha cue, review sec. 2) ---
+  - {id: TNFalpha, type: cue, bias: 0.0}
+  - {id: Twist1, type: tf, bias: -0.5}
+  - {id: Snai1, type: tf, bias: -0.5}
+
+  # --- Richer intrinsic-memory panel (identity / chromatin factors, program-
+  #     agnostic memory that feeds the shared PhysiologicalState node) ---
+  - {id: GATA3, type: tf, bias: 0.0}
+  - {id: CEBPB, type: tf, bias: 0.0}
+  - {id: RUNX1, type: tf, bias: 0.0}
+  - {id: KLF4, type: tf, bias: 0.0}
+  - {id: NANOG, type: tf, bias: 0.0}
+  - {id: SOX2, type: tf, bias: 0.0}
+  - {id: FOXA2, type: tf, bias: 0.0}
+  - {id: HNF4A, type: tf, bias: 0.0}
+  - {id: ZEB1, type: tf, bias: 0.0}
+  - {id: EZH2, type: modifier, bias: 0.0}
+  - {id: CDKN1A, type: signaling, bias: -0.5}
+  - {id: CDKN2A, type: signaling, bias: -0.5}
+
   # --- Response programs (outputs) ---
   - {id: InnateMemory, type: program, bias: -0.5}
   - {id: Fibrosis, type: program, bias: -0.5}
@@ -129,6 +166,8 @@ nodes:
   - {id: Pluripotency, type: program, bias: -1.5}
   - {id: MyogenicDiff, type: program, bias: -1.5}
   - {id: ADM, type: program, bias: -0.5}
+  - {id: EMT, type: program, bias: -0.5}
+  - {id: Senescence, type: program, bias: -0.5}
 
 edges:
   # Inflammatory latent-enhancer priming -> innate memory (Ostuni 2013; Heinz 2010)
@@ -209,3 +248,28 @@ edges:
   - {src: MorphogenSignal, rel: ACTIVATES, dst: PhysiologicalState, w: 1.0}
   # distributed state biases the epigenetic/plasticity layer (theory)
   - {src: PhysiologicalState, rel: PRIMES_CHROMATIN, dst: LatentEnhancer, w: 1.0}
+
+  # EMT program: TNF-alpha -> NF-kB -> Twist1 -> EMT (review sec. 2)
+  - {src: TNFalpha, rel: ACTIVATES, dst: InflammatorySignal, w: 1.5}
+  - {src: NFkB, rel: ACTIVATES, dst: Twist1, w: 1.5}
+  - {src: Twist1, rel: ACTIVATES, dst: Snai1, w: 1.0}
+  - {src: Twist1, rel: ACTIVATES, dst: EMT, w: 1.5}
+  - {src: Snai1, rel: ACTIVATES, dst: EMT, w: 1.0}
+  - {src: ZEB1, rel: ACTIVATES, dst: EMT, w: 1.0}
+
+  # richer intrinsic-memory panel feeds the shared physiological state; a few
+  # route to their lineage program (identity memory biasing fate)
+  - {src: GATA3, rel: ACTIVATES, dst: PhysiologicalState, w: 1.0}
+  - {src: CEBPB, rel: ACTIVATES, dst: PhysiologicalState, w: 1.0}
+  - {src: RUNX1, rel: ACTIVATES, dst: PhysiologicalState, w: 1.0}
+  - {src: KLF4, rel: ACTIVATES, dst: PhysiologicalState, w: 1.0}
+  - {src: FOXA2, rel: ACTIVATES, dst: PhysiologicalState, w: 1.0}
+  - {src: HNF4A, rel: ACTIVATES, dst: PhysiologicalState, w: 1.0}
+  - {src: ZEB1, rel: ACTIVATES, dst: PhysiologicalState, w: 1.0}
+  - {src: EZH2, rel: INHIBITS, dst: PhysiologicalState, w: 1.0}
+  - {src: NANOG, rel: ACTIVATES, dst: Pluripotency, w: 1.0}
+  - {src: SOX2, rel: ACTIVATES, dst: Pluripotency, w: 1.0}
+
+  # Senescence: p21/p16 effectors drive the arrest program
+  - {src: CDKN1A, rel: ACTIVATES, dst: Senescence, w: 1.5}
+  - {src: CDKN2A, rel: ACTIVATES, dst: Senescence, w: 1.5}
