@@ -24,10 +24,17 @@ from .kg import DATA_DIR, load_kg
 
 
 def combine(sources: list[tuple[str, str, str]], out: Path,
-            cap_per_class: int | None = None, seed: int = 0) -> None:
-    """sources: list of (csv_path, pathway, assay)."""
+            cap_per_class: int | None = None, seed: int = 0,
+            harmonize: bool = False) -> None:
+    """sources: list of (csv_path, pathway, assay).
+
+    harmonize: rank-normalize each expression node column WITHIN each source
+    (nonzero entries -> uniform [0,1], zeros kept at 0). Removes the per-dataset
+    scale/platform bias so a value means the same thing across datasets; cue
+    nodes are left as set (0/1)."""
     kg = load_kg()
     node_cols = list(kg.node_ids)
+    cue_nodes = {n for n, t in zip(kg.node_ids, kg.node_type) if t == "cue"}
     rng = np.random.default_rng(seed)
     frames = []
 
@@ -41,6 +48,14 @@ def combine(sources: list[tuple[str, str, str]], out: Path,
         for c in node_cols:
             if c in df.columns:
                 aligned[c] = pd.to_numeric(df[c], errors="coerce").fillna(0.0)
+        if harmonize:  # per-source rank-normalize expression nodes (keep zeros at 0)
+            for c in node_cols:
+                if c in cue_nodes:
+                    continue
+                col = aligned[c]
+                nz = col > 0
+                if nz.sum() > 1:
+                    aligned.loc[nz, c] = col[nz].rank(pct=True)
         aligned["label"] = df["label"].astype(str).values
         aligned["dataset"] = Path(path).stem
         aligned["pathway"] = pathway
@@ -107,6 +122,8 @@ def main() -> None:
                     help="subsample any (pathway,label) group above this many rows")
     ap.add_argument("--out", default=str(DATA_DIR / "cross_pathway.csv"))
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--harmonize", action="store_true",
+                    help="rank-normalize expression nodes per source (batch-scale harmonization)")
     args = ap.parse_args()
 
     if args.add:
@@ -119,7 +136,8 @@ def main() -> None:
     else:
         sources = DEFAULT_SOURCES
 
-    combine(sources, Path(args.out), cap_per_class=args.cap_per_class, seed=args.seed)
+    combine(sources, Path(args.out), cap_per_class=args.cap_per_class, seed=args.seed,
+            harmonize=args.harmonize)
 
 
 if __name__ == "__main__":

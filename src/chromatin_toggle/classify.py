@@ -64,14 +64,19 @@ def main():
     ap.add_argument("--subsample", type=int, default=0, help="cap total cells (0=all)")
     ap.add_argument("--lr", type=float, default=1e-3)
     ap.add_argument("--class-weight", action="store_true", help="inverse-frequency class weights")
+    ap.add_argument("--group-split", action="store_true",
+                    help="hold out whole datasets (removes batch confound)")
     args = ap.parse_args()
 
     kg = load_kg()
     X, y, classes, df = _load(args.data, kg)
+    groups = df["dataset"].to_numpy() if "dataset" in df.columns else None
     if args.subsample and X.size(0) > args.subsample:
         g0 = torch.Generator().manual_seed(0)
         keep = torch.randperm(X.size(0), generator=g0)[:args.subsample]
         X, y = X[keep], y[keep]
+        if groups is not None:
+            groups = groups[keep.numpy()]
     n_classes = len(classes)
     prog_names = [c for c in classes if c != QUIESCENT]
 
@@ -81,9 +86,17 @@ def main():
     results = {m: {"acc": [], "prog": []} for m in modes}
     for s in args.seeds:
         g = torch.Generator().manual_seed(s)
-        perm = torch.randperm(X.size(0), generator=g)
-        k = int(X.size(0) * args.val_frac)
-        va, tr = perm[:k], perm[k:]
+        if args.group_split and groups is not None:  # hold out whole datasets
+            uniq = sorted(set(groups)); rng = np.random.default_rng(s); rng.shuffle(uniq)
+            n_val = max(1, int(len(uniq) * args.val_frac))
+            val_ds = set(uniq[:n_val])
+            is_val = np.array([gg in val_ds for gg in groups])
+            va = torch.tensor(np.where(is_val)[0], dtype=torch.long)
+            tr = torch.tensor(np.where(~is_val)[0], dtype=torch.long)
+        else:
+            perm = torch.randperm(X.size(0), generator=g)
+            k = int(X.size(0) * args.val_frac)
+            va, tr = perm[:k], perm[k:]
         w = class_weights(y[tr], n_classes) if args.class_weight else None
         for m in modes:
             Xm = _masked(X, kg, m)

@@ -39,18 +39,32 @@ def main():
     ap.add_argument("--subsample", type=int, default=8000)
     ap.add_argument("--mask", choices=["none", "no_markers", "lineage_only"], default="no_markers")
     ap.add_argument("--class-weight", action="store_true")
+    ap.add_argument("--group-split", action="store_true",
+                    help="assign whole datasets to folds (removes batch confound; honest generalization)")
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
 
     kg = load_kg()
     X, y, classes, df = _load(args.data, kg)
     X = _mask_input(X, kg, args.mask)
+    groups = df["dataset"].to_numpy() if "dataset" in df.columns else None
     if args.subsample and X.size(0) > args.subsample:
         idx = torch.randperm(X.size(0), generator=torch.Generator().manual_seed(0))[:args.subsample]
         X, y = X[idx], y[idx]
+        if groups is not None:
+            groups = groups[idx.numpy()]
     prog_cols = [classes.index(c) for c in classes if c != QUIESCENT]
-    folds = _stratified_folds(y, args.kfolds, args.seed)
-    print(f"CV | data={Path(args.data).name} n={X.size(0)} k={args.kfolds} mask={args.mask}\n")
+    if args.group_split:
+        if groups is None:
+            raise SystemExit("--group-split needs a 'dataset' column (build with chromatin-combine)")
+        uniq = sorted(set(groups))
+        rng = np.random.default_rng(args.seed); rng.shuffle(uniq)
+        ds_fold = {d: i % args.kfolds for i, d in enumerate(uniq)}
+        folds = [np.where(np.array([ds_fold[g] for g in groups]) == f)[0] for f in range(args.kfolds)]
+    else:
+        folds = _stratified_folds(y, args.kfolds, args.seed)
+    print(f"CV | data={Path(args.data).name} n={X.size(0)} k={args.kfolds} mask={args.mask} "
+          f"group_split={args.group_split}\n")
 
     accs, progs, bals = [], [], []
     for f in range(args.kfolds):
