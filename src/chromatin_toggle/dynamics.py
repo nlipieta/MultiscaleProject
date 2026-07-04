@@ -36,7 +36,7 @@ from .oracle import QUIESCENT, all_classes
 class ToggleDynamics(nn.Module):
     def __init__(self, kg, hidden=32, steps=8, asymmetric=True, plasticity=True,
                  attractor=True, mem_gain=1.0, cue_gain=1.0, cue_decay=0.6,
-                 wta_gain=0.5, wta_iters=3):
+                 wta_gain=0.5, wta_iters=3, node_ann=None, context_dim=0):
         super().__init__()
         self.N, self.steps, self.hidden = kg.num_nodes, steps, hidden
         self.asymmetric, self.use_plasticity, self.attractor = asymmetric, plasticity, attractor
@@ -64,19 +64,31 @@ class ToggleDynamics(nn.Module):
         self.register_buffer("cue_mask", cue.float().view(1, -1, 1))
         self.register_buffer("intrinsic_mask", (~cue & ~prog).float().view(1, -1, 1))
 
-    def forward(self, x0, plasticity=1.0, cue_window=None):
+        # optional annotation layers (each ablatable by omission)
+        self.ann_proj = None
+        if node_ann is not None:                          # per-node gene role + pathway terms
+            self.register_buffer("node_ann", torch.as_tensor(node_ann, dtype=torch.float32))
+            self.ann_proj = nn.Linear(self.node_ann.size(1), hidden, bias=False)
+        self.ctx_proj = nn.Linear(context_dim, hidden, bias=False) if context_dim > 0 else None
+
+    def forward(self, x0, plasticity=1.0, cue_window=None, context=None):
         """cue_window: if set, the extrinsic cue is injected only for steps
-        t < cue_window, then removed -- used by the hysteresis test to see
-        whether a flipped program persists after the cue is withdrawn."""
+        t < cue_window, then removed (hysteresis test). context: optional
+        [B, context_dim] experiment-metadata vector conditioning the graph."""
         B = x0.size(0)
         if not torch.is_tensor(plasticity):
             plasticity = torch.full((B,), float(plasticity), device=x0.device)
         p = plasticity.view(B, 1, 1)
-        base = (self.id_emb(self.node_ids) + self.type_emb(self.node_types)).unsqueeze(0)
+        base = self.id_emb(self.node_ids) + self.type_emb(self.node_types)
+        if self.ann_proj is not None:                             # gene-annotation features
+            base = base + self.ann_proj(self.node_ann)
+        base = base.unsqueeze(0)
         xin = self.in_proj(x0.unsqueeze(-1))                      # [B,N,H]
         mem_inj = xin * self.intrinsic_mask
         cue_inj = xin * self.cue_mask
         h = base.expand(B, -1, -1).contiguous()
+        if self.ctx_proj is not None and context is not None:     # experiment context
+            h = h + self.ctx_proj(context).unsqueeze(1)
 
         for t in range(self.steps):
             if self.asymmetric:

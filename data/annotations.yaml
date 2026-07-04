@@ -1,0 +1,71 @@
+# Structured annotation layers that enrich the model inputs (each ablatable).
+#
+# 1. gene_roles     -- per KG node, its FUNCTIONAL regulatory role (from the
+#    review's glossary: pioneer / master TF / lineage-determining / signal-
+#    responsive), which type-embedding alone does not capture.
+# 2. pathway_terms  -- per gene node, curated pathway/process tags (a hand-built
+#    GO-style prior; honest: curated from the literature, not fetched from GO).
+# 3. experiments    -- per pathway, structured literature metadata about the
+#    experiment (organism, cue modality, dose, timepoint, condition, tissue),
+#    used as a global context vector conditioning the graph.
+
+# --- 1. Gene regulatory roles ---
+gene_roles:
+  PU1: pioneer            # lineage-determining pioneer of myeloid enhancers
+  Oct4: pioneer           # pluripotency pioneer factor
+  MyoD: master_tf         # master regulator of myogenesis
+  Sox9: master_tf         # drives ductal/metaplastic identity
+  MEF2: master_tf         # muscle/cardiac program driver
+  NFkB: signal_tf
+  Smad3: signal_tf
+  YAP_TAZ: signal_tf
+  TEAD: signal_tf
+  AP1: signal_tf
+  ARID1A: modifier
+  SWI_SNF: modifier
+  HDAC4: modifier
+  HDAC5: modifier
+  HDAC1_3: modifier
+  Factin: signaling
+  Piezo1: signaling
+  CaMKII: signaling
+  PKD: signaling
+  mTORC1: signaling
+  Autophagy: signaling
+  SLC5A8: signaling
+  Butyrate: metabolite
+
+# --- 2. Curated pathway / process terms (multi-tag) ---
+pathway_terms:
+  NFkB: [inflammatory, immune]
+  PU1: [myeloid, pioneer, chromatin_priming]
+  YAP_TAZ: [hippo, mechanotransduction]
+  TEAD: [hippo, mechanotransduction]
+  Factin: [cytoskeleton, mechanotransduction]
+  Piezo1: [ion_channel, mechanotransduction]
+  ARID1A: [swi_snf, chromatin_remodeling]
+  SWI_SNF: [swi_snf, chromatin_remodeling]
+  CaMKII: [calcium_signaling]
+  PKD: [calcium_signaling]
+  HDAC4: [hdac, calcium_signaling, muscle]
+  HDAC5: [hdac, calcium_signaling, muscle]
+  HDAC1_3: [hdac, chromatin_repression]
+  MEF2: [muscle, cardiac, transcription]
+  Smad3: [tgfb_signaling]
+  MyoD: [myogenesis, transcription]
+  Oct4: [pluripotency, transcription]
+  Sox9: [ductal, developmental, metaplasia]
+  mTORC1: [metabolic, growth]
+  Autophagy: [autophagy, metabolic]
+  SLC5A8: [transporter, metabolite]
+  Butyrate: [metabolite, hdac_inhibition]
+
+# --- 3. Per-experiment literature metadata (-> global context vector) ---
+# fields: organism, assay, modality, cue, level, condition, tissue, timepoint
+experiments:
+  ADM_pancreas:     {organism: mouse, assay: scRNA,      modality: inflammatory, cue: Caerulein,            level: high, condition: injury,           tissue: pancreas,  timepoint: weeks}
+  cardiac_stretch:  {organism: mouse, assay: scRNA,      modality: mechano,      cue: MechanicalStretch,    level: high, condition: pressure_overload, tissue: heart,     timepoint: weeks}
+  lung_fibrosis:    {organism: human, assay: scRNA,      modality: mechano,      cue: MechanicalStiffness,  level: high, condition: disease,          tissue: lung,      timepoint: chronic}
+  trained_immunity: {organism: human, assay: sortseq,    modality: inflammatory, cue: LPS,                  level: high, condition: restimulation,    tissue: monocyte,  timepoint: day6}
+  myogenesis:       {organism: mouse, assay: splitseq,   modality: none,         cue: none,                 level: none, condition: differentiation,  tissue: muscle,    timepoint: none}
+  TGFb_lineage:     {organism: mouse, assay: microarray, modality: morphogen,    cue: TGFbeta,              level: med,  condition: treated,          tissue: multiple,  timepoint: hours}
