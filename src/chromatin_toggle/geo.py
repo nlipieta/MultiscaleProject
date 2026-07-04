@@ -187,7 +187,7 @@ SCRNA: dict[str, ScrnaDataset] = {
         counts_file="GSE120064_TAC_raw_umi_matrix.csv.gz",
         labels_file="GSE120064_TAC_clean_cell_info_summary.txt.gz",
         label_col="", cue="MechanicalStretch", program_map={},
-        label_sep="\t", labeler=_gse120064_label, cue_of=_gse120064_cue,
+        label_sep="\t", labeler=_gse120064_label,  # cue uniform (no gating -> no leak)
     ),
     # Riemondy/Zepp 2019, LPS lung injury -> alveolar regeneration. Injured AEC2
     # substates = Regeneration; naive alveolar cells = Quiescent. Same LPS cue as
@@ -198,7 +198,7 @@ SCRNA: dict[str, ScrnaDataset] = {
         labels_file="GSE113049_cell_metadata.tsv.gz",
         label_col="", cue="LPS", program_map={},
         label_sep="\t", counts_sep="\t",
-        labeler=_gse113049_label, cue_of=_gse113049_cue,
+        labeler=_gse113049_label,  # cue uniform (no gating -> no leak)
     ),
     # De Micheli 2020, notexin skeletal-muscle regeneration (34k cells). MuSC/
     # progenitor lineage: uninjured = Quiescent satellite, post-injury =
@@ -216,7 +216,7 @@ SCRNA: dict[str, ScrnaDataset] = {
         counts_file="GSE147405_A549_TNF_TimeCourse_UMI_matrix.csv.gz",
         labels_file="GSE147405_A549_TNF_TimeCourse_metadata.csv.gz",
         label_col="", cue="TNFalpha", program_map={},
-        labeler=_gse147405_label, cue_of=_gse147405_cue,
+        labeler=_gse147405_label,  # cue uniform (no gating -> no leak)
     ),
     # Hoare et al., oncogene-induced senescence (IMR90). RIS = Senescence,
     # Growing = Quiescent. New program; genetic OIS trigger -> no matching cue.
@@ -475,8 +475,8 @@ def ingest_h5ad_percell(h5ad: Path, out: Path, cell_type_col: str,
     labels = prog.to_numpy()
     for i in range(adata.n_obs):
         row = {node_cols[j]: X[i, j] for j in range(len(node_cols))}
-        if cue and cue in kg.node_index:              # baseline (Quiescent) cells got no cue
-            row[cue] = level if labels[i] != "Quiescent" else 0.0
+        if cue and cue in kg.node_index:              # uniform per dataset (NOT gated by
+            row[cue] = level                          # outcome -- gating leaked the label)
         lines.append(",".join(f"{row[c]}" if c != "label" else labels[i] for c in header))
         counts[labels[i]] = counts.get(labels[i], 0) + 1
     out.write_text("\n".join(lines) + "\n")
