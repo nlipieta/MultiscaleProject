@@ -20,6 +20,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
+from .device import pick_device
 from .dynamics import ToggleDynamics, _load, train, class_weights
 from .kg import DATA_DIR, load_kg
 from .oracle import QUIESCENT, all_classes
@@ -48,8 +49,9 @@ def _masked(X, kg, mode):
 
 @torch.no_grad()
 def _predict(model, X, bs=1024):
+    dev = next(model.parameters()).device
     model.eval()
-    return torch.cat([model(X[i:i + bs], plasticity=1.0).argmax(-1)
+    return torch.cat([model(X[i:i + bs].to(dev), plasticity=1.0).argmax(-1).cpu()
                       for i in range(0, X.size(0), bs)])
 
 
@@ -70,7 +72,9 @@ def main():
     ap.add_argument("--dropout", type=float, default=0.0)
     ap.add_argument("--weight-decay", type=float, default=0.0)
     ap.add_argument("--num-bases", type=int, default=0, help="R-GCN basis decomposition (0=off)")
+    ap.add_argument("--device", default="auto", help="cpu / cuda / mps / auto")
     args = ap.parse_args()
+    dev = pick_device(args.device)
 
     kg = load_kg()
     X, y, classes, df = _load(args.data, kg)
@@ -107,7 +111,7 @@ def main():
             torch.manual_seed(s)
             model = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps,
                                    layernorm=args.layernorm, dropout=args.dropout,
-                                   num_bases=args.num_bases)
+                                   num_bases=args.num_bases).to(dev)
             train(model, Xm[tr], y[tr], args.epochs, 256, args.lr, s, weights=w,
                   weight_decay=args.weight_decay)
             pred = _predict(model, Xm[va])

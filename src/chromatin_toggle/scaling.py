@@ -14,6 +14,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
+from .device import pick_device
 from .dynamics import ToggleDynamics, _load, _mask_input, train
 from .kg import DATA_DIR, load_kg
 from .oracle import QUIESCENT, all_classes
@@ -21,8 +22,9 @@ from .oracle import QUIESCENT, all_classes
 
 @torch.no_grad()
 def _eval(model, X, y, classes, prog_cols):
+    dev = next(model.parameters()).device
     model.eval()
-    pred = torch.cat([model(X[i:i + 1024], plasticity=1.0).argmax(-1)
+    pred = torch.cat([model(X[i:i + 1024].to(dev), plasticity=1.0).argmax(-1).cpu()
                       for i in range(0, X.size(0), 1024)])
     acc = float((pred == y).float().mean())
     recs = []
@@ -44,7 +46,9 @@ def main():
     ap.add_argument("--seeds", type=int, nargs="*", default=[0])
     ap.add_argument("--mask", choices=["none", "no_markers", "lineage_only"], default="no_markers")
     ap.add_argument("--test-frac", type=float, default=0.2)
+    ap.add_argument("--device", default="auto", help="cpu / cuda / mps / auto")
     args = ap.parse_args()
+    dev = pick_device(args.device)
 
     kg = load_kg()
     X, y, classes, df = _load(args.data, kg)
@@ -64,7 +68,7 @@ def main():
                 continue
             sub = pool[torch.randperm(len(pool), generator=g)[:N]]
             torch.manual_seed(s)
-            m = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps)
+            m = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps).to(dev)
             train(m, X[sub], y[sub], args.epochs, 256, 1e-3, s)
             acc, prog = _eval(m, X[te], y[te], classes, prog_cols)
             rows[N]["acc"].append(acc); rows[N]["prog"].append(prog)

@@ -24,7 +24,8 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from .dynamics import ToggleDynamics, _load, _mask_input, train, class_weights
+from .device import pick_device
+from .dynamics import ToggleDynamics, _load, _mask_input, train, class_weights, predict
 from .kg import DATA_DIR, load_kg
 from .oracle import QUIESCENT, all_classes
 
@@ -73,15 +74,12 @@ def _fit_sklearn(kind, Xtr, ytr, Xte, class_weight, seed):
     return m.predict(Xte)
 
 
-def _fit_gnn(kg, Xtr, ytr, Xte, n_classes, hidden, steps, epochs, class_weight, seed):
+def _fit_gnn(kg, Xtr, ytr, Xte, n_classes, hidden, steps, epochs, class_weight, seed, device):
     w = class_weights(ytr, n_classes) if class_weight else None
     torch.manual_seed(seed)
-    m = ToggleDynamics(kg, hidden=hidden, steps=steps)
+    m = ToggleDynamics(kg, hidden=hidden, steps=steps).to(device)
     train(m, Xtr, ytr, epochs, 256, 1e-3, seed, weights=w)
-    m.eval()
-    with torch.no_grad():
-        return torch.cat([m(Xte[i:i+1024], plasticity=1.0).argmax(-1)
-                          for i in range(0, Xte.size(0), 1024)]).numpy()
+    return predict(m, Xte).numpy()
 
 
 def main():
@@ -97,6 +95,7 @@ def main():
     ap.add_argument("--steps", type=int, default=6, help="GNN message-passing rounds")
     ap.add_argument("--hidden", type=int, default=64)
     ap.add_argument("--no-gnn", action="store_true", help="skip the (slow) KG-GNN")
+    ap.add_argument("--device", default="auto", help="cpu / cuda / mps / auto")
     ap.add_argument("--models", nargs="*",
                     default=["majority", "logreg", "rforest", "gboost"],
                     help="sklearn baselines to run")
@@ -122,9 +121,10 @@ def main():
         folds = _stratified_folds(y, args.kfolds, args.seed)
 
     model_list = list(args.models) + ([] if args.no_gnn else ["kg_gnn"])
+    dev = pick_device(args.device)
     print(f"Baseline comparison | data={Path(args.data).name} n={X.size(0)} "
           f"k={args.kfolds} mask={args.mask} group_split={args.group_split} "
-          f"class_weight={args.class_weight}")
+          f"class_weight={args.class_weight} device={dev}")
     print(f"classes={n_classes} models={model_list}\n")
 
     Xnp = X.numpy(); ynp = y.numpy()
@@ -135,7 +135,7 @@ def main():
         for m in model_list:
             if m == "kg_gnn":
                 pred = _fit_gnn(kg, X[tr], y[tr], X[te], n_classes, args.hidden,
-                                args.steps, args.epochs, args.class_weight, args.seed)
+                                args.steps, args.epochs, args.class_weight, args.seed, dev)
             else:
                 pred = _fit_sklearn(m, Xnp[tr], ynp[tr], Xnp[te], args.class_weight, args.seed)
             a, b, p = _metrics(pred, ynp[te], n_classes, prog_cols)

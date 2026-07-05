@@ -20,6 +20,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
+from .device import pick_device
 from .dynamics import ToggleDynamics, _load, _mask_input, train, class_weights
 from .kg import DATA_DIR, load_kg
 from .oracle import QUIESCENT, all_classes
@@ -27,11 +28,12 @@ from .oracle import QUIESCENT, all_classes
 
 @torch.no_grad()
 def _phyper(model, X, hyper_i, bs=1024):
+    dev = next(model.parameters()).device
     model.eval()
     out = []
     for i in range(0, X.size(0), bs):
-        p = torch.softmax(model(X[i:i+bs], plasticity=1.0), dim=-1)[:, hyper_i]
-        out.append(p)
+        p = torch.softmax(model(X[i:i+bs].to(dev), plasticity=1.0), dim=-1)[:, hyper_i]
+        out.append(p.cpu())
     return torch.cat(out)
 
 
@@ -56,7 +58,9 @@ def main():
     ap.add_argument("--steps", type=int, default=6)
     ap.add_argument("--hidden", type=int, default=64)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--device", default="auto", help="cpu / cuda / mps / auto")
     args = ap.parse_args()
+    dev = pick_device(args.device)
 
     kg = load_kg()
     X, y, classes, df = _load(args.data, kg)
@@ -79,7 +83,7 @@ def main():
 
     w = class_weights(y[torch.tensor(tr)], n_classes)
     torch.manual_seed(args.seed)
-    m = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps)
+    m = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps).to(dev)
     train(m, X[tr], y[tr], args.epochs, 256, 1e-3, args.seed, weights=w)
 
     Xte = X[torch.tensor(te)]

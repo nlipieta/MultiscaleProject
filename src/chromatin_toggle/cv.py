@@ -13,7 +13,8 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from .dynamics import ToggleDynamics, _load, _mask_input, train, class_weights
+from .device import pick_device
+from .dynamics import ToggleDynamics, _load, _mask_input, train, class_weights, predict
 from .kg import DATA_DIR, load_kg
 from .oracle import QUIESCENT, all_classes
 
@@ -42,7 +43,9 @@ def main():
     ap.add_argument("--group-split", action="store_true",
                     help="assign whole datasets to folds (removes batch confound; honest generalization)")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--device", default="auto", help="cpu / cuda / mps / auto")
     args = ap.parse_args()
+    dev = pick_device(args.device)
 
     kg = load_kg()
     X, y, classes, df = _load(args.data, kg)
@@ -72,12 +75,9 @@ def main():
         tr = torch.tensor(np.concatenate([folds[i] for i in range(args.kfolds) if i != f]), dtype=torch.long)
         w = class_weights(y[tr], len(classes)) if args.class_weight else None
         torch.manual_seed(args.seed)
-        m = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps)
+        m = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps).to(dev)
         train(m, X[tr], y[tr], args.epochs, 256, 1e-3, args.seed, weights=w)
-        m.eval()
-        with torch.no_grad():
-            pred = torch.cat([m(X[te][i:i+1024], plasticity=1.0).argmax(-1)
-                              for i in range(0, len(te), 1024)])
+        pred = predict(m, X[te])
         acc = float((pred == y[te]).float().mean())
         allrec = [float((pred[y[te] == c] == c).float().mean()) for c in range(len(classes))
                   if int((y[te] == c).sum())]

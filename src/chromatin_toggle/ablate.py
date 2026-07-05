@@ -34,7 +34,8 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from .dynamics import ToggleDynamics, _load, _mask_input, train, class_weights
+from .device import pick_device
+from .dynamics import ToggleDynamics, _load, _mask_input, train, class_weights, predict
 from .kg import DATA_DIR, load_kg
 from .oracle import QUIESCENT, all_classes
 
@@ -66,7 +67,7 @@ def _metrics(pred, y, n_classes, prog_cols):
     return acc, bal, prog
 
 
-def _run_one(name, kg, X, y, tr, te, n_classes, prog_cols, args, w):
+def _run_one(name, kg, X, y, tr, te, n_classes, prog_cols, args, w, dev):
     flags = dict(asymmetric=True, plasticity=True, attractor=True, hybrid=True)
     Xtr, Xte = X[tr], X[te]
     adj_override = None
@@ -97,14 +98,11 @@ def _run_one(name, kg, X, y, tr, te, n_classes, prog_cols, args, w):
         Xtr = _node_mask_input(Xtr, kg, drop); Xte = _node_mask_input(Xte, kg, drop)
 
     torch.manual_seed(args.seed)
-    m = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps, **flags)
+    m = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps, **flags).to(dev)
     if adj_override is not None:
-        m.adjacency.copy_(adj_override)
+        m.adjacency.copy_(adj_override.to(dev))
     train(m, Xtr, y[tr], args.epochs, 256, 1e-3, args.seed, weights=w)
-    m.eval()
-    with torch.no_grad():
-        pred = torch.cat([m(Xte[i:i+1024], plasticity=1.0).argmax(-1)
-                          for i in range(0, Xte.size(0), 1024)]).numpy()
+    pred = predict(m, Xte).numpy()
     return _metrics(pred, y[te].numpy(), n_classes, prog_cols)
 
 
@@ -120,7 +118,9 @@ def main():
     ap.add_argument("--epochs", type=int, default=25)
     ap.add_argument("--steps", type=int, default=6)
     ap.add_argument("--hidden", type=int, default=64)
+    ap.add_argument("--device", default="auto", help="cpu / cuda / mps / auto")
     args = ap.parse_args()
+    dev = pick_device(args.device)
 
     kg = load_kg()
     X, y, classes, df = _load(args.data, kg)
@@ -147,7 +147,7 @@ def main():
     results = {}
     full_prog = None
     for name in order:
-        a, b, p = _run_one(name, kg, X, y, tr, te, n_classes, prog_cols, args, w)
+        a, b, p = _run_one(name, kg, X, y, tr, te, n_classes, prog_cols, args, w, dev)
         if name == "full":
             full_prog = p
         results[name] = (a, b, p)
