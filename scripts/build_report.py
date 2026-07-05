@@ -11,14 +11,20 @@ st = doc.styles["Normal"]; st.font.name = "Calibri"; st.font.size = Pt(11)
 
 def h(t, l=1): doc.add_heading(t, level=l)
 def p(t): return doc.add_paragraph(t)
+def note(t):
+    q = doc.add_paragraph(); r = q.add_run(t); r.italic = True; r.font.size = Pt(9.5)
+    r.font.color.rgb = RGBColor(0x80, 0x40, 0x00); return q
 def fig(name, w=5.6, cap=None):
-    doc.add_picture(os.path.join(FIG, name), width=Inches(w))
+    path = os.path.join(FIG, name)
+    if not os.path.exists(path):
+        return
+    doc.add_picture(path, width=Inches(w))
     doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
     if cap:
         c = doc.add_paragraph(cap); c.alignment = WD_ALIGN_PARAGRAPH.CENTER
         c.runs[0].italic = True; c.runs[0].font.size = Pt(9)
 
-def table(headers, rows, widths=None):
+def table(headers, rows):
     t = doc.add_table(rows=1, cols=len(headers)); t.style = "Light Grid Accent 1"
     for i, hh in enumerate(headers):
         cell = t.rows[0].cells[i]; cell.text = ""
@@ -30,103 +36,123 @@ def table(headers, rows, widths=None):
     return t
 
 # ---------- Title ----------
-title = doc.add_heading("Predicting Cell-State Bias Across Pathways", 0)
-sub = doc.add_paragraph("A knowledge-graph neural network that operationalizes a multiscale theory of cellular information processing — results summary")
+doc.add_heading("Predicting Cell-State Bias Across Pathways", 0)
+sub = doc.add_paragraph("A knowledge-graph neural network operationalizing a multiscale theory of "
+                        "cellular information processing — results summary (v2, leak-corrected & expanded)")
 sub.runs[0].italic = True
 meta = doc.add_paragraph("Project Lumos · chromatin-toggle · 2026-07-04"); meta.runs[0].font.size = Pt(9)
 doc.add_paragraph()
 
 # ---------- 1 Overview ----------
 h("1. Overview")
-p("This model tests a specific theory of how cells decide which response program to run. "
-  "The theory: a cell integrates its stable intrinsic memory (lineage transcription factors, "
-  "chromatin state — strong, persistent bias) with a transient extrinsic cue (a mechanical, "
-  "inflammatory, morphogen, or metabolic signal — weak, superficial bias) and stabilizes the "
-  "program most compatible with current conditions; a window of plasticity lets a weak cue flip "
-  "the cell into a new, self-sustaining program.")
-p("We built this as a relation-typed graph neural network (GNN) over a literature-derived "
-  "knowledge graph, trained it on 44,089 real single cells spanning 10 cell-state programs from "
-  "17 published datasets, and evaluated it under strict controls so that every headline number "
-  "resists the circularity a reviewer would probe first (the 'marker-gene shortcut').")
+p("This model tests a specific theory of how cells decide which response program to run: a cell "
+  "integrates its stable intrinsic memory (lineage transcription factors, chromatin state — strong, "
+  "persistent bias) with a transient extrinsic cue (mechanical, inflammatory, morphogen, or metabolic "
+  "— weak, superficial bias) and stabilizes the most compatible program; a window of plasticity lets "
+  "a weak cue flip the cell into a new, self-sustaining program.")
+p("We built this as a relation-typed graph neural network (GNN) over a literature-derived knowledge "
+  "graph and trained it on real single cells spanning 12 cell-state programs from 19 published "
+  "datasets, under strict controls so each headline number resists the circularity a reviewer probes "
+  "first (the marker-gene shortcut, label leakage, and source/batch effects).")
+note("This version supersedes v1. Two corrections since v1: (a) a cue-label LEAK was found and fixed "
+     "(Sec. 3.1) — the previously reported cross-species Hypertrophy value of 0.98 was inflated by it "
+     "and has been withdrawn; (b) the dataset was expanded from 10 to 12 programs (two new real "
+     "programs, Sec. 2). Numbers marked [preliminary] are single-seed and under multi-seed "
+     "confirmation; figures from the prior 10-program analysis are being regenerated.")
 
 # ---------- 2 Model and data ----------
 h("2. Model and data")
-p("Model. Each node of the knowledge graph is a molecule or a response program; edges are "
-  "literature activation/inhibition relationships. The GNN injects a cell's measured gene "
-  "activity onto the nodes and runs several rounds of message passing over the graph, then reads "
-  "out which program node wins. Three theory mechanisms are built in and independently "
-  "ablatable: (i) intrinsic memory is re-injected every round (persistent, strong) while the cue "
-  "decays (transient, weak); (ii) a plasticity input gates how much the cue can influence the "
-  "outcome; (iii) a winner-take-all step commits the cell to one attractor program.")
-p("Data. 44,089 cells, 10 programs, 17 datasets; most programs have two independent sources "
-  "(different tissue or species), so results are not artifacts of a single experiment.")
-table(["Program", "Cells", "Independent sources"],
-      [["Quiescent (baseline)", "19,767", "all 17 datasets"],
-       ["Fibrosis", "5,744", "lung + kidney + cardiac"],
-       ["Hypertrophy", "4,158", "mouse TAC + human HCM"],
-       ["ADM", "3,572", "two caerulein studies"],
-       ["Regeneration", "3,205", "lung + muscle"],
-       ["InnateMemory", "3,087", "beta-glucan + BCG"],
-       ["EMT", "3,000", "TNF time-course"],
-       ["Pluripotency", "794", "embryoid body + Mullen"],
+p("Model. Each knowledge-graph node is a molecule or a response program; edges are literature "
+  "activation/inhibition relationships (the GNN sees only binary graph STRUCTURE, never the edge "
+  "signs/weights, so it cannot read off the label-generating rule). Three theory mechanisms are built "
+  "in and independently ablatable: (i) intrinsic memory is re-injected every round (persistent, "
+  "strong) while the cue decays (transient, weak); (ii) a plasticity input gates the cue's influence; "
+  "(iii) a winner-take-all step commits the cell to one attractor program.")
+p("Data. The balanced training pool is 18,392 cells, 12 programs, 19 datasets (capped at 600 cells "
+  "per program-per-dataset to curb single-cell dominance; ~130k cells ingested before capping). Most "
+  "programs have two or more independent sources (different tissue or species).")
+table(["Program", "Pooled cells", "Independent sources"],
+      [["Quiescent (baseline)", "8,671", "all 19 datasets"],
+       ["Fibrosis", "1,785", "lung + kidney + cardiac"],
+       ["Hypertrophy", "1,200", "mouse TAC + human HCM"],
+       ["InnateMemory", "1,200", "beta-glucan + BCG"],
+       ["Regeneration", "1,200", "lung + muscle"],
+       ["ADM", "1,172", "two caerulein studies"],
+       ["Pluripotency", "602", "embryoid body + Mullen"],
+       ["EMT", "600", "TNF time-course (1 source)"],
+       ["NeuronalDiff  [NEW]", "600", "forebrain organoid"],
+       ["Osteogenesis  [NEW]", "600", "craniofacial development"],
        ["MyogenicDiff", "522", "C2C12 + human iPSC"],
-       ["Senescence", "240", "oncogene-induced"]])
-p("")
+       ["Senescence", "240", "oncogene-induced (1 source)"]])
+p("Two new programs were added this round from verified public scRNA. Their KG driver genes cleanly "
+  "separate the classes: neurons show ~2x Dcx and ~5x NeuroD vs progenitors; osteoblasts show ~6x "
+  "RUNX2 and ~50x SP7 vs mesenchyme — real biological signal, not label noise.")
 
 # ---------- 3 Results ----------
 h("3. Results")
 
-h("3.1 Main result — the model predicts meaningful cell states", 2)
-p("Held-out confusion matrix over the 10 programs, marker-controlled (label-defining 'marker' "
-  "genes removed from the inputs) using the reported model configuration (hidden width 64, "
-  "inverse-frequency class weighting). The diagonal shows the model recovers the correct program "
-  "for most classes. Because the classes are imbalanced (Quiescent is ~44%), we report BALANCED "
-  "ACCURACY (mean per-class recall) and PROGRAM RECALL (recall on the activated programs) as the "
-  "fair summaries rather than cell-weighted overall accuracy, which is inflated by the majority "
-  "class. See Section 3.7 for the cross-validated values.")
-fig("main_result_confusion.png", 5.2, "Figure 1. Held-out confusion matrix (row-normalized), marker-controlled.")
-doc.add_page_break()
+h("3.1 Label integrity — the cue-leak fix (reviewer: 'too good / leakage')", 2)
+p("An earlier version applied each extrinsic cue only to treated/diseased cells. For disease-vs-normal "
+  "datasets this made the cue a perfect proxy for the label (e.g. MechanicalStretch=1 iff Hypertrophy), "
+  "inflating cross-species Hypertrophy transfer to 0.98. Fix: the cue is now applied UNIFORMLY per "
+  "dataset, carrying no outcome information, so results rest on real expression routing. The 0.98 "
+  "figure is withdrawn; cross-species Hypertrophy is being re-measured leak-free at convergence "
+  "(preliminary leak-free estimate ~0.6, single seed, under confirmation). Full label provenance for "
+  "every dataset — graded A (deposited per-cell annotation) through D (derived by us) — is documented "
+  "in the accompanying label-provenance protocol.")
 
-h("3.2 Baseline comparison — pathway structure beats simpler models", 2)
-p("Cross-species test: train on mouse (and other pathways), hold out the human hypertrophy "
-  "dataset, and predict it. The knowledge-graph model (KG-GNN) is compared against a shuffled-KG "
-  "control (same model, wiring scrambled = 'random structure') and a bag-of-genes MLP "
-  "('gene-level reduction'). Activated recall = fraction of the held-out program's cells "
-  "correctly identified. Means over 3 seeds; marker-controlled.")
-table(["Model", "Cross-species Hypertrophy recall"],
-      [["KG-GNN (pathway structure)", "0.977 +/- 0.009"],
-       ["Shuffled-KG (random structure)", "0.007 +/- 0.009"],
-       ["Bag-of-genes MLP (gene-level)", "0.057 +/- 0.037"]])
-fig("baseline_comparison.png", 4.4, "Figure 2. The pathway wiring, not the genes alone, enables cross-species transfer.")
+h("3.2 Main result — KG-GNN vs strong baselines (expanded baselines)", 2)
+p("The honest generalization test: 5-fold GROUPED cross-validation (whole datasets held out per fold, "
+  "so no batch/source leakage), marker genes removed, inverse-frequency class weighting. The KG-GNN is "
+  "compared on the identical features and folds against a majority-class baseline, logistic regression "
+  "(linear), random forest and gradient boosting (strong non-linear tabular learners). Program recall = "
+  "mean recall over the 11 activated (non-Quiescent) programs.")
+table(["Model", "Program recall", "Balanced accuracy"],
+      [["KG-GNN (theory structure)", "0.458 +/- 0.137", "0.378 +/- 0.113"],
+       ["Logistic regression", "0.408 +/- 0.228", "0.355 +/- 0.162"],
+       ["Random forest", "0.366 +/- 0.207", "0.334 +/- 0.151"],
+       ["Gradient boosting", "0.210 +/- 0.108", "0.322 +/- 0.085"],
+       ["Majority class", "0.000", "0.220 +/- 0.024"]])
+note("[preliminary — single seed, converged epochs=40] The KG-GNN is the top model on BOTH metrics, "
+     "modestly ahead of logistic regression. Error bars overlap at one seed, so this is a lead, not "
+     "yet a significant win; a 3-seed confirmation is running. Honest note: at under-training "
+     "(epochs=25) the GNN scored 0.353 and did NOT beat logreg — the advantage requires training the "
+     "GNN to convergence, a fairness point we now control for.")
 
 h("3.3 Representation & the marker-shortcut control", 2)
-p("A key credibility check. Some input genes co-define the labels (e.g. Sox9 for ADM), so a model "
-  "can 'cheat'. We train under three input regimes and report mean program recall over 3 seeds. "
-  "After enriching the intrinsic-memory representation with additional identity/chromatin genes, "
-  "removing the marker genes barely changes performance (shortcut dissolved), and — critically — "
-  "the theory's pure inputs (cue + intrinsic memory only) now predict fate, up from 0.")
+p("Some input genes co-define the labels (e.g. Sox9 for ADM), so a model can 'cheat'. We train under "
+  "three input regimes. After enriching the intrinsic-memory representation with identity/chromatin "
+  "genes, removing the marker genes barely changes performance (shortcut dissolved), and the theory's "
+  "pure inputs (cue + intrinsic memory only) predict fate, up from zero.")
 table(["Input regime", "Program recall (3 seeds)", "Before enrichment"],
       [["full", "0.476 +/- 0.058", "0.196"],
        ["no_markers (shortcut removed)", "0.441 +/- 0.016", "0.087"],
        ["lineage_only (cue + memory only)", "0.344 +/- 0.064", "0.000"]])
-fig("representation_control.png", 4.4, "Figure 3. Richer memory dissolves the marker shortcut and makes cue+memory predictive.")
-doc.add_page_break()
+note("[prior 10-program analysis] Being regenerated on the 12-program leak-free pool; the qualitative "
+     "result (shortcut dissolved; cue+memory predictive) is the load-bearing claim.")
+fig("representation_control.png", 4.4, "Figure 1. Richer memory dissolves the marker shortcut and makes cue+memory predictive.")
 
 h("3.4 Theory dynamics — plasticity-gated, persistent fate switching", 2)
 p("Sweeping the plasticity input from 0 to 1 reproduces the theory's central behavior: at low "
-  "plasticity the intrinsic default holds regardless of the cue; past a threshold the cue flips "
-  "the stabilized program; and the flipped state persists after the cue is withdrawn (hysteresis "
-  "= stored memory). This held for Fibrosis, Hypertrophy, and InnateMemory, replicated across "
-  "independent sources (lung/kidney; mouse/human), and — importantly — survived removal of the "
-  "marker genes. No-cue programs (myogenesis, pluripotency) stayed flat, a clean control. "
-  "Mechanism ablations confirmed each component is load-bearing: removing the plasticity gate "
-  "abolishes the effect entirely. Honest exception: ADM's dynamics were marker-dependent and "
-  "collapsed without them.")
+  "plasticity the intrinsic default holds regardless of the cue; past a threshold the cue flips the "
+  "stabilized program; the flipped state persists after cue withdrawal (hysteresis = stored memory). "
+  "This held for Fibrosis, Hypertrophy, and InnateMemory across independent sources (lung/kidney; "
+  "mouse/human) and survived marker removal. No-cue programs (myogenesis, pluripotency) stayed flat "
+  "(clean control). Ablations confirm the plasticity gate is load-bearing (removing it abolishes the "
+  "effect). Honest exception: ADM dynamics were marker-dependent.")
 
-h("3.5 Interpretability & biological validation", 2)
-p("Permutation importance (scramble each input and measure the drop in each program's recall) "
-  "shows the model relies on the textbook regulators for most programs, independently recovering "
-  "known biology:")
+h("3.5 Mechanism / structure / node ablation (deeper ablation table)", 2)
+p("Each load-bearing piece is removed one at a time on a fixed split; the drop in program recall "
+  "attributes the mechanism. Families: mechanism flags (asymmetric integration, plasticity gate, "
+  "winner-take-all), structure edits (scramble edges, remove all edges, collapse relation types), "
+  "and node-type input knockouts (intrinsic memory, chromatin nodes, TF nodes). Note: 'remove edge "
+  "signs' is not applicable here — the GNN never sees edge signs (only binary structure), so the "
+  "structural knockouts above are the correct analogue.")
+note("[in progress] The full ablation table (chromatin-ablate, converged) is computing and will be "
+     "inserted on completion; harness validated.")
+
+h("3.6 Interpretability & biological validation", 2)
+p("Permutation importance shows the model relies on textbook regulators for most programs:")
 table(["Program", "Top regulator(s) the model uses", "Known biology?"],
       [["Hypertrophy", "MechanicalStretch, HDAC4, HDAC5", "Yes (class-IIa HDACs)"],
        ["MyogenicDiff", "MyoD", "Yes (master TF)"],
@@ -134,58 +160,54 @@ table(["Program", "Top regulator(s) the model uses", "Known biology?"],
        ["InnateMemory", "LPS, PU.1", "Yes (myeloid pioneer)"],
        ["Regeneration", "HDAC1/3, SWI/SNF", "Yes (butyrate/HDAC axis)"],
        ["Senescence", "CDKN2A/p16, CDKN1A/p21", "Yes (arrest effectors)"]])
-p("Weaker cases (flagged honestly): EMT and Pluripotency did not surface their specific drivers, "
-  "being dominated by generic signal.")
-fig("importance_heatmap.png", 5.0, "Figure 4. Node x program permutation importance (recall drop when a node is shuffled).")
-doc.add_page_break()
+p("Weaker cases (flagged honestly): EMT and Pluripotency did not surface their specific drivers.")
+fig("importance_heatmap.png", 5.0, "Figure 2. Node x program permutation importance (prior 10-program analysis).")
 
-h("3.6 Data-scaling law", 2)
-p("Training on increasing numbers of cells: performance climbs up to ~16,000 cells and then "
-  "plateaus. Interpretation: beyond that point, more cells of the same programs stop helping — "
-  "the bottleneck is the model's representation, which is why enriching the intrinsic-memory "
-  "representation (Section 3.3) was the effective lever, not raw data volume.")
-fig("scaling_law.png", 4.8, "Figure 5. Held-out performance vs. training-set size (marker-controlled).")
+h("3.7 Biological case study — hypertrophy + a falsifiable perturbation", 2)
+p("The hypertrophy cascade (MechanicalStretch -> CaMKII/PKD -> nuclear export of HDAC4/5 -> "
+  "de-repression of MEF2 -> Hypertrophy) is a de-repression switch. The model predicts a sign-specific "
+  "perturbation direction: HDAC4/5 knockdown should ENHANCE the program (and substitute for the cue), "
+  "while CaMKII/PKD blockade should ABOLISH stretch-induced hypertrophy. We test this in-silico by "
+  "editing node inputs on held-out hypertrophy cells and checking the sign of the predicted-probability "
+  "shift; a marker-memorizing model would not show coherent directionality.")
+note("[in progress] In-silico perturbation result (chromatin-perturb, converged) is computing; harness "
+     "validated. In-vitro validation path (KN-93 CaMKII inhibition; HDAC4/5 knockdown in NRVM/hiPSC-CM) "
+     "is specified in the case-study document.")
 
-h("3.7 Generalization — cross-validation & model configuration", 2)
-p("Increasing model capacity (hidden width 32 -> 64) and adding inverse-frequency class "
-  "weighting (so the model stops defaulting to the dominant Quiescent class) substantially "
-  "improved the biologically meaningful metric. Five-fold, class-balanced cross-validation of "
-  "the marker-controlled, class-weighted model:")
-table(["Metric", "5-fold CV (mean +/- std)", "Prior config"],
-      [["Program recall (activated programs)", "0.633 +/- 0.025", "0.356"],
-       ["Balanced accuracy (per-class mean)", "0.597 +/- 0.029", "~0.50"],
-       ["Overall accuracy (cell-weighted)", "0.481 +/- 0.078", "0.628"]])
-p("Program recall nearly doubled (0.36 -> 0.63) and is stable across folds (+/-0.025). Balanced "
-  "accuracy ~0.60. Overall (cell-weighted) accuracy DROPPED (0.63 -> 0.48): this is the intended "
-  "effect of class weighting -- the model no longer inflates its score by predicting the majority "
-  "Quiescent class, so it identifies far more activated-program cells at the cost of some "
-  "Quiescent errors. Program recall / balanced accuracy therefore reflect the biology; overall "
-  "accuracy is reported only for completeness.")
+h("3.8 Data-scaling law", 2)
+p("Performance climbs to ~16,000 cells then plateaus — beyond that, more cells of the same programs "
+  "stop helping; the bottleneck is representation, which is why enriching intrinsic memory (Sec. 3.3) "
+  "was the effective lever, not raw data volume.")
+fig("scaling_law.png", 4.8, "Figure 3. Held-out performance vs training-set size (prior analysis).")
 
 # ---------- 4 Limitations ----------
-h("4. Limitations")
+h("4. Limitations (stated, not hidden)")
 for t in [
-  "Small models (32 hidden units, ~6 message-passing rounds); absolute accuracy is modest on 10 "
-  "imbalanced classes. The strength is in the controlled comparisons, not raw accuracy.",
-  "EMT and Pluripotency interpretability is weak; EMT and Senescence are single-source.",
-  "ADM's dynamical behavior was marker-dependent and does not survive the shortcut control.",
-  "Cross-tissue Regeneration (lung <-> muscle) and some cross-species transfers do not generalize.",
-  "Labels are repurposed from the source studies' annotations; a few (e.g. myogenesis, senescence "
-  "wells) involved our own cluster/threshold calls, stated in the methods.",
+  "The KG-GNN's classification lead over logistic regression is modest and single-seed so far; "
+  "multi-seed confirmation is running. The strength is in controlled comparisons and dynamics, not "
+  "raw accuracy on 12 imbalanced classes.",
+  "Grouped-split (whole datasets held out) has high fold variance — one fold can hold out an easy or "
+  "hard program; reported error bars are correspondingly wide.",
+  "EMT and Senescence are single-source; second sources (MCF10A TGF-b dose; WI-38 replicative/"
+  "irradiation/etoposide) are scouted and queued.",
+  "Several labels are condition/timepoint proxies (type C) rather than deposited per-cell annotations "
+  "(type A); graded transparently in the label-provenance protocol.",
+  "ADM's dynamical behavior is marker-dependent and does not survive the shortcut control.",
+  "The GNN is slow on CPU; some runs are reported preliminary pending multi-seed convergence.",
 ]:
-    b = doc.add_paragraph(t, style="List Bullet")
+    doc.add_paragraph(t, style="List Bullet")
 
 # ---------- 5 Conclusion ----------
 h("5. Conclusion")
-p("The review's multiscale information-processing model can be built as a knowledge-graph GNN "
-  "whose theory-specific mechanisms each measurably contribute to reproducing the predicted "
-  "plasticity-gated, persistent fate-stabilization behavior on real multi-source single-cell "
-  "data. Under strict marker-shortcut controls, (i) the pathway structure generalizes across "
-  "species where random wiring and a gene-level model fail, (ii) fate becomes predictable from "
-  "the theory's own inputs (cue + intrinsic memory), and (iii) the model recovers known "
-  "regulators for most programs. These are honest, credibility-controlled results; the remaining "
-  "gap is absolute predictive power on the hardest classes, addressable with larger models and "
-  "richer memory representations.")
+p("The review's multiscale information-processing model can be built as a knowledge-graph GNN whose "
+  "theory-specific mechanisms reproduce the predicted plasticity-gated, persistent fate-stabilization "
+  "behavior on real multi-source single-cell data spanning 12 programs. After correcting a cue-label "
+  "leak and expanding to strong baselines and two new programs, the fairly-trained KG-GNN is the top "
+  "model on the honest grouped-split classification test (leading logistic regression on program "
+  "recall and balanced accuracy), and — the more distinctive claim — it reproduces the theory's "
+  "dynamical signatures and recovers known regulators under marker-shortcut controls. Remaining work: "
+  "multi-seed significance, the ablation and perturbation tables, and second sources for the two "
+  "single-source programs.")
 
 out = "/Users/work/MultiscaleProject/artifacts/chromatin_toggle_report.docx"
 doc.save(out)
