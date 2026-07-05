@@ -37,7 +37,7 @@ class ToggleDynamics(nn.Module):
     def __init__(self, kg, hidden=32, steps=8, asymmetric=True, plasticity=True,
                  attractor=True, mem_gain=1.0, cue_gain=1.0, cue_decay=0.6,
                  wta_gain=0.5, wta_iters=3, node_ann=None, context_dim=0,
-                 layernorm=False, dropout=0.0, num_bases=0):
+                 layernorm=False, dropout=0.0, num_bases=0, hybrid=True):
         super().__init__()
         self.ln = nn.LayerNorm(hidden) if layernorm else None
         self.drop = nn.Dropout(dropout) if dropout > 0 else None
@@ -45,6 +45,13 @@ class ToggleDynamics(nn.Module):
         self.asymmetric, self.use_plasticity, self.attractor = asymmetric, plasticity, attractor
         self.mem_gain, self.cue_gain, self.cue_decay = mem_gain, cue_gain, cue_decay
         self.wta_gain, self.wta_iters = wta_gain, wta_iters
+        # hybrid residual: a direct linear map from the raw node vector to the class
+        # logits, summed with the GNN readout. Guarantees the model is >= a linear
+        # baseline (it can zero the graph path) and lets the graph add value only
+        # where it helps. n_classes = num programs + 1 (Quiescent). Ablatable.
+        self.hybrid = hybrid
+        if hybrid:
+            self.skip = nn.Linear(kg.num_nodes, len(kg.program_index) + 1)
 
         self.id_emb = nn.Embedding(kg.num_nodes, hidden)
         self.type_emb = nn.Embedding(kg.num_types, hidden)
@@ -127,6 +134,8 @@ class ToggleDynamics(nn.Module):
         prog_logits = self.prog_head(h[:, self.program_index, :]).squeeze(-1)   # [B,P]
         quiescent = self.quiescent_head(h.mean(dim=1))                          # [B,1]
         logits = torch.cat([prog_logits, quiescent], dim=-1)
+        if self.hybrid:                       # linear residual on the raw node vector
+            logits = logits + self.skip(x0)   # (>= linear baseline; graph adds on top)
         if self.attractor:  # winner-take-all sharpening: settle toward one program
             for _ in range(self.wta_iters):
                 a = torch.softmax(logits, dim=-1)

@@ -107,17 +107,22 @@ p("The honest generalization test: 5-fold GROUPED cross-validation (whole datase
   "compared on the identical features and folds against a majority-class baseline, logistic regression "
   "(linear), random forest and gradient boosting (strong non-linear tabular learners). Program recall = "
   "mean recall over the 11 activated (non-Quiescent) programs.")
-table(["Model", "Program recall", "Balanced accuracy"],
-      [["KG-GNN (theory structure)", "0.458 +/- 0.137", "0.378 +/- 0.113"],
-       ["Logistic regression", "0.408 +/- 0.228", "0.355 +/- 0.162"],
-       ["Random forest", "0.366 +/- 0.207", "0.334 +/- 0.151"],
-       ["Gradient boosting", "0.210 +/- 0.108", "0.322 +/- 0.085"],
-       ["Majority class", "0.000", "0.220 +/- 0.024"]])
-note("[preliminary — single seed, converged epochs=40] The KG-GNN is the top model on BOTH metrics, "
-     "modestly ahead of logistic regression. Error bars overlap at one seed, so this is a lead, not "
-     "yet a significant win; a 3-seed confirmation is running. Honest note: at under-training "
-     "(epochs=25) the GNN scored 0.353 and did NOT beat logreg — the advantage requires training the "
-     "GNN to convergence, a fairness point we now control for.")
+p("Multi-seed result (n=3 seeds; program recall = mean over the 11 activated programs, "
+  "mean +/- std across seeds):")
+table(["Model", "Program recall (n=3)", "Balanced accuracy"],
+      [["Logistic regression", "0.396 +/- 0.058", "0.361 +/- 0.049"],
+       ["Random forest", "0.378 +/- 0.065", "0.358 +/- 0.049"],
+       ["KG-GNN (theory structure)", "0.347 +/- 0.065", "0.312 +/- 0.055"],
+       ["Gradient boosting", "0.232 +/- 0.073", "0.309 +/- 0.045"],
+       ["Majority class", "0.000", "0.166 +/- 0.005"]])
+note("Honest read: across 3 seeds the KG-GNN is STATISTICALLY INDISTINGUISHABLE from a strong "
+     "linear baseline on this task -- it does NOT provide a robust held-out classification advantage "
+     "(logreg 0.396 vs KG-GNN 0.347, overlapping error bars). Performance is training-budget-"
+     "sensitive: at a higher budget (5-fold, 8k cells, epochs 40) a single seed reached 0.458 and "
+     "led all models, but that lead does not survive the multi-seed leaner estimate. We therefore do "
+     "NOT claim a classification win over logistic regression. The model's distinctive, controlled "
+     "evidence is the plasticity-gated DYNAMICS (3.4), interpretability (3.6), and the perturbation "
+     "test (3.7) -- not out-classifying a linear model at labeling.")
 
 h("3.3 Representation & the marker-shortcut control", 2)
 p("Some input genes co-define the labels (e.g. Sox9 for ADM), so a model can 'cheat'. We train under "
@@ -202,12 +207,14 @@ h("5. Conclusion")
 p("The review's multiscale information-processing model can be built as a knowledge-graph GNN whose "
   "theory-specific mechanisms reproduce the predicted plasticity-gated, persistent fate-stabilization "
   "behavior on real multi-source single-cell data spanning 12 programs. After correcting a cue-label "
-  "leak and expanding to strong baselines and two new programs, the fairly-trained KG-GNN is the top "
-  "model on the honest grouped-split classification test (leading logistic regression on program "
-  "recall and balanced accuracy), and — the more distinctive claim — it reproduces the theory's "
-  "dynamical signatures and recovers known regulators under marker-shortcut controls. Remaining work: "
-  "multi-seed significance, the ablation and perturbation tables, and second sources for the two "
-  "single-source programs.")
+  "leak and expanding to strong baselines and two new programs, the honest finding on held-out "
+  "grouped-split classification is that the KG-GNN is COMPETITIVE WITH but does NOT robustly beat a "
+  "linear baseline (n=3: 0.347 vs logistic-regression 0.396, overlapping error bars) — we do not "
+  "claim a classification win. The model's distinctive, controlled contributions are instead (i) it "
+  "reproduces the theory's plasticity-gated, hysteretic dynamics under marker-shortcut controls, and "
+  "(ii) it recovers known regulators for most programs, with a falsifiable HDAC4/5 perturbation "
+  "prediction for hypertrophy. Remaining work: the ablation and perturbation tables (computing), "
+  "leak-free cross-species transfer, and second sources for the two single-source programs.")
 
 out = "/Users/work/MultiscaleProject/artifacts/chromatin_toggle_report.docx"
 doc.save(out)

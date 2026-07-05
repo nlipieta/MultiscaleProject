@@ -67,12 +67,13 @@ def _metrics(pred, y, n_classes, prog_cols):
 
 
 def _run_one(name, kg, X, y, tr, te, n_classes, prog_cols, args, w):
-    flags = dict(asymmetric=True, plasticity=True, attractor=True)
+    flags = dict(asymmetric=True, plasticity=True, attractor=True, hybrid=True)
     Xtr, Xte = X[tr], X[te]
     adj_override = None
     if name == "-asymmetric":       flags["asymmetric"] = False
     elif name == "-plasticity_gate": flags["plasticity"] = False
     elif name == "-attractor(WTA)":  flags["attractor"] = False
+    elif name == "-hybrid_residual": flags["hybrid"] = False
     elif name in ("scramble_edges", "no_edges", "collapse_relations"):
         adj = kg.structural_adjacency().clone()
         if name == "scramble_edges":
@@ -135,7 +136,7 @@ def main():
     tr, te = _split(y, groups, args.val_frac, args.seed, args.group_split)
     w = class_weights(y[tr], n_classes) if args.class_weight else None
 
-    order = ["full", "-asymmetric", "-plasticity_gate", "-attractor(WTA)",
+    order = ["full", "-hybrid_residual", "-asymmetric", "-plasticity_gate", "-attractor(WTA)",
              "scramble_edges", "no_edges", "collapse_relations",
              "-intrinsic_memory", "-chromatin_nodes", "-tf_nodes"]
     print(f"Ablation | data={Path(args.data).name} n={X.size(0)} mask={args.mask} "
