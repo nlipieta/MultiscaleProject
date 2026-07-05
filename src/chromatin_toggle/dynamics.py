@@ -164,9 +164,11 @@ def class_weights(y, n_classes):
 
 
 def train(model, X, y, epochs, bs, lr, seed, plasticity_train=1.0, weights=None,
-          weight_decay=0.0):
+          weight_decay=0.0, schedule=True):
     dev = next(model.parameters()).device          # follow the model's device (CPU/MPS/CUDA)
     opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)  # decoupled WD
+    # cosine LR anneal over epochs -> cleaner convergence (matters once epochs are large)
+    sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=epochs) if schedule else None
     lossf = nn.CrossEntropyLoss(weight=weights.to(dev) if weights is not None else None)
     g = torch.Generator().manual_seed(seed)
     for ep in range(epochs):
@@ -178,7 +180,18 @@ def train(model, X, y, epochs, bs, lr, seed, plasticity_train=1.0, weights=None,
             loss = lossf(model(X[idx].to(dev), plasticity=plasticity_train), y[idx].to(dev))
             loss.backward()
             opt.step()
+        if sched is not None:
+            sched.step()
     return model
+
+
+@torch.no_grad()
+def predict_proba(model, X, bs=1024, plasticity=1.0):
+    """Device-agnostic batched softmax probabilities; returns CPU [N, n_classes]."""
+    dev = next(model.parameters()).device
+    model.eval()
+    return torch.cat([torch.softmax(model(X[i:i + bs].to(dev), plasticity=plasticity), -1).cpu()
+                      for i in range(0, X.size(0), bs)])
 
 
 @torch.no_grad()

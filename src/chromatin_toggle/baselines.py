@@ -25,7 +25,8 @@ import numpy as np
 import torch
 
 from .device import pick_device
-from .dynamics import ToggleDynamics, _load, _mask_input, train, class_weights, predict
+from .dynamics import (ToggleDynamics, _load, _mask_input, train, class_weights,
+                       predict, predict_proba)
 from .kg import DATA_DIR, load_kg
 from .oracle import QUIESCENT, all_classes
 
@@ -47,15 +48,25 @@ def _stratified_folds(y, k, seed):
     return [np.array(f) for f in folds]
 
 
-def _metrics(pred, y, n_classes, prog_cols):
+def _metrics(pred, proba, y, n_classes, prog_cols):
+    from sklearn.metrics import average_precision_score, f1_score
     pred, y = np.asarray(pred), np.asarray(y)
     acc = float((pred == y).mean())
     recs = [float((pred[y == c] == c).mean()) for c in range(n_classes) if (y == c).any()]
     progr = [float((pred[y == c] == c).mean()) for c in prog_cols if (y == c).any()]
-    return acc, float(np.mean(recs)), float(np.mean(progr))
+    # macro-F1 over all classes present in this fold (balances precision + recall)
+    f1 = float(f1_score(y, pred, average="macro", zero_division=0))
+    # macro-AUPRC (threshold-independent): mean over PROGRAM classes present in fold
+    aps = []
+    if proba is not None:
+        for c in prog_cols:
+            if (y == c).any():
+                aps.append(float(average_precision_score((y == c).astype(int), proba[:, c])))
+    auprc = float(np.mean(aps)) if aps else float("nan")
+    return acc, float(np.mean(recs)), float(np.mean(progr)), f1, auprc
 
 
-def _fit_sklearn(kind, Xtr, ytr, Xte, class_weight, seed):
+def _fit_sklearn(kind, Xtr, ytr, Xte, n_classes, class_weight, seed):
     from sklearn.dummy import DummyClassifier
     from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
     from sklearn.linear_model import LogisticRegression
@@ -71,7 +82,12 @@ def _fit_sklearn(kind, Xtr, ytr, Xte, class_weight, seed):
     else:
         raise ValueError(kind)
     m.fit(Xtr, ytr)
-    return m.predict(Xte)
+    # align predict_proba columns (indexed by m.classes_) to full 0..n_classes-1
+    proba = np.zeros((Xte.shape[0], n_classes))
+    p = m.predict_proba(Xte)
+    for j, c in enumerate(m.classes_):
+        proba[:, int(c)] = p[:, j]
+    return m.predict(Xte), proba
 
 
 def _fit_gnn(kg, Xtr, ytr, Xte, n_classes, hidden, steps, epochs, class_weight, seed, device):
@@ -79,7 +95,7 @@ def _fit_gnn(kg, Xtr, ytr, Xte, n_classes, hidden, steps, epochs, class_weight, 
     torch.manual_seed(seed)
     m = ToggleDynamics(kg, hidden=hidden, steps=steps).to(device)
     train(m, Xtr, ytr, epochs, 256, 1e-3, seed, weights=w)
-    return predict(m, Xte).numpy()
+    return predict(m, Xte).numpy(), predict_proba(m, Xte).numpy()
 
 
 def main():
@@ -128,28 +144,32 @@ def main():
     print(f"classes={n_classes} models={model_list}\n")
 
     Xnp = X.numpy(); ynp = y.numpy()
-    scores = {m: {"acc": [], "bal": [], "prog": []} for m in model_list}
+    scores = {m: {"acc": [], "bal": [], "prog": [], "f1": [], "auprc": []} for m in model_list}
     for f in range(args.kfolds):
         te = folds[f]
         tr = np.concatenate([folds[i] for i in range(args.kfolds) if i != f])
         for m in model_list:
             if m == "kg_gnn":
-                pred = _fit_gnn(kg, X[tr], y[tr], X[te], n_classes, args.hidden,
-                                args.steps, args.epochs, args.class_weight, args.seed, dev)
+                pred, proba = _fit_gnn(kg, X[tr], y[tr], X[te], n_classes, args.hidden,
+                                       args.steps, args.epochs, args.class_weight, args.seed, dev)
             else:
-                pred = _fit_sklearn(m, Xnp[tr], ynp[tr], Xnp[te], args.class_weight, args.seed)
-            a, b, p = _metrics(pred, ynp[te], n_classes, prog_cols)
+                pred, proba = _fit_sklearn(m, Xnp[tr], ynp[tr], Xnp[te], n_classes,
+                                           args.class_weight, args.seed)
+            a, b, p, f1, auprc = _metrics(pred, proba, ynp[te], n_classes, prog_cols)
             scores[m]["acc"].append(a); scores[m]["bal"].append(b); scores[m]["prog"].append(p)
+            scores[m]["f1"].append(f1); scores[m]["auprc"].append(auprc)
         print(f"  fold {f+1}/{args.kfolds} done")
 
     print(f"\n{args.kfolds}-fold CV (mask={args.mask}, class_weight={args.class_weight}):")
-    print(f"{'model':<12}{'overall acc':>16}{'balanced acc':>16}{'program recall':>18}")
-    print("-" * 62)
+    hdr = (f"{'model':<12}{'overall acc':>16}{'balanced acc':>16}{'prog recall':>16}"
+           f"{'macro-F1':>16}{'prog-AUPRC':>16}")
+    print(hdr); print("-" * len(hdr))
+    def cell(m, k): return f"{np.mean(scores[m][k]):.3f}+/-{np.std(scores[m][k]):.3f}"
     for m in model_list:
-        a = f"{np.mean(scores[m]['acc']):.3f}+/-{np.std(scores[m]['acc']):.3f}"
-        b = f"{np.mean(scores[m]['bal']):.3f}+/-{np.std(scores[m]['bal']):.3f}"
-        p = f"{np.mean(scores[m]['prog']):.3f}+/-{np.std(scores[m]['prog']):.3f}"
-        print(f"{m:<12}{a:>16}{b:>16}{p:>18}")
+        print(f"{m:<12}{cell(m,'acc'):>16}{cell(m,'bal'):>16}{cell(m,'prog'):>16}"
+              f"{cell(m,'f1'):>16}{cell(m,'auprc'):>16}")
+    print("\nmacro-F1 = precision+recall balance; prog-AUPRC = threshold-independent, "
+          "program classes.")
 
 
 if __name__ == "__main__":
