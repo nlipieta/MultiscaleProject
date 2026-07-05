@@ -1,0 +1,17 @@
+# Expanded marker/TF panel (Part B: widen the model's input beyond the ~50 core KG genes).
+# Each gene is auto-injected by kg.load_kg as a "marker" node (gene_map entry + an
+# ACTIVATES edge to its program), UNLESS its symbol is already represented in the base KG.
+# Positive markers only (genes UP in the program). Human symbols; the ingestion pipeline
+# upper-cases, so mouse orthologs match by symbol. Sparse coverage across datasets is fine.
+panel:
+  Fibrosis:      [COL1A1, COL3A1, ACTA2, FN1, POSTN, TAGLN, TIMP1, LOX, CCN2, PDGFRB, THY1, COL1A2]
+  Hypertrophy:   [NPPA, NPPB, MYH7, ACTA1, MYL2, RCAN1, GATA4, TNNT2, ANKRD1, MYH6, MYL7]
+  ADM:           [KRT19, ONECUT2, MUC1, KRT8, KRT18, CFTR, HNF1B, SPP1, AGR2, KRT7]
+  Regeneration:  [MKI67, TOP2A, PCNA, LGR5, ASCL2, CCND1, AXIN2, BIRC5, CENPF]
+  InnateMemory:  [IL6, TNF, IL1B, CXCL8, NLRP3, HIF1A, CD14, TLR4, NFKB1, CCL2, IL1A]
+  Pluripotency:  [LIN28A, DPPA4, ZFP42, SALL4, DNMT3B, UTF1, TDGF1, PRDM14, ESRRB]
+  MyogenicDiff:  [MYOG, MYF5, MYH3, DES, TNNT3, ACTN2, CKM, TTN, TNNI1, MYBPH]
+  EMT:           [ZEB2, SNAI2, CDH2, MMP2, MMP9, FN1, SERPINE1, VIM, S100A4, WNT5A]
+  Senescence:    [GLB1, SERPINE1, TP53, CCL2, IGFBP3, IGFBP7, GDF15, CXCL1, MMP3]
+  NeuronalDiff:  [RBFOX3, MAP2, TUBB3, SYP, NEFL, NEFM, STMN2, ELAVL3, SNAP25, GAP43]
+  Osteogenesis:  [ALPL, IBSP, SPARC, DLX5, MSX2, COL1A1, SPP1, PHEX, MEPE, SATB2]

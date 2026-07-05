@@ -64,9 +64,37 @@ class KnowledgeGraph:
         return (self.dense_adjacency() != 0).to(torch.float32)
 
 
-def load_kg(path: str | Path | None = None) -> KnowledgeGraph:
+def _inject_marker_panel(spec: dict, base_dir: Path, panel) -> None:
+    """Part B: widen inputs. Add each panel gene as a 'marker' node (+ gene_map entry
+    + ACTIVATES edge to its program), skipping genes whose symbol is already in the KG.
+    `panel`: None/True -> default data/marker_panel.yaml if present; a path -> that file;
+    False -> skip. No-op if the file is missing, so the base KG still loads."""
+    if panel is False:
+        return
+    ppath = Path(panel) if isinstance(panel, (str, Path)) else base_dir / "marker_panel.yaml"
+    if not ppath.exists():
+        return
+    groups = (yaml.safe_load(ppath.read_text()) or {}).get("panel", {})
+    gm = spec.setdefault("gene_map", {})
+    have_nodes = {n["id"] for n in spec["nodes"]}
+    have_syms = {str(s).upper() for s in gm.values()}
+    programs = set(spec["program_nodes"])
+    for program, genes in groups.items():
+        if program not in programs:
+            continue
+        for g in genes:
+            if g in have_nodes or g.upper() in have_syms:   # already represented -> skip
+                continue
+            have_nodes.add(g); have_syms.add(g.upper())
+            spec["nodes"].append({"id": g, "type": "marker", "bias": -0.5})
+            gm[g] = g
+            spec["edges"].append({"src": g, "rel": "ACTIVATES", "dst": program, "w": 0.5})
+
+
+def load_kg(path: str | Path | None = None, panel: str | Path | bool | None = None) -> KnowledgeGraph:
     path = Path(path) if path else DATA_DIR / "kg.yaml"
     spec = yaml.safe_load(path.read_text())
+    _inject_marker_panel(spec, path.parent, panel)
 
     nodes = spec["nodes"]
     node_ids = [n["id"] for n in nodes]
