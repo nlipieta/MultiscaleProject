@@ -107,6 +107,8 @@ def main():
     ap.add_argument("--subsample", type=int, default=8000)
     ap.add_argument("--class-weight", action="store_true")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--seeds", type=int, nargs="*", default=None,
+                    help="multiple seeds -> pooled seed x fold error bars (overrides --seed)")
     ap.add_argument("--epochs", type=int, default=25, help="GNN epochs")
     ap.add_argument("--steps", type=int, default=6, help="GNN message-passing rounds")
     ap.add_argument("--hidden", type=int, default=64)
@@ -129,38 +131,41 @@ def main():
     n_classes = len(classes)
     prog_cols = [classes.index(c) for c in classes if c != QUIESCENT]
 
-    if args.group_split:
-        if groups is None:
-            raise SystemExit("--group-split needs a 'dataset' column")
-        folds = _grouped_folds(groups, args.kfolds, args.seed)
-    else:
-        folds = _stratified_folds(y, args.kfolds, args.seed)
+    if args.group_split and groups is None:
+        raise SystemExit("--group-split needs a 'dataset' column")
 
     model_list = list(args.models) + ([] if args.no_gnn else ["kg_gnn"])
     dev = pick_device(args.device)
+    seeds = args.seeds if args.seeds else [args.seed]
+    n_gene_cols = sum(1 for g in kg.gene_map if g in df.columns)  # gene nodes present in DATA
     print(f"Baseline comparison | data={Path(args.data).name} n={X.size(0)} "
           f"k={args.kfolds} mask={args.mask} group_split={args.group_split} "
-          f"class_weight={args.class_weight} device={dev}")
-    print(f"classes={n_classes} models={model_list}\n")
+          f"class_weight={args.class_weight} device={dev} seeds={seeds}")
+    print(f"classes={n_classes} gene-columns-in-data={n_gene_cols} "
+          f"(~42=narrow, ~148=WIDE) models={model_list}\n")
 
     Xnp = X.numpy(); ynp = y.numpy()
     scores = {m: {"acc": [], "bal": [], "prog": [], "f1": [], "auprc": []} for m in model_list}
-    for f in range(args.kfolds):
-        te = folds[f]
-        tr = np.concatenate([folds[i] for i in range(args.kfolds) if i != f])
-        for m in model_list:
-            if m == "kg_gnn":
-                pred, proba = _fit_gnn(kg, X[tr], y[tr], X[te], n_classes, args.hidden,
-                                       args.steps, args.epochs, args.class_weight, args.seed, dev)
-            else:
-                pred, proba = _fit_sklearn(m, Xnp[tr], ynp[tr], Xnp[te], n_classes,
-                                           args.class_weight, args.seed)
-            a, b, p, f1, auprc = _metrics(pred, proba, ynp[te], n_classes, prog_cols)
-            scores[m]["acc"].append(a); scores[m]["bal"].append(b); scores[m]["prog"].append(p)
-            scores[m]["f1"].append(f1); scores[m]["auprc"].append(auprc)
-        print(f"  fold {f+1}/{args.kfolds} done")
+    for s in seeds:                                   # pool over seeds x folds
+        folds = (_grouped_folds(groups, args.kfolds, s) if args.group_split
+                 else _stratified_folds(y, args.kfolds, s))
+        for f in range(args.kfolds):
+            te = folds[f]
+            tr = np.concatenate([folds[i] for i in range(args.kfolds) if i != f])
+            for m in model_list:
+                if m == "kg_gnn":
+                    pred, proba = _fit_gnn(kg, X[tr], y[tr], X[te], n_classes, args.hidden,
+                                           args.steps, args.epochs, args.class_weight, s, dev)
+                else:
+                    pred, proba = _fit_sklearn(m, Xnp[tr], ynp[tr], Xnp[te], n_classes,
+                                               args.class_weight, s)
+                a, b, p, f1, auprc = _metrics(pred, proba, ynp[te], n_classes, prog_cols)
+                scores[m]["acc"].append(a); scores[m]["bal"].append(b); scores[m]["prog"].append(p)
+                scores[m]["f1"].append(f1); scores[m]["auprc"].append(auprc)
+        print(f"  seed {s} done ({args.kfolds} folds)")
 
-    print(f"\n{args.kfolds}-fold CV (mask={args.mask}, class_weight={args.class_weight}):")
+    print(f"\n{args.kfolds}-fold CV x {len(seeds)} seed(s) (mask={args.mask}, "
+          f"class_weight={args.class_weight}):")
     hdr = (f"{'model':<12}{'overall acc':>16}{'balanced acc':>16}{'prog recall':>16}"
            f"{'macro-F1':>16}{'prog-AUPRC':>16}")
     print(hdr); print("-" * len(hdr))
