@@ -27,3 +27,6 @@ data/gse184241_innate.csv
 data/dcm_fibrosis.csv
 data/gse147405_emt.csv
 data/gse115301_senescence.csv
+data/osteogenesis.csv
+data/neuronal_diff.csv
+data/raw/

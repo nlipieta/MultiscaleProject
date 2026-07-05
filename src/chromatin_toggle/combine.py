@@ -109,6 +109,8 @@ DEFAULT_SOURCES = [
     ("data/dcm_fibrosis.csv",             "cardiac_fibrosis",    "snRNA"),       # Fibrosis (cardiac, 143k)
     ("data/gse147405_emt.csv",            "emt_tnf",             "scRNA"),       # EMT (NEW program)
     ("data/gse115301_senescence.csv",     "senescence_ois",      "scRNA"),       # Senescence (NEW program)
+    ("data/neuronal_diff.csv",            "neuronal_organoid",   "scRNA"),       # NeuronalDiff (NEW program)
+    ("data/osteogenesis.csv",             "osteo_craniofacial",  "snRNA"),       # Osteogenesis (NEW program)
 ]
 
 

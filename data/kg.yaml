@@ -73,10 +73,18 @@ gene_map:
   # senescence effectors (p21 / p16)
   CDKN1A: CDKN1A
   CDKN2A: CDKN2A
+  # neuronal-differentiation drivers/markers (proneural cascade + neuron marker)
+  Neurog2: NEUROG2
+  NeuroD: NEUROD1
+  Dcx: DCX
+  # osteogenic drivers/markers (RUNX2 master switch + osteoblast markers)
+  Runx2: RUNX2
+  Sp7: SP7
+  Bglap: BGLAP
 
 # Nodes whose activation is read out as the predicted phenotype.
 program_nodes:
-  [InnateMemory, Fibrosis, Hypertrophy, Regeneration, Pluripotency, MyogenicDiff, ADM, EMT, Senescence]
+  [InnateMemory, Fibrosis, Hypertrophy, Regeneration, Pluripotency, MyogenicDiff, ADM, EMT, Senescence, NeuronalDiff, Osteogenesis]
 
 nodes:
   # --- Extrinsic cues (inputs) ---
@@ -158,6 +166,16 @@ nodes:
   - {id: CDKN1A, type: signaling, bias: -0.5}
   - {id: CDKN2A, type: signaling, bias: -0.5}
 
+  # --- New program: neuronal differentiation (proneural bHLH cascade) ---
+  - {id: Neurog2, type: tf, bias: -0.5}
+  - {id: NeuroD, type: tf, bias: -0.5}
+  - {id: Dcx, type: signaling, bias: -0.5}
+
+  # --- New program: osteogenesis (RUNX2 master switch -> osteoblast) ---
+  - {id: Runx2, type: tf, bias: -0.5}
+  - {id: Sp7, type: tf, bias: -0.5}
+  - {id: Bglap, type: signaling, bias: -0.5}
+
   # --- Response programs (outputs) ---
   - {id: InnateMemory, type: program, bias: -0.5}
   - {id: Fibrosis, type: program, bias: -0.5}
@@ -168,6 +186,8 @@ nodes:
   - {id: ADM, type: program, bias: -0.5}
   - {id: EMT, type: program, bias: -0.5}
   - {id: Senescence, type: program, bias: -0.5}
+  - {id: NeuronalDiff, type: program, bias: -0.5}
+  - {id: Osteogenesis, type: program, bias: -0.5}
 
 edges:
   # Inflammatory latent-enhancer priming -> innate memory (Ostuni 2013; Heinz 2010)
@@ -273,3 +293,16 @@ edges:
   # Senescence: p21/p16 effectors drive the arrest program
   - {src: CDKN1A, rel: ACTIVATES, dst: Senescence, w: 1.5}
   - {src: CDKN2A, rel: ACTIVATES, dst: Senescence, w: 1.5}
+
+  # Neuronal differentiation: proneural cascade Neurog2 -> NeuroD -> neuron
+  # (Guillemot 2007). Dcx = post-mitotic neuron readout marker.
+  - {src: Neurog2, rel: ACTIVATES, dst: NeuroD, w: 1.5}
+  - {src: NeuroD, rel: ACTIVATES, dst: NeuronalDiff, w: 1.5}
+  - {src: Dcx, rel: ACTIVATES, dst: NeuronalDiff, w: 1.0}
+
+  # Osteogenesis: RUNX2 master switch -> SP7/Osterix -> osteoblast (Komori 2006).
+  # Bglap (osteocalcin) = mature-osteoblast readout marker.
+  - {src: Runx2, rel: ACTIVATES, dst: Sp7, w: 1.5}
+  - {src: Runx2, rel: ACTIVATES, dst: Osteogenesis, w: 1.0}
+  - {src: Sp7, rel: ACTIVATES, dst: Osteogenesis, w: 1.5}
+  - {src: Bglap, rel: ACTIVATES, dst: Osteogenesis, w: 1.0}

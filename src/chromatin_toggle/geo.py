@@ -308,6 +308,30 @@ H5AD: dict[str, H5adDataset] = {
         },
         cue="MechanicalStiffness", level=1.0,
     ),
+    # Human dorsal-forebrain organoid (CELLxGENE, VPA+control, 26.5k cells). NEW
+    # program: neuronal differentiation. cortex neuron/Cajal-Retzius = NeuronalDiff,
+    # progenitor/neuronal-restricted precursor = Quiescent. No cue node -- intrinsic
+    # proneural program drives fate (VPA is a modulator, left uncontrolled = variance).
+    "NeuronalDiff_organoid": H5adDataset(
+        url="https://datasets.cellxgene.cziscience.com/0fff1010-a9fe-4586-b2c7-6359e39d5594.h5ad",
+        cell_type_col="cell_type",
+        program_map={
+            "cerebral cortex neuron": "NeuronalDiff",
+            "Cajal-Retzius cell": "NeuronalDiff",
+            "progenitor cell": "Quiescent",
+            "neuronal-restricted precursor": "Quiescent",
+        },
+        cue=None,
+    ),
+    # Human craniofacial development (CELLxGENE, 58k cells). NEW program:
+    # osteogenesis. osteoblast = Osteogenesis, mesenchymal cell = Quiescent (MSC
+    # baseline). In vivo intramembranous ossification; no explicit perturbation cue.
+    "Osteogenesis_craniofacial": H5adDataset(
+        url="https://datasets.cellxgene.cziscience.com/4d76b7b4-4d67-4016-b881-ab86e7f4d7f5.h5ad",
+        cell_type_col="cell_type",
+        program_map={"osteoblast": "Osteogenesis", "mesenchymal cell": "Quiescent"},
+        cue=None,
+    ),
 }
 
 
