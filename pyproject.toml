@@ -40,6 +40,7 @@ chromatin-figures = "chromatin_toggle.figures:main"
 chromatin-cv = "chromatin_toggle.cv:main"
 chromatin-baselines = "chromatin_toggle.baselines:main"
 chromatin-ablate = "chromatin_toggle.ablate:main"
+chromatin-perturb = "chromatin_toggle.perturb:main"
 
 [build-system]
 requires = ["hatchling"]
