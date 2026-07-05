@@ -17,6 +17,7 @@ dependencies = [
 census = [
     "cellxgene-census>=1.15",
     "scipy>=1.11",
+    "scikit-learn>=1.3",
     # steer the transitive stack to versions that support Python 3.12
     # (avoids an ancient numba/llvmlite being back-tracked in)
     "numba>=0.59",
@@ -41,6 +42,7 @@ chromatin-cv = "chromatin_toggle.cv:main"
 chromatin-baselines = "chromatin_toggle.baselines:main"
 chromatin-ablate = "chromatin_toggle.ablate:main"
 chromatin-perturb = "chromatin_toggle.perturb:main"
+chromatin-realbench = "chromatin_toggle.realbench:main"
 
 [build-system]
 requires = ["hatchling"]
