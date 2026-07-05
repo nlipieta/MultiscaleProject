@@ -119,12 +119,15 @@ class ToggleDynamics(nn.Module):
                 g_cue = g_cue * 0.0                                # cue withdrawn
             inj = g_mem * mem_inj + g_cue * cue_inj
 
-            msg = self.self_lin(h)
+            # Vectorized R-GCN message passing: all relations in two fused einsums
+            # instead of a Python loop over relations (which was O(R) kernel launches
+            # per step and scaled badly with node count -> the CPU/GPU bottleneck).
             if self.num_bases:                    # W_r = sum_b coef[r,b] * basis_b
-                W = torch.einsum("rb,bij->rij", self.rel_coef, self.bases)
-            for r in range(self.adjacency.size(0)):
-                trans = torch.einsum("bsi,ji->bsj", h, W[r]) if self.num_bases else self.rel_lin[r](h)
-                msg = msg + torch.einsum("ds,bsh->bdh", self.adjacency[r], trans)
+                Wr = torch.einsum("rb,bij->rij", self.rel_coef, self.bases)   # [R,H,H] (o,i)
+            else:                                 # stack per-relation Linear weights [R,H,H]
+                Wr = torch.stack([lin.weight for lin in self.rel_lin])
+            trans = torch.einsum("bni,roi->rbno", h, Wr)                     # [R,B,N,H]
+            msg = self.self_lin(h) + torch.einsum("rds,rbso->bdo", self.adjacency, trans)
             h_new = self.gru((msg + inj).reshape(B * self.N, -1),
                              h.reshape(B * self.N, -1)).reshape(B, self.N, -1)
             if self.ln is not None:            # LayerNorm + residual (anti over-smoothing)
