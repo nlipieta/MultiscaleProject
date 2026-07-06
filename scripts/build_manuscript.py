@@ -61,10 +61,12 @@ p("Cells select a response program by integrating a stable intrinsic identity (l
   "holding out entire datasets. After identifying and removing a cue-label leak that had inflated "
   "an earlier result, the honest findings are: (i) the expression->program mapping is highly "
   "learnable in-distribution (stratified balanced accuracy 0.93); (ii) cross-dataset "
-  "generalization is hard for all models (a batch/domain-shift frontier), and there the KG-GNN "
-  "SIGNIFICANTLY outperforms strong baselines on program probability-ranking (macro-AUPRC 0.48 vs "
-  "~0.40 for logistic regression and random forest; paired Wilcoxon p<0.02 for both), while "
-  "matching them on top-1 metrics once converged; (iii) in simulation the model reproduces "
+  "generalization is hard for all models (a batch/domain-shift frontier); (ii) there, with markers "
+  "included in all arms, adding the regulatory graph SIGNIFICANTLY improves program probability-"
+  "ranking — the full KG-GNN (macro-AUPRC 0.47) beats the identical network with edges removed "
+  "(0.39; paired p=0.015) and both structureless baselines (logistic regression, random forest; "
+  "p<0.02), while matching them on top-1 metrics — a direct, controlled confirmation that layered "
+  "regulatory structure adds value on top of markers; (iii) in simulation the model reproduces "
   "the theory's plasticity-gated, hysteretic switching, but on a real EMT time-course it shows no "
   "graded temporal-emergence advantage over a linear model. We conclude that the theory yields an "
   "interpretable model whose concrete real-data advantage is probability-ranking, and we report "
@@ -142,7 +144,30 @@ em("The stratified number is optimistic (each dataset is program-enriched, so re
    "source partly predicts the program — the shortcut grouped-split removes). It is reported as "
    "evidence the task is learnable, not as a generalization claim.")
 
-h("3.3 Main result: cross-dataset classification (generalization)", 2)
+h("3.3 Central result: regulatory structure adds value on top of markers", 2)
+p("The core hypothesis — cellular state is shaped by LAYERED regulatory context — predicts that a "
+  "model seeing markers PLUS regulatory structure should beat a model seeing markers WITHOUT "
+  "structure. We test this directly with markers included in BOTH arms (mask=none) and the "
+  "attractor off (an honest graded classifier, no forced fate), isolating structure as the only "
+  "variable: the full KG-GNN vs the IDENTICAL network with the graph edges removed "
+  "(kg_gnn_noedges) — same architecture, capacity, features, and markers. 5-fold x 3-seed grouped "
+  "CV; paired Wilcoxon over the same seed x fold splits.")
+table(["Model (markers in all)", "macro-AUPRC", "vs KG-GNN (paired)"],
+      [["KG-GNN (markers + structure)", "0.473", "—"],
+       ["KG-GNN, edges removed (markers, no structure)", "0.392", "+0.082, p=0.015 *"],
+       ["Logistic regression (no structure)", "0.397", "+0.089, p=0.018 *"],
+       ["Random forest (no structure)", "0.405", "+0.059, p=0.015 *"]])
+em("With markers held equal, adding the regulatory graph SIGNIFICANTLY improves program "
+   "probability-ranking (+0.082 AUPRC, p=0.015). The control is decisive: removing the graph from "
+   "the same network drops it to 0.392 — right onto the logistic-regression level (0.397) — so the "
+   "structure, not capacity or features, is the lever. The KG-GNN also significantly beats both "
+   "external structureless baselines. Scope: the gain is specific to AUPRC (ranking); on prog-"
+   "recall the arms tie (p~1.0). Claim: layered regulatory structure significantly improves the "
+   "model's ranking of the correct program, markers held equal — a direct, controlled test of the "
+   "theory. (Attractor off; the winner-take-all sharpening, when on, saturates probabilities and "
+   "erases this graded ranking signal — see 3.4.)")
+
+h("3.3b Cross-dataset classification vs baselines (no-markers view)", 2)
 p("Widened inputs, 5-fold x 3-seed grouped CV, markers removed, class-weighted (mean +/- std over "
   "the 15 seed x fold estimates). The KG-GNN is the top model on macro-AUPRC — the metric that "
   "matters for imbalanced multiclass — by a consistent ~19% relative margin, while trailing on the "
