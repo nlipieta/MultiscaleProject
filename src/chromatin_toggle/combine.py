@@ -111,6 +111,7 @@ DEFAULT_SOURCES = [
     ("data/gse115301_senescence.csv",     "senescence_ois",      "scRNA"),       # Senescence (NEW program)
     ("data/neuronal_diff.csv",            "neuronal_organoid",   "scRNA"),       # NeuronalDiff (NEW program)
     ("data/osteogenesis.csv",             "osteo_craniofacial",  "snRNA"),       # Osteogenesis (NEW program)
+    ("data/gse156728_exhaustion.csv",     "exhaustion_tumor",    "scRNA"),       # Exhaustion (NEW program, 13th)
 ]
 
 
