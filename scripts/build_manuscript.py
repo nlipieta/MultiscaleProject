@@ -230,13 +230,16 @@ p("Knocking out one component at a time on a fixed converged split (markers-in),
 table(["Knockout", "ΔAUPRC", "reading"],
       [["scramble edges (wrong wiring)", "-0.155", "correct wiring matters (pro-structure)"],
        ["attractor / WTA", "-0.109", "helps here; flattens temporal (mixed tradeoff)"],
+       ["remove chromatin nodes", "-0.058", "chromatin-memory carries ranking signal"],
        ["collapse relation types", "-0.057", "relation-typing matters"],
+       ["remove TF nodes", "-0.020", "minor"],
        ["hybrid residual / asymmetric", "-0.015 / -0.014", "minor"],
        ["plasticity gate", "0.000", "inert for classification (a dynamics mechanism)"],
        ["remove all edges (no_edges)", "+0.035", "single-split only — see caveat"]])
 em("Robust readings: the plasticity gate is INERT for static classification (it shapes the "
    "simulated dynamics, not prediction); scrambling or collapsing the graph badly hurts ranking, so "
-   "correct relational wiring matters (pro-structure); the attractor is a genuine tradeoff (helps "
+   "correct relational wiring matters (pro-structure); removing chromatin-memory nodes also hurts "
+   "ranking (-0.058), supporting the intrinsic-memory component; the attractor is a genuine tradeoff (helps "
    "this split's ranking but flattens the temporal continuum, 3.4). CAVEAT: this ablation is a "
    "SINGLE fixed split, and grouped-split variance is large (~+/-0.12); its all-or-nothing no_edges "
    "line came out +0.035, OPPOSITE to the reliable multi-seed, paired structure-isolation test in "
