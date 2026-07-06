@@ -233,11 +233,16 @@ fig("importance_heatmap.png", 5.0, "Figure 2. Node x program permutation importa
 
 h("3.6 A falsifiable biological prediction (hypertrophy)", 2)
 p("The encoded hypertrophy cascade (MechanicalStretch -> CaMKII/PKD -> nuclear export of HDAC4/5 "
-  "-> de-repression of MEF2 -> Hypertrophy) is a de-repression switch, which yields a sign-specific "
-  "prediction: HDAC4/5 knockdown should ENHANCE the program (and substitute for the cue), while "
-  "CaMKII/PKD blockade should ABOLISH stretch-induced hypertrophy. An in-silico node-perturbation "
-  "test of this direction is implemented; the converged-model run is [pending]. Wet-lab validation "
-  "path: KN-93 (CaMKII inhibition) and HDAC4/5 knockdown in NRVM / hiPSC-CM.")
+  "-> de-repression of MEF2 -> Hypertrophy) yields sign-specific predictions we tested in-silico by "
+  "editing node inputs on held-out hypertrophy cells (baseline P(Hypertrophy)=0.245). The result is "
+  "PARTIAL and reported honestly: the model captured the FORWARD-ACTIVATION direction — boosting "
+  "CaMKII raised P(Hypertrophy) by +0.121 — but did NOT reproduce the more distinctive DE-REPRESSION "
+  "prediction: HDAC4/5 knockdown, which should enhance the program by releasing MEF2, produced ~0 "
+  "change (-0.001). CaMKII/PKD blockade moved P(Hypertrophy) in the correct (down) direction but "
+  "negligibly (-0.012 / -0.000). So the learned representation respects the activator axis but not "
+  "the HDAC4/5 de-repression logic; the HDAC4/5 direction therefore remains an UNCONFIRMED, "
+  "falsifiable wet-lab prediction (KN-93 CaMKII inhibition; HDAC4/5 knockdown in NRVM / hiPSC-CM), "
+  "not an in-silico success.")
 
 # ---------------- 4 Discussion ----------------
 h("4. Discussion")
