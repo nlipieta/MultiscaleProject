@@ -35,7 +35,7 @@ import numpy as np
 import torch
 
 from .device import pick_device
-from .dynamics import ToggleDynamics, _load, _mask_input, train, class_weights, predict
+from .dynamics import ToggleDynamics, _load, _mask_input, train, class_weights, predict, predict_proba
 from .kg import DATA_DIR, load_kg
 from .oracle import QUIESCENT, all_classes
 
@@ -59,12 +59,16 @@ def _node_mask_input(X, kg, drop):
     return X
 
 
-def _metrics(pred, y, n_classes, prog_cols):
+def _metrics(pred, proba, y, n_classes, prog_cols):
+    from sklearn.metrics import average_precision_score
     pred, y = np.asarray(pred), np.asarray(y)
     acc = float((pred == y).mean())
     bal = float(np.mean([ (pred[y==c]==c).mean() for c in range(n_classes) if (y==c).any() ]))
     prog = float(np.mean([ (pred[y==c]==c).mean() for c in prog_cols if (y==c).any() ]))
-    return acc, bal, prog
+    aps = [float(average_precision_score((y==c).astype(int), proba[:, c]))
+           for c in prog_cols if (y==c).any()] if proba is not None else []
+    auprc = float(np.mean(aps)) if aps else float("nan")
+    return acc, bal, prog, auprc
 
 
 def _run_one(name, kg, X, y, tr, te, n_classes, prog_cols, args, w, dev):
@@ -103,7 +107,8 @@ def _run_one(name, kg, X, y, tr, te, n_classes, prog_cols, args, w, dev):
         m.adjacency.copy_(adj_override.to(dev))
     train(m, Xtr, y[tr], args.epochs, 256, 1e-3, args.seed, weights=w)
     pred = predict(m, Xte).numpy()
-    return _metrics(pred, y[te].numpy(), n_classes, prog_cols)
+    proba = predict_proba(m, Xte).numpy()
+    return _metrics(pred, proba, y[te].numpy(), n_classes, prog_cols)
 
 
 def main():
@@ -145,23 +150,25 @@ def main():
     print(f"(same fixed split across all ablations; delta vs full attributes the mechanism)\n")
 
     results = {}
-    full_prog = None
+    full_prog = full_auprc = None
     for name in order:
-        a, b, p = _run_one(name, kg, X, y, tr, te, n_classes, prog_cols, args, w, dev)
+        a, b, p, ap = _run_one(name, kg, X, y, tr, te, n_classes, prog_cols, args, w, dev)
         if name == "full":
-            full_prog = p
-        results[name] = (a, b, p)
-        print(f"  {name:<20} acc {a:.3f}  bal {b:.3f}  prog-recall {p:.3f}  "
-              f"(Δprog {p-full_prog:+.3f})" if full_prog is not None else
-              f"  {name:<20} acc {a:.3f}  bal {b:.3f}  prog-recall {p:.3f}")
+            full_prog, full_auprc = p, ap
+        results[name] = (a, b, p, ap)
+        print(f"  {name:<20} acc {a:.3f}  bal {b:.3f}  prog-recall {p:.3f}  AUPRC {ap:.3f}  "
+              f"(ΔAUPRC {ap-full_auprc:+.3f}, Δprog {p-full_prog:+.3f})")
 
-    print(f"\n{'ablation':<20}{'overall acc':>13}{'balanced acc':>14}{'prog recall':>13}{'Δ vs full':>11}")
-    print("-" * 71)
+    print(f"\n{'ablation':<20}{'acc':>9}{'bal':>9}{'prog-rec':>10}{'AUPRC':>9}"
+          f"{'ΔAUPRC':>10}{'Δprog':>9}")
+    print("-" * 76)
     for name in order:
-        a, b, p = results[name]
-        d = "" if name == "full" else f"{p-full_prog:+.3f}"
-        print(f"{name:<20}{a:>13.3f}{b:>14.3f}{p:>13.3f}{d:>11}")
-    print("\nLargest negative Δ = most load-bearing mechanism.")
+        a, b, p, ap = results[name]
+        da = "" if name == "full" else f"{ap-full_auprc:+.3f}"
+        dp = "" if name == "full" else f"{p-full_prog:+.3f}"
+        print(f"{name:<20}{a:>9.3f}{b:>9.3f}{p:>10.3f}{ap:>9.3f}{da:>10}{dp:>9}")
+    print("\nΔAUPRC is the thesis-relevant metric (program ranking). Most-negative ΔAUPRC = "
+          "most load-bearing for ranking; e.g. no_edges should be NEGATIVE (structure helps ranking).")
 
 
 if __name__ == "__main__":
