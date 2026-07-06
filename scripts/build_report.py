@@ -133,6 +133,23 @@ note("Honest read: the KG-GNN is the TOP model on prog-AUPRC (0.472 vs ~0.40 for
      "probability-ranking (AUPRC) while matching baselines on top-1 metrics once converged -- "
      "NOT a blanket accuracy win.")
 
+p("Learnability vs generalization (why the grouped numbers look modest). The grouped-split "
+  "above is the HARD test -- predict entirely unseen datasets. Standard stratified CV (cells from "
+  "all datasets mixed across train and test) instead asks whether the expression->program mapping "
+  "is learnable at all:")
+table(["Evaluation", "balanced acc", "prog recall", "prog-AUPRC"],
+      [["Learnability (stratified 5-fold, logreg)", "0.925", "0.966", "0.885"],
+       ["Generalization (grouped, KG-GNN)", "0.319", "0.270", "0.472"],
+       ["Generalization (grouped, best baseline)", "0.377", "0.324", "0.397"]])
+note("Read carefully. In-distribution the mapping is HIGHLY learnable (~0.93 balanced accuracy). "
+     "The modest grouped-split numbers are therefore NOT a weak model -- they are the honest cost "
+     "of transferring to unseen data sources (batch/domain shift, a known single-cell frontier). "
+     "IMPORTANT caveat: the stratified number is OPTIMISTIC -- because each dataset is enriched for "
+     "one program, cells share a dataset/batch signature, so a model can partly predict the program "
+     "by recognising the source (the exact shortcut grouped-split removes). We therefore report "
+     "stratified only as evidence the task is LEARNABLE, and the grouped result as the honest "
+     "GENERALIZATION estimate -- which is also where the KG structure gives its AUPRC edge.")
+
 h("3.3 Representation & the marker-shortcut control", 2)
 p("Some input genes co-define the labels (e.g. Sox9 for ADM), so a model can 'cheat'. We train under "
   "three input regimes. After enriching the intrinsic-memory representation with identity/chromatin "
