@@ -166,6 +166,10 @@ em("With markers held equal, adding the regulatory graph SIGNIFICANTLY improves 
    "model's ranking of the correct program, markers held equal — a direct, controlled test of the "
    "theory. (Attractor off; the winner-take-all sharpening, when on, saturates probabilities and "
    "erases this graded ranking signal — see 3.4.)")
+fig("structure_isolation.png", 5.6, "Figure 1. Structure-isolation test (markers in all arms, "
+    "attractor off). Adding the regulatory graph (blue) significantly raises program-ranking AUPRC "
+    "over the identical edge-removed network and structureless baselines (paired Wilcoxon vs "
+    "KG-GNN). Wide error bars are grouped-fold variance; the paired test is the correct comparison.")
 
 h("3.3b Cross-dataset classification vs baselines (no-markers view)", 2)
 p("Widened inputs, 5-fold x 3-seed grouped CV, markers removed, class-weighted (mean +/- std over "
@@ -219,7 +223,7 @@ p("Permutation importance shows the model relies on textbook regulators for most
   "(Hypertrophy: MechanicalStretch, HDAC4/5; MyogenicDiff: MyoD; ADM: Sox9, Caerulein; "
   "InnateMemory: LPS, PU.1; Regeneration: HDAC1/3, SWI/SNF; Senescence: CDKN2A/CDKN1A). EMT and "
   "Pluripotency did not surface their specific drivers (flagged).")
-fig("importance_heatmap.png", 5.0, "Figure 1. Node x program permutation importance (prior 10-program analysis; being regenerated on the 12-program wide model).")
+fig("importance_heatmap.png", 5.0, "Figure 2. Node x program permutation importance (prior 10-program analysis; being regenerated on the 12-program wide model).")
 
 h("3.6 A falsifiable biological prediction (hypertrophy)", 2)
 p("The encoded hypertrophy cascade (MechanicalStretch -> CaMKII/PKD -> nuclear export of HDAC4/5 "
