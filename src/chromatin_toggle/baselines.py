@@ -114,6 +114,7 @@ def main():
     ap.add_argument("--hidden", type=int, default=64)
     ap.add_argument("--no-gnn", action="store_true", help="skip the (slow) KG-GNN")
     ap.add_argument("--device", default="auto", help="cpu / cuda / mps / auto")
+    ap.add_argument("--save-folds", default=None, help="write per-(seed,fold) metrics to this CSV")
     ap.add_argument("--models", nargs="*",
                     default=["majority", "logreg", "rforest", "gboost"],
                     help="sklearn baselines to run")
@@ -175,6 +176,45 @@ def main():
               f"{cell(m,'f1'):>16}{cell(m,'auprc'):>16}")
     print("\nmacro-F1 = precision+recall balance; prog-AUPRC = threshold-independent, "
           "program classes.")
+
+    # optional: persist per-(seed,fold) values for external paired analysis
+    if args.save_folds:
+        import csv
+        n = len(next(iter(scores.values()))["auprc"])
+        with open(args.save_folds, "w", newline="") as fh:
+            w = csv.writer(fh); w.writerow(["model", "idx", "acc", "bal", "prog", "f1", "auprc"])
+            for m in model_list:
+                for i in range(n):
+                    w.writerow([m, i] + [scores[m][k][i] for k in ("acc", "bal", "prog", "f1", "auprc")])
+        print(f"per-fold metrics -> {args.save_folds}")
+
+    # paired significance: KG-GNN vs each baseline on the SAME seed x fold splits.
+    # scores[m][metric] are aligned by (seed,fold) across models, so a paired
+    # (Wilcoxon signed-rank) test is valid and controls for fold difficulty.
+    if "kg_gnn" in model_list and len(model_list) > 1:
+        try:
+            from scipy.stats import wilcoxon
+        except ImportError:
+            wilcoxon = None
+        print("\nPaired significance vs KG-GNN (Wilcoxon signed-rank over seed x fold):")
+        print(f"{'baseline':<12}{'metric':>10}{'median dP(gnn-base)':>22}{'p-value':>12}")
+        print("-" * 56)
+        g = scores["kg_gnn"]
+        for m in model_list:
+            if m == "kg_gnn":
+                continue
+            for k in ("auprc", "prog"):
+                d = np.array(g[k]) - np.array(scores[m][k])
+                med = float(np.median(d))
+                if wilcoxon is not None and np.any(d != 0):
+                    try:
+                        p = float(wilcoxon(g[k], scores[m][k]).pvalue)
+                    except ValueError:
+                        p = float("nan")
+                else:
+                    p = float("nan")
+                print(f"{m:<12}{k:>10}{med:>+22.3f}{p:>12.4f}")
+        print("positive median = KG-GNN higher; p<0.05 = the paired difference is significant.")
 
 
 if __name__ == "__main__":
