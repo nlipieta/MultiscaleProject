@@ -91,10 +91,14 @@ def _fit_sklearn(kind, Xtr, ytr, Xte, n_classes, class_weight, seed):
 
 
 def _fit_gnn(kg, Xtr, ytr, Xte, n_classes, hidden, steps, epochs, class_weight, seed,
-             device, attractor=True, no_edges=False):
+             device, attractor=True, no_edges=False, arch="toggle", rcfg=None):
     w = class_weights(ytr, n_classes) if class_weight else None
     torch.manual_seed(seed)
-    m = ToggleDynamics(kg, hidden=hidden, steps=steps, attractor=attractor).to(device)
+    if arch == "resistance":                       # resistance-gated / competence-gated KG-GNN
+        from .resistance import ResistanceToggle
+        m = ResistanceToggle(kg, hidden=hidden, steps=steps, **(rcfg or {})).to(device)
+    else:
+        m = ToggleDynamics(kg, hidden=hidden, steps=steps, attractor=attractor).to(device)
     if no_edges:                                   # markers-without-structure control
         m.adjacency.zero_()
     train(m, Xtr, ytr, epochs, 256, 1e-3, seed, weights=w)
@@ -120,6 +124,14 @@ def main():
                     help="WTA attractor sharpening; 'off' = honest graded classifier (no forced fate)")
     ap.add_argument("--structure-test", action="store_true",
                     help="add kg_gnn_noedges (same model, graph removed) to isolate structure's value")
+    ap.add_argument("--arch", choices=["toggle", "resistance"], default="toggle",
+                    help="GNN family: toggle (original) or resistance (resistance-gated)")
+    ap.add_argument("--alpha-memory", choices=["zero", "low", "learned", "full"], default="learned")
+    ap.add_argument("--resistance-gate", choices=["on", "off"], default="on")
+    ap.add_argument("--plasticity-mode",
+                    choices=["amplify", "lower_resistance", "both", "none"], default="lower_resistance")
+    ap.add_argument("--attractor-mode",
+                    choices=["none", "hard_wta", "soft", "delayed_soft", "learned"], default="soft")
     ap.add_argument("--device", default="auto", help="cpu / cuda / mps / auto")
     ap.add_argument("--save-folds", default=None, help="write per-(seed,fold) metrics to this CSV")
     ap.add_argument("--models", nargs="*",
@@ -146,6 +158,8 @@ def main():
     model_list = list(args.models) + gnn_models
     dev = pick_device(args.device)
     attractor = args.attractor == "on"
+    rcfg = dict(alpha_memory=args.alpha_memory, resistance=(args.resistance_gate == "on"),
+                plasticity_mode=args.plasticity_mode, attractor=args.attractor_mode)
     seeds = args.seeds if args.seeds else [args.seed]
     n_gene_cols = sum(1 for g in kg.gene_map if g in df.columns)  # gene nodes present in DATA
     print(f"Baseline comparison | data={Path(args.data).name} n={X.size(0)} "
@@ -166,7 +180,8 @@ def main():
                 if m.startswith("kg_gnn"):
                     pred, proba = _fit_gnn(kg, X[tr], y[tr], X[te], n_classes, args.hidden,
                                            args.steps, args.epochs, args.class_weight, s, dev,
-                                           attractor=attractor, no_edges=m.endswith("noedges"))
+                                           attractor=attractor, no_edges=m.endswith("noedges"),
+                                           arch=args.arch, rcfg=rcfg)
                 else:
                     pred, proba = _fit_sklearn(m, Xnp[tr], ynp[tr], Xnp[te], n_classes,
                                                args.class_weight, s)

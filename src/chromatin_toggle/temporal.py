@@ -50,6 +50,12 @@ def main():
                     help="WTA attractor sharpening (off = honest graded classifier, no forced fate)")
     ap.add_argument("--no-edges", action="store_true",
                     help="remove the graph (markers-without-structure control) to isolate structure")
+    ap.add_argument("--arch", choices=["toggle", "resistance"], default="toggle")
+    ap.add_argument("--attractor-mode",
+                    choices=["none", "hard_wta", "soft", "delayed_soft", "learned"], default="soft")
+    ap.add_argument("--plasticity-mode",
+                    choices=["amplify", "lower_resistance", "both", "none"], default="lower_resistance")
+    ap.add_argument("--alpha-memory", choices=["zero", "low", "learned", "full"], default="learned")
     args = ap.parse_args()
 
     kg = load_kg()
@@ -92,8 +98,14 @@ def main():
         dev = pick_device(args.device)
         w = class_weights(yp, len(classes))
         torch.manual_seed(args.seed)
-        model = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps,
-                               attractor=(args.attractor == "on")).to(dev)
+        if args.arch == "resistance":
+            from .resistance import ResistanceToggle
+            model = ResistanceToggle(kg, hidden=args.hidden, steps=args.steps,
+                                     attractor=args.attractor_mode, plasticity_mode=args.plasticity_mode,
+                                     alpha_memory=args.alpha_memory).to(dev)
+        else:
+            model = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps,
+                                   attractor=(args.attractor == "on")).to(dev)
         if args.no_edges:
             model.adjacency.zero_()
         train(model, Xp, yp, args.epochs, 256, 1e-3, args.seed, weights=w)
