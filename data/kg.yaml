@@ -28,7 +28,7 @@ relation_signs:
 
 # Nodes that can be set by the "cell context / intrinsic memory" (lineage TFs
 # and marks a cell carries before any cue is applied).
-memory_nodes: [PU1, Oct4, MyoD, AP1, GATA3, CEBPB, RUNX1, KLF4, NANOG, SOX2, FOXA2, HNF4A, ZEB1, EZH2]
+memory_nodes: [PU1, Oct4, MyoD, AP1, GATA3, CEBPB, RUNX1, KLF4, NANOG, SOX2, FOXA2, HNF4A, ZEB1, EZH2, TOX]
 
 # Map KG nodes to human gene symbols so real expression (CZ CELLxGENE Census)
 # can initialize node activations. Only expressed factors are mappable; cues,
@@ -73,6 +73,13 @@ gene_map:
   # senescence effectors (p21 / p16)
   CDKN1A: CDKN1A
   CDKN2A: CDKN2A
+  # T-cell exhaustion: chronic TCR -> NFAT -> TOX (epigenetic fixation) -> PD-1/TIM3/LAG3/TIGIT
+  TOX: TOX
+  NFAT: NFATC1
+  PDCD1: PDCD1
+  HAVCR2: HAVCR2
+  LAG3: LAG3
+  TIGIT: TIGIT
   # neuronal-differentiation drivers/markers (proneural cascade + neuron marker)
   Neurog2: NEUROG2
   NeuroD: NEUROD1
@@ -84,7 +91,7 @@ gene_map:
 
 # Nodes whose activation is read out as the predicted phenotype.
 program_nodes:
-  [InnateMemory, Fibrosis, Hypertrophy, Regeneration, Pluripotency, MyogenicDiff, ADM, EMT, Senescence, NeuronalDiff, Osteogenesis]
+  [InnateMemory, Fibrosis, Hypertrophy, Regeneration, Pluripotency, MyogenicDiff, ADM, EMT, Senescence, NeuronalDiff, Osteogenesis, Exhaustion]
 
 nodes:
   # --- Extrinsic cues (inputs) ---
@@ -188,6 +195,14 @@ nodes:
   - {id: Senescence, type: program, bias: -0.5}
   - {id: NeuronalDiff, type: program, bias: -0.5}
   - {id: Osteogenesis, type: program, bias: -0.5}
+  - {id: Exhaustion, type: program, bias: -0.5}
+  - {id: ChronicTCR, type: cue, bias: 0.0}
+  - {id: NFAT, type: tf, bias: 0.0}
+  - {id: TOX, type: tf, bias: 0.0}
+  - {id: PDCD1, type: signaling, bias: -0.5}
+  - {id: HAVCR2, type: signaling, bias: -0.5}
+  - {id: LAG3, type: signaling, bias: -0.5}
+  - {id: TIGIT, type: signaling, bias: -0.5}
 
 edges:
   # Inflammatory latent-enhancer priming -> innate memory (Ostuni 2013; Heinz 2010)
@@ -293,6 +308,14 @@ edges:
   # Senescence: p21/p16 effectors drive the arrest program
   - {src: CDKN1A, rel: ACTIVATES, dst: Senescence, w: 1.5}
   - {src: CDKN2A, rel: ACTIVATES, dst: Senescence, w: 1.5}
+  # T-cell exhaustion: chronic TCR -> sustained NFAT -> TOX (epigenetic fixation) -> program
+  - {src: ChronicTCR, rel: ACTIVATES, dst: NFAT, w: 1.5}
+  - {src: NFAT, rel: ACTIVATES, dst: TOX, w: 1.5}
+  - {src: TOX, rel: PRIMES_CHROMATIN, dst: Exhaustion, w: 1.5}
+  - {src: PDCD1, rel: ACTIVATES, dst: Exhaustion, w: 1.5}
+  - {src: HAVCR2, rel: ACTIVATES, dst: Exhaustion, w: 1.0}
+  - {src: LAG3, rel: ACTIVATES, dst: Exhaustion, w: 1.0}
+  - {src: TIGIT, rel: ACTIVATES, dst: Exhaustion, w: 1.0}
 
   # Neuronal differentiation: proneural cascade Neurog2 -> NeuroD -> neuron
   # (Guillemot 2007). Dcx = post-mitotic neuron readout marker.
