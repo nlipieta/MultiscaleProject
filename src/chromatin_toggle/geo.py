@@ -110,6 +110,7 @@ class ScrnaDataset:
     counts_sep: str = ","         # counts matrix delimiter ("\t" for .tsv)
     labeler: "object" = None      # optional callable(row)->program|None
     cue_of: "object" = None       # optional callable(row)->float cue level
+    time_of: "object" = None      # optional callable(row)->float: real time since cue (days)
 
 
 def _gse120064_label(row):
@@ -146,6 +147,16 @@ def _gse147405_label(row):
 
 def _gse147405_cue(row):
     return 0.0 if str(row.get("Time")) == "0d" else 1.0
+
+
+def _gse147405_time(row):
+    """Real time along the TGF-beta EMT course from the 'Time' field ('0d','8h',
+    '1d','3d','7d' ...) -> days since cue. Non-clean values (e.g. removal arms) -> NaN."""
+    m = re.fullmatch(r"([\d.]+)\s*([dh])", str(row.get("Time", "")).strip().lower())
+    if not m:
+        return float("nan")
+    v = float(m.group(1))
+    return v / 24.0 if m.group(2) == "h" else v
 
 
 def _gse115301_label(row):
@@ -216,7 +227,7 @@ SCRNA: dict[str, ScrnaDataset] = {
         counts_file="GSE147405_A549_TNF_TimeCourse_UMI_matrix.csv.gz",
         labels_file="GSE147405_A549_TNF_TimeCourse_metadata.csv.gz",
         label_col="", cue="TNFalpha", program_map={},
-        labeler=_gse147405_label,  # cue uniform (no gating -> no leak)
+        labeler=_gse147405_label, time_of=_gse147405_time,  # cue uniform (no gating -> no leak)
     ),
     # Hoare et al., oncogene-induced senescence (IMR90). RIS = Senescence,
     # Growing = Quiescent. New program; genetic OIS trigger -> no matching cue.
@@ -378,10 +389,13 @@ def ingest_scrna(gse: str, out: Path, cache: Path,
     else:
         lab["__prog"] = lab[ds.label_col].map(ds.program_map)
     lab["__cue"] = lab.apply(ds.cue_of, axis=1) if ds.cue_of is not None else ds.level
+    if ds.time_of is not None:                      # real experimental time (days since cue)
+        lab["__time"] = lab.apply(ds.time_of, axis=1)
     if ds.drop_unmapped:
         lab = lab[lab["__prog"].notna()]
     cell_prog = lab["__prog"].to_dict()
     cell_cue = lab["__cue"].to_dict()
+    cell_time = lab["__time"].to_dict() if ds.time_of is not None else None
 
     # KG gene nodes -> mouse symbol (upper). Optionally drop program-marker genes
     # (Sox9 etc.) that co-define the label, to avoid an easy shortcut.
@@ -412,8 +426,8 @@ def ingest_scrna(gse: str, out: Path, cache: Path,
         lo, hi = norm.min(), norm.max()
         X[:, node_cols.index(node)] = 0.0 if hi <= lo else (norm - lo) / (hi - lo)
 
-    # write one row per labelled cell
-    header = node_cols + ["label"]
+    # write one row per labelled cell (+ real timepoint column if the dataset has one)
+    header = node_cols + ["label"] + (["timepoint"] if cell_time is not None else [])
     lines = [",".join(header)]
     kept, prog_count = 0, {}
     for i, bc in enumerate(cell_ids):
@@ -423,8 +437,10 @@ def ingest_scrna(gse: str, out: Path, cache: Path,
         row = {node_cols[j]: X[i, j] for j in range(len(node_cols))}
         if ds.cue in kg.node_index:
             row[ds.cue] = float(cell_cue.get(bc, ds.level))
-        vals = [f"{row[c]}" if c != "label" else prog for c in header]
-        lines.append(",".join(vals))
+        row["label"] = prog
+        if cell_time is not None:
+            row["timepoint"] = cell_time.get(bc, float("nan"))
+        lines.append(",".join(f"{row[c]}" for c in header))
         kept += 1
         prog_count[prog] = prog_count.get(prog, 0) + 1
     out.write_text("\n".join(lines) + "\n")
