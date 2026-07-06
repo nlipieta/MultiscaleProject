@@ -47,7 +47,9 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--device", default="auto")
     ap.add_argument("--attractor", choices=["on", "off"], default="on",
-                    help="WTA attractor sharpening (off = test if it flattens the continuum)")
+                    help="WTA attractor sharpening (off = honest graded classifier, no forced fate)")
+    ap.add_argument("--no-edges", action="store_true",
+                    help="remove the graph (markers-without-structure control) to isolate structure")
     args = ap.parse_args()
 
     kg = load_kg()
@@ -92,6 +94,8 @@ def main():
         torch.manual_seed(args.seed)
         model = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps,
                                attractor=(args.attractor == "on")).to(dev)
+        if args.no_edges:
+            model.adjacency.zero_()
         train(model, Xp, yp, args.epochs, 256, 1e-3, args.seed, weights=w)
         p_prog = predict_proba(model, Xt)[:, prog_i].numpy()
 

@@ -90,10 +90,13 @@ def _fit_sklearn(kind, Xtr, ytr, Xte, n_classes, class_weight, seed):
     return m.predict(Xte), proba
 
 
-def _fit_gnn(kg, Xtr, ytr, Xte, n_classes, hidden, steps, epochs, class_weight, seed, device):
+def _fit_gnn(kg, Xtr, ytr, Xte, n_classes, hidden, steps, epochs, class_weight, seed,
+             device, attractor=True, no_edges=False):
     w = class_weights(ytr, n_classes) if class_weight else None
     torch.manual_seed(seed)
-    m = ToggleDynamics(kg, hidden=hidden, steps=steps).to(device)
+    m = ToggleDynamics(kg, hidden=hidden, steps=steps, attractor=attractor).to(device)
+    if no_edges:                                   # markers-without-structure control
+        m.adjacency.zero_()
     train(m, Xtr, ytr, epochs, 256, 1e-3, seed, weights=w)
     return predict(m, Xte).numpy(), predict_proba(m, Xte).numpy()
 
@@ -113,6 +116,10 @@ def main():
     ap.add_argument("--steps", type=int, default=6, help="GNN message-passing rounds")
     ap.add_argument("--hidden", type=int, default=64)
     ap.add_argument("--no-gnn", action="store_true", help="skip the (slow) KG-GNN")
+    ap.add_argument("--attractor", choices=["on", "off"], default="on",
+                    help="WTA attractor sharpening; 'off' = honest graded classifier (no forced fate)")
+    ap.add_argument("--structure-test", action="store_true",
+                    help="add kg_gnn_noedges (same model, graph removed) to isolate structure's value")
     ap.add_argument("--device", default="auto", help="cpu / cuda / mps / auto")
     ap.add_argument("--save-folds", default=None, help="write per-(seed,fold) metrics to this CSV")
     ap.add_argument("--models", nargs="*",
@@ -135,8 +142,10 @@ def main():
     if args.group_split and groups is None:
         raise SystemExit("--group-split needs a 'dataset' column")
 
-    model_list = list(args.models) + ([] if args.no_gnn else ["kg_gnn"])
+    gnn_models = [] if args.no_gnn else (["kg_gnn", "kg_gnn_noedges"] if args.structure_test else ["kg_gnn"])
+    model_list = list(args.models) + gnn_models
     dev = pick_device(args.device)
+    attractor = args.attractor == "on"
     seeds = args.seeds if args.seeds else [args.seed]
     n_gene_cols = sum(1 for g in kg.gene_map if g in df.columns)  # gene nodes present in DATA
     print(f"Baseline comparison | data={Path(args.data).name} n={X.size(0)} "
@@ -154,9 +163,10 @@ def main():
             te = folds[f]
             tr = np.concatenate([folds[i] for i in range(args.kfolds) if i != f])
             for m in model_list:
-                if m == "kg_gnn":
+                if m.startswith("kg_gnn"):
                     pred, proba = _fit_gnn(kg, X[tr], y[tr], X[te], n_classes, args.hidden,
-                                           args.steps, args.epochs, args.class_weight, s, dev)
+                                           args.steps, args.epochs, args.class_weight, s, dev,
+                                           attractor=attractor, no_edges=m.endswith("noedges"))
                 else:
                     pred, proba = _fit_sklearn(m, Xnp[tr], ynp[tr], Xnp[te], n_classes,
                                                args.class_weight, s)
