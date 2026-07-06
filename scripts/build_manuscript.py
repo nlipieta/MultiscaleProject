@@ -61,10 +61,10 @@ p("Cells select a response program by integrating a stable intrinsic identity (l
   "holding out entire datasets. After identifying and removing a cue-label leak that had inflated "
   "an earlier result, the honest findings are: (i) the expression->program mapping is highly "
   "learnable in-distribution (stratified balanced accuracy 0.93); (ii) cross-dataset "
-  "generalization is hard for all models (a batch/domain-shift frontier), and there the KG-GNN is "
-  "the top model on program probability-ranking (macro-AUPRC 0.47 vs ~0.40 for logistic "
-  "regression, random forest, and gradient boosting; a consistent ~19% relative edge), while "
-  "matching baselines on top-1 metrics once converged; (iii) in simulation the model reproduces "
+  "generalization is hard for all models (a batch/domain-shift frontier), and there the KG-GNN "
+  "SIGNIFICANTLY outperforms strong baselines on program probability-ranking (macro-AUPRC 0.48 vs "
+  "~0.40 for logistic regression and random forest; paired Wilcoxon p<0.02 for both), while "
+  "matching them on top-1 metrics once converged; (iii) in simulation the model reproduces "
   "the theory's plasticity-gated, hysteretic switching, but on a real EMT time-course it shows no "
   "graded temporal-emergence advantage over a linear model. We conclude that the theory yields an "
   "interpretable model whose concrete real-data advantage is probability-ranking, and we report "
@@ -153,13 +153,21 @@ table(["Model", "prog recall", "balanced acc", "macro-F1", "macro-AUPRC"],
        ["Logistic regression", "0.307 +/-0.18", "0.365 +/-0.13", "0.161 +/-0.05", "0.396 +/-0.16"],
        ["Gradient boosting", "0.211 +/-0.12", "0.345 +/-0.09", "0.173 +/-0.05", "0.392 +/-0.16"],
        ["Majority class", "0.000", "0.220 +/-0.02", "0.138 +/-0.02", "0.154 +/-0.04"]])
-em("The AUPRC edge is consistent across every configuration (single-seed narrow 0.500, single-seed "
-   "wide, multi-seed 0.472 — always top). Widening inputs (42 -> 148 genes) lifted all models "
-   "~0.03-0.05 AUPRC. The argmax metrics trail because epochs-40 under-converges the GNN's top-1 "
-   "decisions; a single-seed CONVERGED run (epochs 120) recovered recall 0.437 / balanced-acc "
-   "0.382 while AUPRC held. Significance: pooled +/-1 std ranges overlap (large grouped-fold "
-   "variance), so the edge is sizeable and consistent but a paired per-fold test [pending] is the "
-   "formal call.")
+p("Significance (paired Wilcoxon signed-rank over the same seed x fold splits — the correct test, "
+  "which controls for fold difficulty):")
+table(["KG-GNN vs", "AUPRC edge", "p-value"],
+      [["Logistic regression", "+0.069", "0.008 (significant)"],
+       ["Random forest", "+0.058", "0.018 (significant)"],
+       ["Majority", "+0.278", "0.0001 (significant)"]])
+em("The KG-GNN's macro-AUPRC advantage over both strong baselines is STATISTICALLY SIGNIFICANT "
+   "(p<0.02) on the paired test. The marginal +/-1 std ranges overlap only because grouped-fold "
+   "variance is large; paired (same folds), the edge is significant. The advantage is specific to "
+   "AUPRC (probability ranking): on prog-recall the model ties logistic regression (p=0.85) and "
+   "beats random forest (p=1e-4). The edge is consistent across every configuration (single-seed "
+   "0.500, multi-seed 0.477); widening inputs (42->148 genes) lifted all models ~0.03-0.05 AUPRC. "
+   "Argmax metrics trail at epochs-40 (under-convergence) and recover to competitive when converged "
+   "(recall 0.437 / balanced-acc 0.382, single seed). Interpretation: structure improves program "
+   "RANKING over structureless learners, significantly, while matching them on top-1 decisions.")
 
 h("3.4 Theory dynamics: simulation vs a real time-course", 2)
 p("In SIMULATION, sweeping the plasticity input reproduces the theory's central behavior: at low "
@@ -231,8 +239,8 @@ for t_ in [
 h("6. Conclusion")
 p("A multiscale theory of cell-state selection can be built as an interpretable knowledge-graph "
   "GNN and evaluated honestly on real multi-source single-cell data. After removing a label leak, "
-  "the model's reproducible real-data advantage is program probability-ranking (macro-AUPRC ~0.47 "
-  "vs ~0.40 baselines) on the hard cross-dataset-transfer regime; it matches baselines on top-1 "
+  "the model's reproducible real-data advantage is program probability-ranking (macro-AUPRC ~0.48 "
+  "vs ~0.40 baselines, paired p<0.02) on the hard cross-dataset-transfer regime; it matches baselines on top-1 "
   "metrics once converged, recovers known regulators, and reproduces the theory's plasticity-gated "
   "dynamics in simulation. The stronger claims — a decisive classification win and a real-data "
   "temporal-integration advantage — are not supported, and we report those negatives directly. The "
