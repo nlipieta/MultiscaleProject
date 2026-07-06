@@ -224,6 +224,26 @@ em("Config matters. Under the thesis-aligned setting — markers included and th
    "[pending]. Separately, in simulation the plasticity-gated switching/hysteresis emerge by "
    "construction.")
 
+h("3.4b Mechanism and structure ablation", 2)
+p("Knocking out one component at a time on a fixed converged split (markers-in), scored on "
+  "macro-AUPRC (the ranking metric of 3.3). Delta vs the full model:")
+table(["Knockout", "ΔAUPRC", "reading"],
+      [["scramble edges (wrong wiring)", "-0.155", "correct wiring matters (pro-structure)"],
+       ["attractor / WTA", "-0.109", "helps here; flattens temporal (mixed tradeoff)"],
+       ["collapse relation types", "-0.057", "relation-typing matters"],
+       ["hybrid residual / asymmetric", "-0.015 / -0.014", "minor"],
+       ["plasticity gate", "0.000", "inert for classification (a dynamics mechanism)"],
+       ["remove all edges (no_edges)", "+0.035", "single-split only — see caveat"]])
+em("Robust readings: the plasticity gate is INERT for static classification (it shapes the "
+   "simulated dynamics, not prediction); scrambling or collapsing the graph badly hurts ranking, so "
+   "correct relational wiring matters (pro-structure); the attractor is a genuine tradeoff (helps "
+   "this split's ranking but flattens the temporal continuum, 3.4). CAVEAT: this ablation is a "
+   "SINGLE fixed split, and grouped-split variance is large (~+/-0.12); its all-or-nothing no_edges "
+   "line came out +0.035, OPPOSITE to the reliable multi-seed, paired structure-isolation test in "
+   "3.3 (structure helps, +0.082, p=0.015). We therefore rely on 3.3 (15 estimates + paired test) "
+   "for the structure claim and treat the single-split no_edges as noise. A multi-seed ablation "
+   "would be needed to score the all-or-nothing structure knockout reliably here.")
+
 h("3.5 Interpretability", 2)
 p("Permutation importance shows the model relies on textbook regulators for most programs "
   "(Hypertrophy: MechanicalStretch, HDAC4/5; MyogenicDiff: MyoD; ADM: Sox9, Caerulein; "
