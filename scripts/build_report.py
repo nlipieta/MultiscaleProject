@@ -163,14 +163,31 @@ note("[prior 10-program analysis] Being regenerated on the 12-program leak-free 
      "result (shortcut dissolved; cue+memory predictive) is the load-bearing claim.")
 fig("representation_control.png", 4.4, "Figure 1. Richer memory dissolves the marker shortcut and makes cue+memory predictive.")
 
-h("3.4 Theory dynamics — plasticity-gated, persistent fate switching", 2)
-p("Sweeping the plasticity input from 0 to 1 reproduces the theory's central behavior: at low "
-  "plasticity the intrinsic default holds regardless of the cue; past a threshold the cue flips the "
-  "stabilized program; the flipped state persists after cue withdrawal (hysteresis = stored memory). "
-  "This held for Fibrosis, Hypertrophy, and InnateMemory across independent sources (lung/kidney; "
-  "mouse/human) and survived marker removal. No-cue programs (myogenesis, pluripotency) stayed flat "
-  "(clean control). Ablations confirm the plasticity gate is load-bearing (removing it abolishes the "
+h("3.4 Theory dynamics — plasticity-gated switching (simulated) and a real-time test", 2)
+p("In SIMULATION, sweeping the plasticity input from 0 to 1 reproduces the theory's central "
+  "behavior: at low plasticity the intrinsic default holds regardless of the cue; past a threshold "
+  "the cue flips the stabilized program; the flipped state persists after cue withdrawal (hysteresis "
+  "= stored memory). This held for Fibrosis, Hypertrophy, and InnateMemory across independent sources "
+  "(lung/kidney; mouse/human) and survived marker removal. No-cue programs (myogenesis, pluripotency) "
+  "stayed flat (clean control); the plasticity gate is load-bearing (removing it abolishes the "
   "effect). Honest exception: ADM dynamics were marker-dependent.")
+p("Real-time test (negative result, reported for completeness). We used the EMT time-course "
+  "(GSE147405: 0d Quiescent, then 8h/1d/3d/7d all labelled EMT) as a leakage-free validation: real "
+  "experimental time is NOT a model input; we ask whether predicted P(EMT) rises with time among the "
+  "cells that are ALL labelled EMT (a graded rise = time-integrated commitment beyond the binary "
+  "label). Spearman(P, time) over the EMT-labelled cells:")
+table(["Model", "Spearman(P(EMT), time), EMT-labelled cells"],
+      [["Logistic regression", "+0.154  (p=2e-39)  -- graded"],
+       ["KG-GNN (attractor on)", "+0.007  (p=0.56)   -- flat / null"],
+       ["KG-GNN (attractor off)", "-0.040  (p=7e-04)  -- flat"]])
+note("Honest reading: on REAL time-course data the KG-GNN does NOT capture graded temporal "
+     "emergence -- its P(EMT) is flat across 8h->7d -- while the simpler linear model shows a weak "
+     "but significant graded rise. Turning the attractor OFF did not recover the gradient, so the "
+     "flatness is NOT caused by winner-take-all sharpening (a hypothesis we tested and rejected). "
+     "So the theory's temporal-integration prediction is supported in SIMULATION but NOT borne out "
+     "by the structured model on this real time-course; if anything the linear model reads the "
+     "continuum better. We report this rather than tune it away. The KG-GNN's one reproducible "
+     "real-data advantage remains program probability-RANKING (AUPRC, 3.2), not temporal dynamics.")
 
 h("3.5 Mechanism / structure / node ablation (deeper ablation table)", 2)
 p("Each load-bearing piece is removed one at a time on a fixed split; the drop in program recall "
@@ -240,8 +257,11 @@ p("The review's multiscale information-processing model can be built as a knowle
   "trained to convergence. So the KG structure adds value where it should for an imbalanced multiclass "
   "problem -- in ranking the correct program -- rather than in raw top-1 accuracy. Its further "
   "distinctive contributions are (i) reproducing the theory's plasticity-gated, hysteretic dynamics "
-  "under marker-shortcut controls, and (ii) recovering known regulators for most programs, with a "
-  "falsifiable HDAC4/5 perturbation prediction for hypertrophy. Remaining work: a converged "
+  "IN SIMULATION under marker-shortcut controls, and (ii) recovering known regulators for most "
+  "programs, with a falsifiable HDAC4/5 perturbation prediction for hypertrophy. Reported honestly: "
+  "the stronger thesis hopes did NOT materialize on real data -- the model is competitive-not-"
+  "superior on classification, and shows no temporal-continuum advantage over a linear model on a "
+  "real EMT time-course (3.4); its one reproducible real-data edge is AUPRC. Remaining work: a converged "
   "(epochs-120, GPU) multi-seed run to confirm the argmax metrics recover while AUPRC holds; a paired "
   "per-fold significance test of the AUPRC edge; the ablation and perturbation tables on the wide "
   "model; and second sources for the two single-source programs.")

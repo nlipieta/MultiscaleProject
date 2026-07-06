@@ -46,6 +46,8 @@ def main():
     ap.add_argument("--hidden", type=int, default=64)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--device", default="auto")
+    ap.add_argument("--attractor", choices=["on", "off"], default="on",
+                    help="WTA attractor sharpening (off = test if it flattens the continuum)")
     args = ap.parse_args()
 
     kg = load_kg()
@@ -88,7 +90,8 @@ def main():
         dev = pick_device(args.device)
         w = class_weights(yp, len(classes))
         torch.manual_seed(args.seed)
-        model = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps).to(dev)
+        model = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps,
+                               attractor=(args.attractor == "on")).to(dev)
         train(model, Xp, yp, args.epochs, 256, 1e-3, args.seed, weights=w)
         p_prog = predict_proba(model, Xt)[:, prog_i].numpy()
 
