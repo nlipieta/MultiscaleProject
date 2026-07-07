@@ -1,0 +1,30 @@
+# Pasted from a Colab run (2026-07-07). Header predates the --arch/config logging,
+# so the arch is NOT recorded in the file. Numbers (kg_gnn AUPRC 0.509, structure
+# benefit +0.085, p=0.0015) match the recorded INITIAL RE-INJECTION (toggle) result,
+# NOT the resistance-gated design (which was 0.526 / +0.130 / p=0.0002). Treat as the
+# toggle/re-injection arm pending confirmation.
+
+Baseline comparison | data=cross_pathway_eval.csv n=8000 k=5 mask=none group_split=True class_weight=True device=cuda seeds=[0, 1, 2]
+classes=13 gene-columns-in-data=148 (~42=narrow, ~148=WIDE) models=['logreg', 'kg_gnn', 'kg_gnn_noedges']
+
+  seed 0 done (5 folds)
+  seed 1 done (5 folds)
+  seed 2 done (5 folds)
+
+5-fold CV x 3 seed(s) (mask=none, class_weight=True):
+model            overall acc    balanced acc     prog recall        macro-F1      prog-AUPRC
+--------------------------------------------------------------------------------------------
+logreg         0.433+/-0.120   0.370+/-0.130   0.310+/-0.180   0.167+/-0.055   0.397+/-0.157
+kg_gnn         0.416+/-0.145   0.372+/-0.137   0.351+/-0.166   0.177+/-0.050   0.509+/-0.137
+kg_gnn_noedges   0.341+/-0.092   0.324+/-0.103   0.302+/-0.153   0.122+/-0.043   0.393+/-0.140
+
+macro-F1 = precision+recall balance; prog-AUPRC = threshold-independent, program classes.
+
+Paired significance vs KG-GNN (Wilcoxon signed-rank over seed x fold):
+baseline        metric   median dP(gnn-base)     p-value
+--------------------------------------------------------
+logreg           auprc                +0.104      0.0009
+logreg            prog                +0.016      0.2524
+kg_gnn_noedges     auprc                +0.085      0.0015
+kg_gnn_noedges      prog                -0.002      0.4543
+positive median = KG-GNN higher; p<0.05 = the paired difference is significant.
