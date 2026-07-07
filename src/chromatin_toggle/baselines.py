@@ -176,7 +176,10 @@ def main():
           f"k={args.kfolds} mask={args.mask} group_split={args.group_split} "
           f"class_weight={args.class_weight} device={dev} seeds={seeds}")
     print(f"classes={n_classes} gene-columns-in-data={n_gene_cols} "
-          f"(~42=narrow, ~148=WIDE) models={model_list}\n")
+          f"(~42=narrow, ~148=WIDE) models={model_list}")
+    print(f"GNN: hidden={args.hidden} steps={args.steps} epochs={args.epochs} "
+          f"batch_size={args.batch_size} compile={args.compile} arch={args.arch}  "
+          f"(memory scales with batch_size; ~1024 fits a 22GB GPU at hidden128/steps8)\n")
 
     Xnp = X.numpy(); ynp = y.numpy()
     scores = {m: {"acc": [], "bal": [], "prog": [], "f1": [], "auprc": []} for m in model_list}
@@ -188,11 +191,20 @@ def main():
             tr = np.concatenate([folds[i] for i in range(args.kfolds) if i != f])
             for m in model_list:
                 if m.startswith("kg_gnn"):
-                    pred, proba = _fit_gnn(kg, X[tr], y[tr], X[te], n_classes, args.hidden,
-                                           args.steps, args.epochs, args.class_weight, s, dev,
-                                           attractor=attractor, no_edges=m.endswith("noedges"),
-                                           arch=args.arch, rcfg=rcfg, bs=args.batch_size,
-                                           compile=args.compile)
+                    try:
+                        pred, proba = _fit_gnn(kg, X[tr], y[tr], X[te], n_classes, args.hidden,
+                                               args.steps, args.epochs, args.class_weight, s, dev,
+                                               attractor=attractor, no_edges=m.endswith("noedges"),
+                                               arch=args.arch, rcfg=rcfg, bs=args.batch_size,
+                                               compile=args.compile)
+                    except torch.cuda.OutOfMemoryError:
+                        torch.cuda.empty_cache()
+                        raise SystemExit(
+                            f"\nCUDA OOM at batch_size={args.batch_size} "
+                            f"(hidden={args.hidden}, steps={args.steps}). Activation memory "
+                            f"scales with batch_size x steps -> lower --batch-size (try "
+                            f"{max(128, args.batch_size // 2)}). Batch 256 fits comfortably; "
+                            f"~1024 is the ceiling at hidden128/steps8 on a 22GB GPU.")
                 else:
                     pred, proba = _fit_sklearn(m, Xnp[tr], ynp[tr], Xnp[te], n_classes,
                                                args.class_weight, s)
