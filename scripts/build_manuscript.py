@@ -96,16 +96,22 @@ p("Testing such a theory requires more than a black-box predictor: the mechanism
 # ---------------- 2 Methods ----------------
 h("2. Methods")
 h("2.1 Knowledge graph and model", 2)
-p("Nodes are molecules, chromatin features, or response programs; edges are literature "
-  "activation/inhibition relations. The GNN sees only the binary graph STRUCTURE (edge signs and "
-  "weights are never exposed), a cell's measured gene activity injected onto the corresponding "
-  "nodes, and it reads out a program via message passing. Three theory mechanisms are built in "
-  "and independently ablatable: (i) intrinsic memory is re-injected every message-passing round "
-  "(persistent, strong) while the cue decays (transient, weak); (ii) a plasticity input scales the "
-  "cue's influence; (iii) a winner-take-all step sharpens toward one attractor program. A hybrid "
-  "residual (a linear map from the raw node vector to the class logits) guarantees the model is "
-  "at least as expressive as a linear classifier. Message passing is vectorized over relations "
-  "for efficiency.")
+p("The model's objective is to predict a cell's response-program (pathway) state from its "
+  "measured gene activity over the regulatory graph. Nodes are molecules, chromatin features, or "
+  "response programs; edges are literature activation/inhibition relations. The GNN sees only the "
+  "binary graph STRUCTURE (edge signs/weights are never exposed) plus the cell's expression "
+  "injected onto nodes, and reads out a program via message passing. A hybrid residual (a linear "
+  "map from the raw node vector to the class logits) guarantees it is at least as expressive as a "
+  "linear classifier; message passing is vectorized over relations.")
+p("Intrinsic memory formulation. We evaluated two formulations of how lineage/chromatin memory "
+  "enters the model. The INITIAL formulation re-injected intrinsic memory as a strong signal every "
+  "message-passing round (with a decaying cue and a plasticity term scaling cue influence, and a "
+  "winner-take-all attractor step) — effectively adding a secondary autoregulation mechanism on "
+  "top of the pathway prediction. The PREFERRED formulation (Section 3.7) reframes memory as "
+  "transition RESISTANCE: memory sets the barrier a cue must overcome to leave the current "
+  "attractor, plasticity LOWERS that barrier (rather than amplifying the cue), and a soft/graded "
+  "attractor replaces winner-take-all. All of these are independently ablatable so the "
+  "contribution of each can be measured; leakage controls are identical across formulations.")
 h("2.2 Data and labels", 2)
 p("The training pool is 18,392 cells, 12 programs, 19 datasets (capped at 600 cells per "
   "program-per-dataset to limit single-cell dominance), with inputs widened to a curated 148-gene "
@@ -271,6 +277,36 @@ p("The encoded hypertrophy cascade (MechanicalStretch -> CaMKII/PKD -> nuclear e
   "not an in-silico success.")
 
 # ---------------- 4 Discussion ----------------
+h("3.7 Architecture: intrinsic memory as transition resistance", 2)
+p("Reframing intrinsic memory as transition RESISTANCE — the barrier a cue must overcome to leave "
+  "the current attractor — rather than a re-injected default signal, keeps the model focused on "
+  "its objective (predicting the pathway program) instead of imposing a secondary autoregulation "
+  "mechanism. Resistance is computed per cell from lineage-TF, chromatin, and current-program "
+  "states; plasticity lowers it; the state updates as resistance*current + (1-resistance)*candidate, "
+  "and a soft (graded) attractor replaces winner-take-all. We compared the two formulations on an "
+  "expanded 13-program pool (adding T-cell exhaustion as a genuine-generalization stress test), "
+  "markers included in all arms, identical grouped folds/seeds and leakage controls.")
+table(["metric (13-program, markers-in)", "initial re-injection", "resistance-gated"],
+      [["macro-AUPRC", "0.509", "0.526"],
+       ["balanced accuracy", "0.372", "0.403"],
+       ["macro-F1", "0.177", "0.192"],
+       ["program recall", "0.351", "0.349"],
+       ["structure benefit vs edge-removed (AUPRC)", "+0.085 (p=0.0015)", "+0.130 (p=0.0002)"]])
+em("The resistance formulation improves the top-1 metrics the initial formulation only matched "
+   "(balanced accuracy +0.031, macro-F1 +0.015) at equal-or-better AUPRC, and — the key point — it "
+   "WIDENS the benefit of regulatory structure: the graph's edge-removed AUPRC advantage grows from "
+   "+0.085 to +0.130 (more significant), and structure begins to help program recall (which it did "
+   "not under re-injection). In both formulations the edge-removed model collapses to the "
+   "logistic-regression level (~0.39), confirming the graph is the lever. Interpretation: scoping "
+   "memory as inertia (not a re-injected default) lets the regulatory graph contribute more to "
+   "pathway prediction, consistent with the theory that lineage/chromatin context sets a "
+   "transition barrier rather than a fixed bias. Caveats: the gains are modest and from a single "
+   "configuration (plasticity-as-barrier-lowering, soft attractor); the folds are shared so the "
+   "means are comparable but a formal paired test between formulations is future work; and the "
+   "13-program pool adds a cleanly separable program (exhaustion) that raises absolute AUPRC "
+   "independent of architecture, so the controlled quantities are the within-pool structure "
+   "benefit and top-1 deltas, not the absolute AUPRC vs the 12-program sections above.")
+
 h("4. Discussion")
 p("Read honestly, the results say something specific. The expression->program mapping is easily "
   "learned in-distribution; the hard, real problem is transfer to unseen datasets, where batch/"
@@ -280,11 +316,18 @@ p("Read honestly, the results say something specific. The expression->program ma
   "the effect is consistent across configurations. We deliberately do not claim a blanket accuracy "
   "win: on top-1 metrics the model is competitive, not superior, and only once trained to "
   "convergence.")
-p("The theory's temporal-integration prediction is the clearest negative: in simulation the "
-  "plasticity-gated, hysteretic behavior emerges by construction, but on a real EMT time-course "
-  "the structured model shows no graded temporal advantage over a linear model, and the attractor "
-  "mechanism is not the cause. This tempers claims that the model's dynamics capture real temporal "
-  "commitment, and marks a target for future architectures (e.g. explicit trajectory supervision).")
+p("Two architectural findings shaped the result, and both point to mis-scoped MECHANISM rather "
+  "than a failure of the graph. First, the winner-take-all attractor saturated probabilities and "
+  "erased graded temporal signal; a soft (graded) attractor recovered graded temporal emergence on "
+  "the real EMT course, and an edge-removed control showed the regulatory graph — not the markers — "
+  "drives it (rho +0.20 with structure vs +0.03 without). Second, reframing intrinsic memory as "
+  "transition resistance rather than a re-injected default (Section 3.7) improved top-1 metrics and "
+  "widened the structure benefit. Together these suggest the model's earlier ceilings were partly "
+  "artifacts of over-strong mechanisms (hard winner-take-all, forced memory re-injection): better "
+  "biological scoping let the regulatory structure contribute more — on ranking, top-1, and "
+  "temporally — under honest grouped-dataset evaluation. The gains are modest, and on cross-dataset "
+  "classification the model remains competitive rather than dominant; but the direction consistently "
+  "supports the theory that lineage/chromatin context sets a transition barrier the cue must overcome.")
 
 # ---------------- 5 Limitations ----------------
 h("5. Limitations")
