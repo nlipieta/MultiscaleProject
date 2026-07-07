@@ -47,6 +47,10 @@ def main():
     ap.add_argument("--mask", choices=["none", "no_markers", "lineage_only"], default="no_markers")
     ap.add_argument("--test-frac", type=float, default=0.2)
     ap.add_argument("--device", default="auto", help="cpu / cuda / mps / auto")
+    ap.add_argument("--batch-size", type=int, default=256,
+                    help="GNN minibatch; BIG (1024-4096) is much faster on GPU (launch-bound model)")
+    ap.add_argument("--compile", action="store_true",
+                    help="torch.compile(reduce-overhead) the GNN training forward (cuda only)")
     args = ap.parse_args()
     dev = pick_device(args.device)
 
@@ -69,7 +73,7 @@ def main():
             sub = pool[torch.randperm(len(pool), generator=g)[:N]]
             torch.manual_seed(s)
             m = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps).to(dev)
-            train(m, X[sub], y[sub], args.epochs, 256, 1e-3, s)
+            train(m, X[sub], y[sub], args.epochs, args.batch_size, 1e-3, s, compile=args.compile)
             acc, prog = _eval(m, X[te], y[te], classes, prog_cols)
             rows[N]["acc"].append(acc); rows[N]["prog"].append(prog)
             print(f"  seed {s} N={N:6d}  acc {acc:.3f}  program-recall {prog:.3f}")

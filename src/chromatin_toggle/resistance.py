@@ -91,10 +91,13 @@ class ResistanceToggle(nn.Module):
     def _pool(self, h, idx):
         return h[:, idx, :].mean(1) if idx.numel() else h.new_zeros(h.size(0), self.hidden)
 
-    def _rgcn(self, h):                       # vectorized relation aggregation
-        Wr = torch.stack([lin.weight for lin in self.rel_lin])            # [R,H,H]
-        trans = torch.einsum("bni,roi->rbno", h, Wr)                      # [R,B,N,H]
-        return self.self_lin(h) + torch.einsum("rds,rbso->bdo", self.adjacency, trans)
+    def _rgcn(self, h):                       # relation aggregation, memory-light: O(B,N,H)
+        # loop over relations (not a fused [R,B,N,H] einsum) so big batches don't OOM;
+        # at large batch the per-relation launch overhead is amortized over few batches.
+        msg = self.self_lin(h)
+        for r, lin in enumerate(self.rel_lin):
+            msg = msg + torch.einsum("ds,bsh->bdh", self.adjacency[r], lin(h))
+        return msg
 
     def _soft_attractor(self, logits):
         if self.attractor == "none":

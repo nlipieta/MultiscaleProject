@@ -56,6 +56,10 @@ def main():
     ap.add_argument("--plasticity-mode",
                     choices=["amplify", "lower_resistance", "both", "none"], default="lower_resistance")
     ap.add_argument("--alpha-memory", choices=["zero", "low", "learned", "full"], default="learned")
+    ap.add_argument("--batch-size", type=int, default=256,
+                    help="GNN minibatch; BIG (1024-4096) is much faster on GPU (launch-bound model)")
+    ap.add_argument("--compile", action="store_true",
+                    help="torch.compile(reduce-overhead) the GNN training forward (cuda only)")
     args = ap.parse_args()
 
     kg = load_kg()
@@ -108,7 +112,7 @@ def main():
                                    attractor=(args.attractor == "on")).to(dev)
         if args.no_edges:
             model.adjacency.zero_()
-        train(model, Xp, yp, args.epochs, 256, 1e-3, args.seed, weights=w)
+        train(model, Xp, yp, args.epochs, args.batch_size, 1e-3, args.seed, weights=w, compile=args.compile)
         p_prog = predict_proba(model, Xt)[:, prog_i].numpy()
 
     # --- trajectory: mean P(program) per real timepoint ---

@@ -105,7 +105,7 @@ def _run_one(name, kg, X, y, tr, te, n_classes, prog_cols, args, w, dev):
     m = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps, **flags).to(dev)
     if adj_override is not None:
         m.adjacency.copy_(adj_override.to(dev))
-    train(m, Xtr, y[tr], args.epochs, 256, 1e-3, args.seed, weights=w)
+    train(m, Xtr, y[tr], args.epochs, args.batch_size, 1e-3, args.seed, weights=w, compile=args.compile)
     pred = predict(m, Xte).numpy()
     proba = predict_proba(m, Xte).numpy()
     return _metrics(pred, proba, y[te].numpy(), n_classes, prog_cols)
@@ -124,6 +124,10 @@ def main():
     ap.add_argument("--steps", type=int, default=6)
     ap.add_argument("--hidden", type=int, default=64)
     ap.add_argument("--device", default="auto", help="cpu / cuda / mps / auto")
+    ap.add_argument("--batch-size", type=int, default=256,
+                    help="GNN minibatch; BIG (1024-4096) is much faster on GPU (launch-bound model)")
+    ap.add_argument("--compile", action="store_true",
+                    help="torch.compile(reduce-overhead) the GNN training forward (cuda only)")
     args = ap.parse_args()
     dev = pick_device(args.device)
 

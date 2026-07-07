@@ -119,15 +119,15 @@ class ToggleDynamics(nn.Module):
                 g_cue = g_cue * 0.0                                # cue withdrawn
             inj = g_mem * mem_inj + g_cue * cue_inj
 
-            # Vectorized R-GCN message passing: all relations in two fused einsums
-            # instead of a Python loop over relations (which was O(R) kernel launches
-            # per step and scaled badly with node count -> the CPU/GPU bottleneck).
+            # R-GCN message passing, memory-light: loop over relations so we never
+            # materialize the [R,B,N,H] intermediate (which OOMs at large batch). Each
+            # relation holds only [B,N,H]; at big batch the launch overhead is amortized.
+            msg = self.self_lin(h)
             if self.num_bases:                    # W_r = sum_b coef[r,b] * basis_b
-                Wr = torch.einsum("rb,bij->rij", self.rel_coef, self.bases)   # [R,H,H] (o,i)
-            else:                                 # stack per-relation Linear weights [R,H,H]
-                Wr = torch.stack([lin.weight for lin in self.rel_lin])
-            trans = torch.einsum("bni,roi->rbno", h, Wr)                     # [R,B,N,H]
-            msg = self.self_lin(h) + torch.einsum("rds,rbso->bdo", self.adjacency, trans)
+                W = torch.einsum("rb,bij->rij", self.rel_coef, self.bases)
+            for r in range(self.adjacency.size(0)):
+                trans = torch.einsum("bsi,ji->bsj", h, W[r]) if self.num_bases else self.rel_lin[r](h)
+                msg = msg + torch.einsum("ds,bsh->bdh", self.adjacency[r], trans)
             h_new = self.gru((msg + inj).reshape(B * self.N, -1),
                              h.reshape(B * self.N, -1)).reshape(B, self.N, -1)
             if self.ln is not None:            # LayerNorm + residual (anti over-smoothing)
@@ -167,7 +167,7 @@ def class_weights(y, n_classes):
 
 
 def train(model, X, y, epochs, bs, lr, seed, plasticity_train=1.0, weights=None,
-          weight_decay=0.0, schedule=True):
+          weight_decay=0.0, schedule=True, compile=False):
     dev = next(model.parameters()).device          # follow the model's device (CPU/MPS/CUDA)
     X = X.to(dev); y = y.to(dev)                    # pre-move data ONCE (it's small) -> no per-batch
     opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)  # H2D copies
@@ -176,13 +176,34 @@ def train(model, X, y, epochs, bs, lr, seed, plasticity_train=1.0, weights=None,
     lossf = nn.CrossEntropyLoss(weight=weights.to(dev) if weights is not None else None)
     g = torch.Generator().manual_seed(seed)
     n = X.size(0)
+    # The KG is tiny (N~194, R=8) so training is kernel-LAUNCH-bound on GPU, not
+    # compute-bound: thousands of microsecond kernels per step. torch.compile with
+    # reduce-overhead captures the step loop into a CUDA graph -> one launch replaces
+    # the whole graph (biggest lever for small models). CUDA graphs need a STATIC
+    # batch shape, so we drop the last partial minibatch when compiling (loses <bs
+    # samples/epoch, unbiased). Only the training forward is compiled; predict/eval
+    # call the eager module so their variable shapes don't trigger recompiles.
+    fwd, drop_last = model, False
+    if compile and dev.type == "cuda" and n >= bs:
+        # Compile errors surface on the FIRST call, not at construction -> warm up on
+        # one static-shape batch inside try/except and fall back to eager if it fails.
+        try:
+            cand = torch.compile(model, mode="reduce-overhead", dynamic=False)
+            wu = X[:bs]
+            cand(wu, plasticity=plasticity_train).sum().backward()
+            opt.zero_grad()
+            fwd, drop_last = cand, True
+        except Exception as e:                       # unsupported op / cudagraph issue
+            print(f"[train] torch.compile unavailable ({e}); running eager")
+            fwd, drop_last = model, False
+    stop = (n // bs) * bs if (drop_last and n >= bs) else n
     for ep in range(epochs):
         model.train()
         perm = torch.randperm(n, generator=g).to(dev)
-        for i in range(0, n, bs):
+        for i in range(0, stop, bs):
             idx = perm[i:i + bs]
             opt.zero_grad()
-            loss = lossf(model(X[idx], plasticity=plasticity_train), y[idx])   # already on device
+            loss = lossf(fwd(X[idx], plasticity=plasticity_train), y[idx])   # already on device
             loss.backward()
             opt.step()
         if sched is not None:
