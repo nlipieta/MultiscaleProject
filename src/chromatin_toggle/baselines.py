@@ -103,7 +103,11 @@ def _fit_gnn(kg, Xtr, ytr, Xte, n_classes, hidden, steps, epochs, class_weight, 
     if no_edges:                                   # markers-without-structure control
         m.adjacency.zero_()
     train(m, Xtr, ytr, epochs, bs, 1e-3, seed, weights=w, compile=compile)
-    return predict(m, Xte).numpy(), predict_proba(m, Xte).numpy()
+    pred, proba = predict(m, Xte).numpy(), predict_proba(m, Xte).numpy()
+    del m                                          # release GPU memory before the next fold
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    return pred, proba
 
 
 def main():

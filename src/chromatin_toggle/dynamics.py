@@ -183,19 +183,22 @@ def train(model, X, y, epochs, bs, lr, seed, plasticity_train=1.0, weights=None,
     # batch shape, so we drop the last partial minibatch when compiling (loses <bs
     # samples/epoch, unbiased). Only the training forward is compiled; predict/eval
     # call the eager module so their variable shapes don't trigger recompiles.
-    fwd, drop_last = model, False
+    fwd, drop_last, compiled = model, False, False
     if compile and dev.type == "cuda" and n >= bs:
         # Compile errors surface on the FIRST call, not at construction -> warm up on
         # one static-shape batch inside try/except and fall back to eager if it fails.
+        # NOTE compile is best on SINGLE long runs; in a many-fold loop it recompiles
+        # (and pins a CUDA-graph pool) per model -> free it at the end of train().
         try:
             cand = torch.compile(model, mode="reduce-overhead", dynamic=False)
-            wu = X[:bs]
-            cand(wu, plasticity=plasticity_train).sum().backward()
+            cand(X[:bs], plasticity=plasticity_train).sum().backward()
             opt.zero_grad()
-            fwd, drop_last = cand, True
-        except Exception as e:                       # unsupported op / cudagraph issue
+            fwd, drop_last, compiled = cand, True, True
+        except Exception as e:                       # unsupported op / OOM at this batch
             print(f"[train] torch.compile unavailable ({e}); running eager")
-            fwd, drop_last = model, False
+            fwd, drop_last, compiled = model, False, False
+            opt.zero_grad(set_to_none=True)
+            torch.cuda.empty_cache()                 # reclaim the failed attempt's memory
     stop = (n // bs) * bs if (drop_last and n >= bs) else n
     for ep in range(epochs):
         model.train()
@@ -208,6 +211,13 @@ def train(model, X, y, epochs, bs, lr, seed, plasticity_train=1.0, weights=None,
             opt.step()
         if sched is not None:
             sched.step()
+    if dev.type == "cuda":                            # free per-fold memory so it doesn't
+        if compiled:                                  # accumulate across a k-fold/seed loop
+            try:
+                torch.compiler.reset()                # drop this model's CUDA-graph pool
+            except Exception:
+                pass
+        torch.cuda.empty_cache()
     return model
 
 
