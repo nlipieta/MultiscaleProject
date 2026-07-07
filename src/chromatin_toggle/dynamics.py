@@ -169,18 +169,20 @@ def class_weights(y, n_classes):
 def train(model, X, y, epochs, bs, lr, seed, plasticity_train=1.0, weights=None,
           weight_decay=0.0, schedule=True):
     dev = next(model.parameters()).device          # follow the model's device (CPU/MPS/CUDA)
-    opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)  # decoupled WD
+    X = X.to(dev); y = y.to(dev)                    # pre-move data ONCE (it's small) -> no per-batch
+    opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)  # H2D copies
     # cosine LR anneal over epochs -> cleaner convergence (matters once epochs are large)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=epochs) if schedule else None
     lossf = nn.CrossEntropyLoss(weight=weights.to(dev) if weights is not None else None)
     g = torch.Generator().manual_seed(seed)
+    n = X.size(0)
     for ep in range(epochs):
         model.train()
-        perm = torch.randperm(X.size(0), generator=g)
-        for i in range(0, X.size(0), bs):
+        perm = torch.randperm(n, generator=g).to(dev)
+        for i in range(0, n, bs):
             idx = perm[i:i + bs]
             opt.zero_grad()
-            loss = lossf(model(X[idx].to(dev), plasticity=plasticity_train), y[idx].to(dev))
+            loss = lossf(model(X[idx], plasticity=plasticity_train), y[idx])   # already on device
             loss.backward()
             opt.step()
         if sched is not None:
