@@ -91,7 +91,7 @@ def _fit_sklearn(kind, Xtr, ytr, Xte, n_classes, class_weight, seed):
 
 
 def _fit_gnn(kg, Xtr, ytr, Xte, n_classes, hidden, steps, epochs, class_weight, seed,
-             device, attractor=True, no_edges=False, arch="toggle", rcfg=None):
+             device, attractor=True, no_edges=False, arch="toggle", rcfg=None, bs=256):
     w = class_weights(ytr, n_classes) if class_weight else None
     torch.manual_seed(seed)
     if arch == "resistance":                       # resistance-gated / competence-gated KG-GNN
@@ -101,7 +101,7 @@ def _fit_gnn(kg, Xtr, ytr, Xte, n_classes, hidden, steps, epochs, class_weight, 
         m = ToggleDynamics(kg, hidden=hidden, steps=steps, attractor=attractor).to(device)
     if no_edges:                                   # markers-without-structure control
         m.adjacency.zero_()
-    train(m, Xtr, ytr, epochs, 256, 1e-3, seed, weights=w)
+    train(m, Xtr, ytr, epochs, bs, 1e-3, seed, weights=w)
     return predict(m, Xte).numpy(), predict_proba(m, Xte).numpy()
 
 
@@ -133,6 +133,8 @@ def main():
     ap.add_argument("--attractor-mode",
                     choices=["none", "hard_wta", "soft", "delayed_soft", "learned"], default="soft")
     ap.add_argument("--device", default="auto", help="cpu / cuda / mps / auto")
+    ap.add_argument("--batch-size", type=int, default=256,
+                    help="GNN minibatch; BIG (1024-4096) is much faster on GPU (launch-bound model)")
     ap.add_argument("--save-folds", default=None, help="write per-(seed,fold) metrics to this CSV")
     ap.add_argument("--models", nargs="*",
                     default=["majority", "logreg", "rforest", "gboost"],
@@ -181,7 +183,7 @@ def main():
                     pred, proba = _fit_gnn(kg, X[tr], y[tr], X[te], n_classes, args.hidden,
                                            args.steps, args.epochs, args.class_weight, s, dev,
                                            attractor=attractor, no_edges=m.endswith("noedges"),
-                                           arch=args.arch, rcfg=rcfg)
+                                           arch=args.arch, rcfg=rcfg, bs=args.batch_size)
                 else:
                     pred, proba = _fit_sklearn(m, Xnp[tr], ynp[tr], Xnp[te], n_classes,
                                                args.class_weight, s)
