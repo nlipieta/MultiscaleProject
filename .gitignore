@@ -34,3 +34,4 @@ data/intestinal_diff.csv
 data/tonsil_tfh_treg.csv
 data/tonsil_bcell_gc.csv
 data/trophoblast_organoid.csv
+data/adipogenesis.csv

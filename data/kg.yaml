@@ -102,10 +102,13 @@ gene_map:
   # trophoblast differentiation drivers (GCM1 -> syncytio; TFAP2C -> trophoblast)
   Gcm1: GCM1
   Tfap2c: TFAP2C
+  # adipogenesis drivers/markers (PPARG master + CEBPA)
+  Pparg: PPARG
+  Cebpa: CEBPA
 
 # Nodes whose activation is read out as the predicted phenotype.
 program_nodes:
-  [InnateMemory, Fibrosis, Hypertrophy, Regeneration, Pluripotency, MyogenicDiff, ADM, EMT, Senescence, NeuronalDiff, Osteogenesis, Exhaustion, IntestinalDiff, Tfh, Treg, GerminalCenter, TrophoblastDiff]
+  [InnateMemory, Fibrosis, Hypertrophy, Regeneration, Pluripotency, MyogenicDiff, ADM, EMT, Senescence, NeuronalDiff, Osteogenesis, Exhaustion, IntestinalDiff, Tfh, Treg, GerminalCenter, TrophoblastDiff, Adipogenesis]
 
 nodes:
   # --- Extrinsic cues (inputs) ---
@@ -215,6 +218,10 @@ nodes:
   - {id: Gcm1, type: tf, bias: -0.5}
   - {id: Tfap2c, type: tf, bias: -0.5}
 
+  # --- New program: adipogenesis (PPARG/CEBPA -> adipocyte) ---
+  - {id: Pparg, type: tf, bias: -0.5}
+  - {id: Cebpa, type: tf, bias: -0.5}
+
   # --- Response programs (outputs) ---
   - {id: InnateMemory, type: program, bias: -0.5}
   - {id: Fibrosis, type: program, bias: -0.5}
@@ -233,6 +240,7 @@ nodes:
   - {id: Treg, type: program, bias: -0.5}
   - {id: GerminalCenter, type: program, bias: -0.5}
   - {id: TrophoblastDiff, type: program, bias: -0.5}
+  - {id: Adipogenesis, type: program, bias: -0.5}
   - {id: ChronicTCR, type: cue, bias: 0.0}
   - {id: NFAT, type: tf, bias: 0.0}
   - {id: TOX, type: tf, bias: 0.0}
@@ -389,3 +397,7 @@ edges:
   # 2009); TFAP2C is the pan-trophoblast/EVT regulator. Villous CTB = progenitor.
   - {src: Gcm1, rel: ACTIVATES, dst: TrophoblastDiff, w: 1.5}
   - {src: Tfap2c, rel: ACTIVATES, dst: TrophoblastDiff, w: 1.0}
+
+  # Adipogenesis: PPARG master regulator + CEBPA feed-forward (Rosen 2000) -> adipocyte.
+  - {src: Pparg, rel: ACTIVATES, dst: Adipogenesis, w: 1.5}
+  - {src: Cebpa, rel: ACTIVATES, dst: Adipogenesis, w: 1.0}
