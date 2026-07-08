@@ -117,6 +117,7 @@ DEFAULT_SOURCES = [
     ("data/tonsil_bcell_gc.csv",           "tonsil_bcells",       "scRNA"),       # GerminalCenter (NEW program, 17th)
     ("data/trophoblast_organoid.csv",      "trophoblast_organoid","scRNA"),       # TrophoblastDiff (NEW program, 18th)
     ("data/adipogenesis.csv",              "adipo_3t3l1",         "scRNA"),       # Adipogenesis (NEW program, 19th; mouse 3T3-L1 D0 vs D5)
+    ("data/endmt.csv",                     "endmt_huvec",         "scRNA"),       # EndMT (NEW program, 20th; HUVEC IL1b+TGFb2)
 ]
 
 

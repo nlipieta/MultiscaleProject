@@ -105,10 +105,12 @@ gene_map:
   # adipogenesis drivers/markers (PPARG master + CEBPA)
   Pparg: PPARG
   Cebpa: CEBPA
+  # endothelial-to-mesenchymal transition driver (SNAI1)
+  Snai1: SNAI1
 
 # Nodes whose activation is read out as the predicted phenotype.
 program_nodes:
-  [InnateMemory, Fibrosis, Hypertrophy, Regeneration, Pluripotency, MyogenicDiff, ADM, EMT, Senescence, NeuronalDiff, Osteogenesis, Exhaustion, IntestinalDiff, Tfh, Treg, GerminalCenter, TrophoblastDiff, Adipogenesis]
+  [InnateMemory, Fibrosis, Hypertrophy, Regeneration, Pluripotency, MyogenicDiff, ADM, EMT, Senescence, NeuronalDiff, Osteogenesis, Exhaustion, IntestinalDiff, Tfh, Treg, GerminalCenter, TrophoblastDiff, Adipogenesis, EndMT]
 
 nodes:
   # --- Extrinsic cues (inputs) ---
@@ -222,6 +224,9 @@ nodes:
   - {id: Pparg, type: tf, bias: -0.5}
   - {id: Cebpa, type: tf, bias: -0.5}
 
+  # --- New program: endothelial-to-mesenchymal transition (SNAI1 -> mesenchymal) ---
+  - {id: Snai1, type: tf, bias: -0.5}
+
   # --- Response programs (outputs) ---
   - {id: InnateMemory, type: program, bias: -0.5}
   - {id: Fibrosis, type: program, bias: -0.5}
@@ -241,6 +246,7 @@ nodes:
   - {id: GerminalCenter, type: program, bias: -0.5}
   - {id: TrophoblastDiff, type: program, bias: -0.5}
   - {id: Adipogenesis, type: program, bias: -0.5}
+  - {id: EndMT, type: program, bias: -0.5}
   - {id: ChronicTCR, type: cue, bias: 0.0}
   - {id: NFAT, type: tf, bias: 0.0}
   - {id: TOX, type: tf, bias: 0.0}
@@ -401,3 +407,8 @@ edges:
   # Adipogenesis: PPARG master regulator + CEBPA feed-forward (Rosen 2000) -> adipocyte.
   - {src: Pparg, rel: ACTIVATES, dst: Adipogenesis, w: 1.5}
   - {src: Cebpa, rel: ACTIVATES, dst: Adipogenesis, w: 1.0}
+
+  # Endothelial-to-mesenchymal transition: SNAI1 drives loss of endothelial identity
+  # -> mesenchymal (Kovacic 2019). Shares mesenchymal effectors with EMT; the
+  # endothelial baseline (PECAM1/CDH5) is what distinguishes the two.
+  - {src: Snai1, rel: ACTIVATES, dst: EndMT, w: 1.5}
