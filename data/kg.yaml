@@ -108,10 +108,14 @@ gene_map:
   # M1 macrophage classical-activation drivers (IRF5 + iNOS)
   Irf5: IRF5
   Nos2: NOS2
+  # hematopoietic differentiation drivers (GATA1 shared; KLF1 erythroid, FLI1 megakaryocytic)
+  Gata1: GATA1
+  Klf1: KLF1
+  Fli1: FLI1
 
 # Nodes whose activation is read out as the predicted phenotype.
 program_nodes:
-  [InnateMemory, Fibrosis, Hypertrophy, Regeneration, Pluripotency, MyogenicDiff, ADM, EMT, Senescence, NeuronalDiff, Osteogenesis, Exhaustion, IntestinalDiff, Tfh, Treg, GerminalCenter, TrophoblastDiff, Adipogenesis, EndMT, MacrophageActivation]
+  [InnateMemory, Fibrosis, Hypertrophy, Regeneration, Pluripotency, MyogenicDiff, ADM, EMT, Senescence, NeuronalDiff, Osteogenesis, Exhaustion, IntestinalDiff, Tfh, Treg, GerminalCenter, TrophoblastDiff, Adipogenesis, EndMT, MacrophageActivation, Erythropoiesis, Megakaryopoiesis]
 
 nodes:
   # --- Extrinsic cues (inputs) ---
@@ -231,6 +235,11 @@ nodes:
   - {id: Irf5, type: tf, bias: -0.5}
   - {id: Nos2, type: signaling, bias: -0.5}
 
+  # --- New programs: hematopoietic fates (Erythropoiesis, Megakaryopoiesis) ---
+  - {id: Gata1, type: tf, bias: -0.5}
+  - {id: Klf1, type: tf, bias: -0.5}
+  - {id: Fli1, type: tf, bias: -0.5}
+
   # --- Response programs (outputs) ---
   - {id: InnateMemory, type: program, bias: -0.5}
   - {id: Fibrosis, type: program, bias: -0.5}
@@ -252,6 +261,8 @@ nodes:
   - {id: Adipogenesis, type: program, bias: -0.5}
   - {id: EndMT, type: program, bias: -0.5}
   - {id: MacrophageActivation, type: program, bias: -0.5}
+  - {id: Erythropoiesis, type: program, bias: -0.5}
+  - {id: Megakaryopoiesis, type: program, bias: -0.5}
   - {id: ChronicTCR, type: cue, bias: 0.0}
   - {id: NFAT, type: tf, bias: 0.0}
   - {id: TOX, type: tf, bias: 0.0}
@@ -421,3 +432,10 @@ edges:
   # M1 macrophage classical activation: IRF5 + iNOS/Nos2 effector (Krausgruber 2011).
   - {src: Irf5, rel: ACTIVATES, dst: MacrophageActivation, w: 1.5}
   - {src: Nos2, rel: ACTIVATES, dst: MacrophageActivation, w: 1.0}
+
+  # Hematopoiesis: GATA1 is the shared erythroid/megakaryocytic master; KLF1 branches to
+  # erythroid, FLI1 to megakaryocytic (the classic GATA1-FLI1/KLF1 cross-antagonism).
+  - {src: Gata1, rel: ACTIVATES, dst: Erythropoiesis, w: 1.5}
+  - {src: Klf1, rel: ACTIVATES, dst: Erythropoiesis, w: 1.5}
+  - {src: Gata1, rel: ACTIVATES, dst: Megakaryopoiesis, w: 1.0}
+  - {src: Fli1, rel: ACTIVATES, dst: Megakaryopoiesis, w: 1.5}
