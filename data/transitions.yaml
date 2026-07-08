@@ -196,6 +196,7 @@ Fibrosis:
   reference:
   - Habermann 2020, Science Advances (GSE135893; PMID:32832598)
   - Reck 2025, Nature Communications (GSE254185; PMID:40399382)
+  - Reichart 2022, Science (CELLxGENE:9b7c7203; PMID:35926050)
   reversibility: '<gap: not tested>'
   terminal_markers:
   - COL1A1
@@ -212,8 +213,9 @@ Fibrosis:
   time_course: '<gap: no time-course dataset>'
 GerminalCenter:
   chromatin_changes: '<gap: no scATAC/Multiome yet>'
-  cue: germinal-center reaction (in vivo)
-  cue_source: registry/hint (no paper cue yet)
+  cue: Germinal-center B-cell selection/maturation in human tonsil; antigen-driven affinity maturation
+    + class-switch recombination
+  cue_source: literature
   evidence_quality: '1 source(s), 600 cells (capped); labels: per-cell'
   initial_state: naive B cell
   intermediate_regulators:
@@ -224,7 +226,7 @@ GerminalCenter:
   pool_sources:
   - tonsil_bcells
   reference:
-  - '<gap: no literature reference resolved>'
+  - King 2021, Science Immunology (CELLxGENE:c0353db0; PMID:33579751)
   reversibility: '<gap: not tested>'
   terminal_markers:
   - AICDA
@@ -253,6 +255,7 @@ Hypertrophy:
   - cardiac_stretch
   reference:
   - Ren 2020, Circulation (GSE120064; PMID:32098504)
+  - Lu 2024, Cell Proliferation (CELLxGENE:47a98d37; PMID:37766635)
   reversibility: '<gap: not tested>'
   terminal_markers:
   - NPPA
@@ -299,8 +302,8 @@ InnateMemory:
   time_course: '<gap: no time-course dataset>'
 IntestinalDiff:
   chromatin_changes: '<gap: no scATAC/Multiome yet>'
-  cue: developmental crypt specification
-  cue_source: registry/hint (no paper cue yet)
+  cue: Human fetal intestinal morphogenesis; developmental morphogen gradients driving crypt-villus differentiation
+  cue_source: literature
   evidence_quality: '1 source(s), 600 cells (capped); labels: per-cell'
   initial_state: intestinal crypt stem cell of large intestine, intestinal crypt stem cell of small intestine,
     progenitor cell, transit amplifying cell of colon, transit amplifying cell of small intestine
@@ -312,7 +315,7 @@ IntestinalDiff:
   pool_sources:
   - intestinal_gutatlas
   reference:
-  - '<gap: no literature reference resolved>'
+  - Fawkner-Corbett 2021, Cell (CELLxGENE:fd89be61; PMID:33406409)
   reversibility: '<gap: not tested>'
   terminal_markers:
   - FABP2
@@ -418,8 +421,9 @@ MyogenicDiff:
   time_course: '<gap: no time-course dataset>'
 NeuronalDiff:
   chromatin_changes: '<gap: no scATAC/Multiome yet>'
-  cue: proneural differentiation (developmental; no extrinsic cue)
-  cue_source: registry/hint (no paper cue yet)
+  cue: Valproic acid (VPA) treatment of human dorsal-forebrain organoids vs untreated (chemical perturbation;
+    per dataset description)
+  cue_source: literature
   evidence_quality: '1 source(s), 600 cells (capped); labels: per-cell'
   initial_state: neuronal-restricted precursor, progenitor cell
   intermediate_regulators:
@@ -429,7 +433,7 @@ NeuronalDiff:
   pool_sources:
   - neuronal_organoid
   reference:
-  - '<gap: no literature reference resolved>'
+  - unconfirmed (CELLxGENE data-only deposit, no DOI) (CELLxGENE:0fff1010; unconfirmed)
   reversibility: '<gap: not tested>'
   terminal_markers:
   - RBFOX3
@@ -446,8 +450,9 @@ NeuronalDiff:
   time_course: '<gap: no time-course dataset>'
 Osteogenesis:
   chromatin_changes: '<gap: no scATAC/Multiome yet>'
-  cue: osteogenic differentiation (in vivo ossification; no extrinsic cue)
-  cue_source: registry/hint (no paper cue yet)
+  cue: Human embryonic craniofacial development (4-8 pcw); cranial neural crest -> mesenchyme/osteogenic
+    differentiation
+  cue_source: literature
   evidence_quality: '1 source(s), 600 cells (capped); labels: per-cell'
   initial_state: mesenchymal cell
   intermediate_regulators:
@@ -458,7 +463,7 @@ Osteogenesis:
   pool_sources:
   - osteo_craniofacial
   reference:
-  - '<gap: no literature reference resolved>'
+  - Khouri-Farah 2026, Nature Communications (preprint PMID:39868299) (CELLxGENE:4d76b7b4; 10.1038/s41467-026-70232-6)
   reversibility: '<gap: not tested>'
   terminal_markers:
   - ALPL
@@ -475,7 +480,8 @@ Osteogenesis:
   time_course: '<gap: no time-course dataset>'
 Pluripotency:
   chromatin_changes: '<gap: no scATAC/Multiome yet>'
-  cue: TGF-beta treatment / SB431542 inhibition; Smad3 co-binds cell-type master TFs (Oct4/MyoD1/PU.1)
+  cue: Endothelial-to-hematopoietic transition during iPSC embryoid-body differentiation; FGF (FGF23)
+    a barrier to EHT
   cue_source: literature
   evidence_quality: '2 source(s), 602 cells (capped); labels: per-cell'
   initial_state: cardiac endothelial cell, endothelial cell, epithelial cell, hematopoietic precursor
@@ -491,6 +497,7 @@ Pluripotency:
   - TGFb_lineage
   - pluripotency
   reference:
+  - Wellington 2025, Stem Cell Reports (CELLxGENE:734538f1; PMID:40972587)
   - Mullen 2011, Cell (GSE21608; PMID:22036565)
   reversibility: '<gap: not tested>'
   terminal_markers:
@@ -566,8 +573,8 @@ Senescence:
   time_course: '<gap: no time-course dataset>'
 Tfh:
   chromatin_changes: '<gap: no scATAC/Multiome yet>'
-  cue: follicular microenvironment (in vivo)
-  cue_source: registry/hint (no paper cue yet)
+  cue: Tonsil CD4 T-cell fates (follicular helper / regulatory) in the germinal-center microenvironment
+  cue_source: literature
   evidence_quality: '1 source(s), 600 cells (capped); labels: per-cell'
   initial_state: CD4-positive helper T cell
   intermediate_regulators:
@@ -577,7 +584,7 @@ Tfh:
   pool_sources:
   - tonsil_tcells
   reference:
-  - '<gap: no literature reference resolved>'
+  - King 2021, Science Immunology (CELLxGENE:033d8138; PMID:33579751)
   reversibility: '<gap: not tested>'
   terminal_markers:
   - CXCR5
@@ -594,8 +601,8 @@ Tfh:
   time_course: '<gap: no time-course dataset>'
 Treg:
   chromatin_changes: '<gap: no scATAC/Multiome yet>'
-  cue: follicular/regulatory microenvironment (in vivo)
-  cue_source: registry/hint (no paper cue yet)
+  cue: Tonsil CD4 T-cell fates (follicular helper / regulatory) in the germinal-center microenvironment
+  cue_source: literature
   evidence_quality: '1 source(s), 600 cells (capped); labels: per-cell'
   initial_state: CD4-positive helper T cell
   intermediate_regulators:
@@ -604,7 +611,7 @@ Treg:
   pool_sources:
   - tonsil_tcells
   reference:
-  - '<gap: no literature reference resolved>'
+  - King 2021, Science Immunology (CELLxGENE:033d8138; PMID:33579751)
   reversibility: '<gap: not tested>'
   terminal_markers:
   - FOXP3
@@ -620,8 +627,9 @@ Treg:
   time_course: '<gap: no time-course dataset>'
 TrophoblastDiff:
   chromatin_changes: '<gap: no scATAC/Multiome yet>'
-  cue: trophoblast differentiation (CTB -> STB/EVT)
-  cue_source: registry/hint (no paper cue yet)
+  cue: Extravillous trophoblast differentiation/invasion at the maternal-fetal interface (TF-mediated
+    developmental differentiation)
+  cue_source: literature
   evidence_quality: '1 source(s), 600 cells (capped); labels: per-cell'
   initial_state: placental villous trophoblast
   intermediate_regulators:
@@ -631,7 +639,7 @@ TrophoblastDiff:
   pool_sources:
   - trophoblast_organoid
   reference:
-  - '<gap: no literature reference resolved>'
+  - Arutyunyan 2023, Nature (CELLxGENE:cfd31c69; PMID:36991123)
   reversibility: '<gap: not tested>'
   terminal_markers:
   - CGA
