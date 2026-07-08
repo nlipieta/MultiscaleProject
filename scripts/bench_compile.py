@@ -70,6 +70,11 @@ def main():
     ap.add_argument("--full-seeds", type=int, default=3)
     ap.add_argument("--full-epochs", type=int, default=120)
     args = ap.parse_args()
+    if args.device == "cuda" and not torch.cuda.is_available():
+        raise SystemExit(
+            "No CUDA GPU on this runtime (torch.cuda.is_available()==False).\n"
+            "  Colab: Runtime > Change runtime type > GPU (T4), reconnect, re-run setup, retry.\n"
+            "  (check with: !nvidia-smi -L)  -- or pass --device cpu to benchmark on CPU (no CUDA-graph gain).")
     dev = pick_device(args.device)
 
     kg = load_kg()
