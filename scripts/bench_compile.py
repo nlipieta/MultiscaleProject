@@ -26,9 +26,9 @@ def _sync(dev):
         torch.cuda.synchronize()
 
 
-def run(compile_mode, X, y, w, kg, dev, hidden, steps, bs, lr, epochs):
+def run(compile_mode, X, y, w, kg, dev, hidden, steps, bs, lr, epochs, sparse=False):
     torch.manual_seed(0)
-    m = ResistanceToggle(kg, hidden=hidden, steps=steps).to(dev)
+    m = ResistanceToggle(kg, hidden=hidden, steps=steps, sparse_adj=sparse).to(dev)
     opt = torch.optim.AdamW(m.parameters(), lr=lr)
     lossf = nn.CrossEntropyLoss(weight=w.to(dev))
     n = X.size(0)
@@ -92,25 +92,38 @@ def main():
         print("WARNING: torch.compile(reduce-overhead) targets CUDA graphs; on non-CUDA the compiled\n"
               "path may fall back or not reflect the real (GPU) speedup. Run with --device cuda.\n")
 
-    e_warm, e_ep = run(False, X, y, w, kg, dev, args.hidden, args.steps, args.bs, args.lr, args.epochs)
-    print(f"EAGER (compile=False):     {e_ep*1000:8.1f} ms/epoch")
-    c_warm, c_ep = run(True, X, y, w, kg, dev, args.hidden, args.steps, args.bs, args.lr, args.epochs)
-    print(f"COMPILED (reduce-overhead):{c_ep*1000:8.1f} ms/epoch   + {c_warm:.1f}s one-time warmup/fold")
+    A = args  # shorthand
+    configs = [
+        ("dense  eager   ", False, False),
+        ("dense  compiled", True,  False),
+        ("sparse eager   ", False, True),
+        ("sparse compiled", True,  True),
+    ]
+    res = {}
+    for label, comp, sparse in configs:
+        warm, ep = run(comp, X, y, w, kg, dev, A.hidden, A.steps, A.bs, A.lr, A.epochs, sparse=sparse)
+        res[label] = (warm, ep)
+        extra = f"   + {warm:.1f}s warmup/fold" if comp else ""
+        print(f"{label}: {ep*1000:8.1f} ms/epoch{extra}")
 
-    spd = e_ep / c_ep if c_ep else float("nan")
-    print(f"\nsteady-state speedup: {spd:.1f}x")
+    base = res["dense  eager   "][1]                   # current production path
+    print(f"\nsteady-state speedup vs dense-eager (your current path):")
+    for label, _, _ in configs:
+        print(f"  {label}: {base/res[label][1]:.1f}x")
 
-    F, S, E = args.full_folds, args.full_seeds, args.full_epochs
+    F, S, E = A.full_folds, A.full_seeds, A.full_epochs
     folds = F * S
-    eager_full = e_ep * E * folds
-    comp_full = (c_warm + c_ep * E) * folds            # warmup paid once PER fold (recompiles each)
-    print(f"\nfull run ({F}fold x {S}seed x {E}ep = {folds} trainings):")
-    print(f"  eager     ~{eager_full/60:6.1f} min")
-    print(f"  compiled  ~{comp_full/60:6.1f} min   (incl. {folds}x{c_warm:.0f}s warmup)")
-    print(f"  -> ~{eager_full/comp_full:.1f}x faster end-to-end" if comp_full else "")
-    if c_warm * folds > comp_full * 0.25:
-        print("  NOTE: per-fold warmup dominates -> compile-ONCE-and-reuse across folds would help "
-              "(secondary refactor).")
+    print(f"\nfull run ({F}fold x {S}seed x {E}ep = {folds} trainings), end-to-end:")
+    best = None
+    for label, comp, _ in configs:
+        warm, ep = res[label]
+        total = (warm + ep * E) * folds if comp else ep * E * folds  # warmup paid per fold
+        print(f"  {label}: ~{total/60:6.1f} min   (~{res['dense  eager   '][1]*E*folds/total:.1f}x)")
+        if best is None or total < best[1]:
+            best = (label, total)
+    print(f"\n-> fastest: {best[0].strip()} (~{best[1]/60:.0f} min)")
+    if "sparse" in best[0]:
+        print("   sparse adjacency is the win -> I'll make --sparse-adj the default for the real runs.")
 
 
 if __name__ == "__main__":

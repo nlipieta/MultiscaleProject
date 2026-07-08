@@ -34,8 +34,13 @@ class ResistanceToggle(nn.Module):
     def __init__(self, kg, hidden=64, steps=6, resistance=True,
                  plasticity_mode="lower_resistance", attractor="soft", hybrid=True,
                  cue_decay=0.6, attr_iters=3, attr_strength=0.15,
-                 node_ann=None, context_dim=0, use_atac=False):
+                 node_ann=None, context_dim=0, use_atac=False, sparse_adj=False):
         super().__init__()
+        # sparse_adj: aggregate via sparse mm over the (~0.04%-dense) adjacency instead of a
+        # dense [N,N]x[B,N,H] einsum. Numerically identical; big compute cut on GPU where the
+        # dense einsum is the bottleneck. Opt-in until benchmarked per device.
+        self.sparse_adj = sparse_adj
+        self._Asp = None                                  # lazily-built per-device sparse adjacency
         assert plasticity_mode in ("amplify", "lower_resistance", "both", "none")
         assert attractor in ("none", "hard_wta", "soft", "delayed_soft", "learned")
         self.N, self.steps, self.hidden = kg.num_nodes, steps, hidden
@@ -100,10 +105,25 @@ class ResistanceToggle(nn.Module):
     def _pool(self, h, idx):
         return h[:, idx, :].mean(1) if idx.numel() else h.new_zeros(h.size(0), self.hidden)
 
+    def _sparse_list(self):
+        """Per-relation sparse adjacency, cached per device (rebuilt if device changes).
+        Assumes adjacency is fixed after the first forward (true for all normal + ablation
+        usage, where edge edits happen right after construction)."""
+        if self._Asp is None or self._Asp[0].device != self.adjacency.device:
+            self._Asp = [self.adjacency[r].to_sparse() for r in range(self.adjacency.size(0))]
+        return self._Asp
+
     def _rgcn(self, h):                       # relation aggregation, memory-light: O(B,N,H)
-        # loop over relations (not a fused [R,B,N,H] einsum) so big batches don't OOM;
-        # at large batch the per-relation launch overhead is amortized over few batches.
         msg = self.self_lin(h)
+        if self.sparse_adj:                   # sparse mm over the ~306 real edges (vs dense N^2)
+            B, N, H = h.shape
+            Asp = self._sparse_list()
+            for r, lin in enumerate(self.rel_lin):
+                lh = lin(h).permute(1, 0, 2).reshape(N, B * H)     # [N, B*H]
+                msg = msg + torch.sparse.mm(Asp[r], lh).reshape(N, B, H).permute(1, 0, 2)
+            return msg
+        # dense fallback: loop over relations (not a fused [R,B,N,H] einsum) so big batches
+        # don't OOM; at large batch the per-relation launch overhead is amortized.
         for r, lin in enumerate(self.rel_lin):
             msg = msg + torch.einsum("ds,bsh->bdh", self.adjacency[r], lin(h))
         return msg
