@@ -153,29 +153,33 @@ em("The stratified number is optimistic (each dataset is program-enriched, so re
 h("3.3 Central result: regulatory structure adds value on top of markers", 2)
 p("The core hypothesis — cellular state is shaped by LAYERED regulatory context — predicts that a "
   "model seeing markers PLUS regulatory structure should beat a model seeing markers WITHOUT "
-  "structure. We test this directly with markers included in BOTH arms (mask=none) and the "
-  "attractor off (an honest graded classifier, no forced fate), isolating structure as the only "
-  "variable: the full KG-GNN vs the IDENTICAL network with the graph edges removed "
-  "(kg_gnn_noedges) — same architecture, capacity, features, and markers. 5-fold x 3-seed grouped "
-  "CV; paired Wilcoxon over the same seed x fold splits.")
-table(["Model (markers in all)", "macro-AUPRC", "vs KG-GNN (paired)"],
-      [["KG-GNN (markers + structure)", "0.473", "—"],
-       ["KG-GNN, edges removed (markers, no structure)", "0.392", "+0.082, p=0.015 *"],
-       ["Logistic regression (no structure)", "0.397", "+0.089, p=0.018 *"],
-       ["Random forest (no structure)", "0.405", "+0.059, p=0.015 *"]])
+  "structure. We test this directly with markers included in BOTH arms (mask=none), isolating "
+  "structure as the only variable: the full resistance-gated KG-GNN vs the IDENTICAL network with "
+  "the graph edges removed (kg_gnn_noedges) — same architecture, capacity, features, and markers. "
+  "Converged (hidden 128, 8 steps, 120 epochs), 5-fold x 3-seed grouped CV on the full 20-program / "
+  "21-class pool; the soft (graded) attractor preserves probability ranking (hard winner-take-all "
+  "would saturate it). Paired Wilcoxon over the same seed x fold splits.")
+table(["Model (markers in all, 20 programs)", "macro-AUPRC", "prog-recall", "vs KG-GNN AUPRC (paired)"],
+      [["KG-GNN (markers + structure)", "0.570", "0.370", "—"],
+       ["KG-GNN, edges removed (markers, no structure)", "0.310", "0.191", "+0.265, p=0.0001 *"],
+       ["Logistic regression (no structure)", "0.302", "0.213", "+0.278, p=0.0001 *"],
+       ["Random forest (no structure)", "0.305", "0.092", "+0.273, p=0.0001 *"]])
 em("With markers held equal, adding the regulatory graph SIGNIFICANTLY improves program "
-   "probability-ranking (+0.082 AUPRC, p=0.015). The control is decisive: removing the graph from "
-   "the same network drops it to 0.392 — right onto the logistic-regression level (0.397) — so the "
-   "structure, not capacity or features, is the lever. The KG-GNN also significantly beats both "
-   "external structureless baselines. Scope: the gain is specific to AUPRC (ranking); on prog-"
-   "recall the arms tie (p~1.0). Claim: layered regulatory structure significantly improves the "
-   "model's ranking of the correct program, markers held equal — a direct, controlled test of the "
-   "theory. (Attractor off; the winner-take-all sharpening, when on, saturates probabilities and "
-   "erases this graded ranking signal — see 3.4.)")
+   "probability-ranking (+0.265 AUPRC over the edge-removed control, paired p=0.0001) AND program "
+   "recall (+0.148, p=0.0001) — on this converged 20-program model the structure advantage now "
+   "covers top-1, not only ranking. The control is decisive: removing the graph from the same "
+   "network drops AUPRC to 0.310 — right onto the logistic-regression level (0.302) — so the "
+   "structure, not capacity or features, is the lever, and the new single-source programs are not "
+   "leaking via batch identity (the edge-removed twin shares that information and does not exploit "
+   "it). The KG-GNN also significantly beats both external structureless baselines on every metric. "
+   "Claim: layered regulatory structure significantly improves the model's identification and "
+   "ranking of the correct program, markers held equal — a direct, controlled test of the theory. "
+   "(The soft graded attractor preserves this signal; hard winner-take-all would saturate it — 3.4.)")
 fig("structure_isolation.png", 5.6, "Figure 1. Structure-isolation test (markers in all arms, "
-    "attractor off). Adding the regulatory graph (blue) significantly raises program-ranking AUPRC "
-    "over the identical edge-removed network and structureless baselines (paired Wilcoxon vs "
-    "KG-GNN). Wide error bars are grouped-fold variance; the paired test is the correct comparison.")
+    "resistance-gated model, soft attractor). Adding the regulatory graph significantly raises "
+    "program-ranking AUPRC over the identical edge-removed network and structureless baselines "
+    "(paired Wilcoxon vs KG-GNN, all p=0.0001). Figure is being regenerated on the 20-program pool; "
+    "the plotted values reflect an earlier pool but the qualitative result is unchanged.")
 
 h("3.3b Cross-dataset classification vs baselines (no-markers view)", 2)
 p("Widened inputs, 5-fold x 3-seed grouped CV, markers removed, class-weighted (mean +/- std over "
@@ -368,9 +372,9 @@ for t_ in [
   "annotations; EMT and Senescence are single-source; interpretability is weak for EMT/Pluripotency.",
   "ADM's simulated dynamics are marker-dependent. Models are small; convergence was compute-limited.",
   "The wide-model ablation and perturbation confirmations are pending.",
-  "Sections 3.3, 3.3b, and the temporal/LOPO results were first measured on an earlier "
-  "memory formulation; the resistance-gated architecture is now the sole model (3.7/3.8 report it "
-  "directly), and those earlier sections are being re-measured on it for consistency.",
+  "Section 3.3b, the temporal-emergence, and LOPO results were first measured on an earlier memory "
+  "formulation; the resistance-gated architecture is now the sole model and 3.3 has been "
+  "re-measured on it (structure +0.265 AUPRC, p=0.0001), with 3.3b/temporal/LOPO re-runs pending.",
   "The program-diversity scaling result (3.8) is a single resistance-gated configuration; several "
   "added programs are single-source, so grouped-split cannot test transfer TO them; fold variance "
   "is large (+/-0.11). A second resistance configuration is the natural confirmation (pending).",
