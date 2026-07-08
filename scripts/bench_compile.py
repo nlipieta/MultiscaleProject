@@ -51,7 +51,17 @@ def run(compile_mode, X, y, w, kg, dev, hidden, steps, bs, lr, epochs, sparse=Fa
             lossf(fwd(X[idx], plasticity=1.0), y[idx]).backward()
             opt.step()
     _sync(dev); steady = time.perf_counter() - t
-    return warmup, steady / epochs
+    per = steady / epochs
+    del opt, fwd, m                                    # free before the next config runs
+    if compile_mode:
+        try:
+            torch.compiler.reset()                     # release the CUDA-graph memory pool
+        except Exception:
+            pass
+    if dev.type == "cuda":
+        torch.cuda.empty_cache()
+    import gc; gc.collect()
+    return warmup, per
 
 
 def main():
@@ -93,32 +103,44 @@ def main():
               "path may fall back or not reflect the real (GPU) speedup. Run with --device cuda.\n")
 
     A = args  # shorthand
-    configs = [
-        ("dense  eager   ", False, False),
-        ("dense  compiled", True,  False),
+    configs = [                                        # eager first (the key dense-vs-sparse test),
+        ("dense  eager   ", False, False),             # then compiled (CUDA-graph memory-hungry)
         ("sparse eager   ", False, True),
+        ("dense  compiled", True,  False),
         ("sparse compiled", True,  True),
     ]
     res = {}
     for label, comp, sparse in configs:
-        warm, ep = run(comp, X, y, w, kg, dev, A.hidden, A.steps, A.bs, A.lr, A.epochs, sparse=sparse)
-        res[label] = (warm, ep)
-        extra = f"   + {warm:.1f}s warmup/fold" if comp else ""
-        print(f"{label}: {ep*1000:8.1f} ms/epoch{extra}")
+        try:
+            warm, ep = run(comp, X, y, w, kg, dev, A.hidden, A.steps, A.bs, A.lr, A.epochs, sparse=sparse)
+            res[label] = (warm, ep)
+            extra = f"   + {warm:.1f}s warmup/fold" if comp else ""
+            print(f"{label}: {ep*1000:8.1f} ms/epoch{extra}")
+        except torch.cuda.OutOfMemoryError:
+            res[label] = None
+            print(f"{label}: OOM (skipped) -- try smaller --bs")
+            if dev.type == "cuda":
+                torch.cuda.empty_cache()
 
-    base = res["dense  eager   "][1]                   # current production path
+    base = res.get("dense  eager   ")
+    if not base:
+        raise SystemExit("dense-eager (baseline) failed; can't compare. Lower --bs / --n and retry.")
+    base = base[1]                                     # current production path
     print(f"\nsteady-state speedup vs dense-eager (your current path):")
     for label, _, _ in configs:
-        print(f"  {label}: {base/res[label][1]:.1f}x")
+        if res[label]:
+            print(f"  {label}: {base/res[label][1]:.1f}x")
 
     F, S, E = A.full_folds, A.full_seeds, A.full_epochs
     folds = F * S
     print(f"\nfull run ({F}fold x {S}seed x {E}ep = {folds} trainings), end-to-end:")
     best = None
     for label, comp, _ in configs:
+        if not res[label]:
+            continue
         warm, ep = res[label]
         total = (warm + ep * E) * folds if comp else ep * E * folds  # warmup paid per fold
-        print(f"  {label}: ~{total/60:6.1f} min   (~{res['dense  eager   '][1]*E*folds/total:.1f}x)")
+        print(f"  {label}: ~{total/60:6.1f} min   (~{base*E*folds/total:.1f}x)")
         if best is None or total < best[1]:
             best = (label, total)
     print(f"\n-> fastest: {best[0].strip()} (~{best[1]/60:.0f} min)")
