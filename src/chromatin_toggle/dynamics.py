@@ -31,119 +31,7 @@ import torch.nn as nn
 
 from .kg import DATA_DIR, load_kg
 from .oracle import QUIESCENT, all_classes
-
-
-class ToggleDynamics(nn.Module):
-    def __init__(self, kg, hidden=32, steps=8, asymmetric=True, plasticity=True,
-                 attractor=True, mem_gain=1.0, cue_gain=1.0, cue_decay=0.6,
-                 wta_gain=0.5, wta_iters=3, node_ann=None, context_dim=0,
-                 layernorm=False, dropout=0.0, num_bases=0, hybrid=True):
-        super().__init__()
-        self.ln = nn.LayerNorm(hidden) if layernorm else None
-        self.drop = nn.Dropout(dropout) if dropout > 0 else None
-        self.N, self.steps, self.hidden = kg.num_nodes, steps, hidden
-        self.asymmetric, self.use_plasticity, self.attractor = asymmetric, plasticity, attractor
-        self.mem_gain, self.cue_gain, self.cue_decay = mem_gain, cue_gain, cue_decay
-        self.wta_gain, self.wta_iters = wta_gain, wta_iters
-        # hybrid residual: a direct linear map from the raw node vector to the class
-        # logits, summed with the GNN readout. Guarantees the model is >= a linear
-        # baseline (it can zero the graph path) and lets the graph add value only
-        # where it helps. n_classes = num programs + 1 (Quiescent). Ablatable.
-        self.hybrid = hybrid
-        if hybrid:
-            self.skip = nn.Linear(kg.num_nodes, len(kg.program_index) + 1)
-
-        self.id_emb = nn.Embedding(kg.num_nodes, hidden)
-        self.type_emb = nn.Embedding(kg.num_types, hidden)
-        self.in_proj = nn.Linear(1, hidden)
-        self.n_rel = kg.num_relations
-        self.num_bases = num_bases
-        if num_bases:  # R-GCN basis decomposition (Schlichtkrull 2018): share B bases
-            self.bases = nn.Parameter(torch.randn(num_bases, hidden, hidden) * (hidden ** -0.5))
-            self.rel_coef = nn.Parameter(torch.randn(kg.num_relations, num_bases) * 0.1)
-            self.rel_lin = None
-        else:                                    # full per-relation weight matrix
-            self.rel_lin = nn.ModuleList(
-                [nn.Linear(hidden, hidden, bias=False) for _ in range(kg.num_relations)])
-        self.self_lin = nn.Linear(hidden, hidden, bias=False)
-        self.gru = nn.GRUCell(hidden, hidden)
-        self.prog_head = nn.Sequential(nn.Linear(hidden, hidden), nn.ReLU(), nn.Linear(hidden, 1))
-        self.quiescent_head = nn.Sequential(nn.Linear(hidden, hidden), nn.ReLU(), nn.Linear(hidden, 1))
-
-        self.register_buffer("node_ids", torch.arange(kg.num_nodes))
-        self.register_buffer("node_types",
-            torch.tensor([kg.type_index[t] for t in kg.node_type], dtype=torch.long))
-        self.register_buffer("adjacency", kg.structural_adjacency())
-        self.register_buffer("program_index", torch.tensor(kg.program_index, dtype=torch.long))
-        cue = torch.tensor([t == "cue" for t in kg.node_type])
-        prog = torch.zeros(kg.num_nodes, dtype=torch.bool)
-        prog[kg.program_index] = True
-        self.register_buffer("cue_mask", cue.float().view(1, -1, 1))
-        self.register_buffer("intrinsic_mask", (~cue & ~prog).float().view(1, -1, 1))
-
-        # optional annotation layers (each ablatable by omission)
-        self.ann_proj = None
-        if node_ann is not None:                          # per-node gene role + pathway terms
-            self.register_buffer("node_ann", torch.as_tensor(node_ann, dtype=torch.float32))
-            self.ann_proj = nn.Linear(self.node_ann.size(1), hidden, bias=False)
-        self.ctx_proj = nn.Linear(context_dim, hidden, bias=False) if context_dim > 0 else None
-
-    def forward(self, x0, plasticity=1.0, cue_window=None, context=None):
-        """cue_window: if set, the extrinsic cue is injected only for steps
-        t < cue_window, then removed (hysteresis test). context: optional
-        [B, context_dim] experiment-metadata vector conditioning the graph."""
-        B = x0.size(0)
-        if not torch.is_tensor(plasticity):
-            plasticity = torch.full((B,), float(plasticity), device=x0.device)
-        p = plasticity.view(B, 1, 1)
-        base = self.id_emb(self.node_ids) + self.type_emb(self.node_types)
-        if self.ann_proj is not None:                             # gene-annotation features
-            base = base + self.ann_proj(self.node_ann)
-        base = base.unsqueeze(0)
-        xin = self.in_proj(x0.unsqueeze(-1))                      # [B,N,H]
-        mem_inj = xin * self.intrinsic_mask
-        cue_inj = xin * self.cue_mask
-        h = base.expand(B, -1, -1).contiguous()
-        if self.ctx_proj is not None and context is not None:     # experiment context
-            h = h + self.ctx_proj(context).unsqueeze(1)
-
-        for t in range(self.steps):
-            if self.asymmetric:
-                g_mem = self.mem_gain                              # persistent, constant
-                g_cue = self.cue_gain * (self.cue_decay ** t)      # transient, decaying
-            else:
-                g_mem = g_cue = 1.0                                # symmetric baseline
-            if self.use_plasticity:
-                g_cue = g_cue * p                                  # extrinsic gated by plasticity
-            if cue_window is not None and t >= cue_window:
-                g_cue = g_cue * 0.0                                # cue withdrawn
-            inj = g_mem * mem_inj + g_cue * cue_inj
-
-            # R-GCN message passing, memory-light: loop over relations so we never
-            # materialize the [R,B,N,H] intermediate (which OOMs at large batch). Each
-            # relation holds only [B,N,H]; at big batch the launch overhead is amortized.
-            msg = self.self_lin(h)
-            if self.num_bases:                    # W_r = sum_b coef[r,b] * basis_b
-                W = torch.einsum("rb,bij->rij", self.rel_coef, self.bases)
-            for r in range(self.adjacency.size(0)):
-                trans = torch.einsum("bsi,ji->bsj", h, W[r]) if self.num_bases else self.rel_lin[r](h)
-                msg = msg + torch.einsum("ds,bsh->bdh", self.adjacency[r], trans)
-            h_new = self.gru((msg + inj).reshape(B * self.N, -1),
-                             h.reshape(B * self.N, -1)).reshape(B, self.N, -1)
-            if self.ln is not None:            # LayerNorm + residual (anti over-smoothing)
-                h_new = self.ln(h_new) + h
-            h = self.drop(h_new) if self.drop is not None else h_new
-
-        prog_logits = self.prog_head(h[:, self.program_index, :]).squeeze(-1)   # [B,P]
-        quiescent = self.quiescent_head(h.mean(dim=1))                          # [B,1]
-        logits = torch.cat([prog_logits, quiescent], dim=-1)
-        if self.hybrid:                       # linear residual on the raw node vector
-            logits = logits + self.skip(x0)   # (>= linear baseline; graph adds on top)
-        if self.attractor:  # winner-take-all sharpening: settle toward one program
-            for _ in range(self.wta_iters):
-                a = torch.softmax(logits, dim=-1)
-                logits = logits + self.wta_gain * (a - a.mean(dim=-1, keepdim=True))
-        return logits
+from .resistance import ResistanceToggle
 
 
 def _load(data, kg):
@@ -317,8 +205,8 @@ def main():
     ap.add_argument("--hidden", type=int, default=32)
     ap.add_argument("--seeds", type=int, nargs="*", default=[0, 1, 2])
     ap.add_argument("--window", type=int, default=4, help="hysteresis: cue-on steps")
-    ap.add_argument("--ablate", choices=["none", "asymmetric", "plasticity", "attractor"],
-                    default="none")
+    ap.add_argument("--ablate", choices=["none", "resistance", "plasticity", "attractor"],
+                    default="none", help="knock out a resistance-gated mechanism")
     ap.add_argument("--mask", choices=["none", "no_markers", "lineage_only"],
                     default="none", help="marker-shortcut control on the inputs")
     args = ap.parse_args()
@@ -328,17 +216,18 @@ def main():
     X = _mask_input(X, kg, args.mask)
     qi = classes.index(QUIESCENT)
     prog_of = _pathway_programs(y, df, qi)
-    flags = dict(asymmetric=True, plasticity=True, attractor=True)
-    if args.ablate != "none":
-        flags[args.ablate] = False
+    flags = dict(resistance=True, plasticity_mode="lower_resistance", attractor="soft")
+    if args.ablate == "resistance":  flags["resistance"] = False
+    elif args.ablate == "plasticity": flags["plasticity_mode"] = "none"
+    elif args.ablate == "attractor":  flags["attractor"] = "none"
     levels = (0.0, 0.25, 0.5, 0.75, 1.0)
-    print(f"ToggleDynamics {flags} | data={Path(args.data).name} n={len(df)} "
+    print(f"ResistanceToggle {flags} | data={Path(args.data).name} n={len(df)} "
           f"| seeds={args.seeds} | mask={args.mask}")
 
     sweeps, hysts = [], []
     for s in args.seeds:
         torch.manual_seed(s)
-        m = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps, **flags)
+        m = ResistanceToggle(kg, hidden=args.hidden, steps=args.steps, **flags)
         train(m, X, y, args.epochs, args.batch_size, args.lr, s)
         sweeps.append(sweep(m, X, df, prog_of, qi, levels))
         hysts.append(hysteresis(m, X, df, prog_of, args.window))

@@ -9,7 +9,7 @@ barrier; it does not amplify the cue. Update rule:
     h_next     = resistance * h + (1 - resistance) * candidate + alpha_memory * mem_inj
 
 Readout uses a SOFT / delayed attractor (graded), not hard winner-take-all, so temporal
-gradients are preserved. Forward signature matches ToggleDynamics: forward(x0, plasticity)
+gradients are preserved. Forward signature: forward(x0, plasticity)
 -> logits [B, n_classes], so it drops into the existing train/predict/eval harnesses.
 
 Phase-2 hooks (context-gated subgraph, signed/de-repression, competition diagnostics) are
@@ -26,7 +26,8 @@ CHROMATIN_TYPES = {"modifier", "mark"}
 class ResistanceToggle(nn.Module):
     def __init__(self, kg, hidden=64, steps=6, alpha_memory="learned", resistance=True,
                  plasticity_mode="lower_resistance", attractor="soft", hybrid=True,
-                 cue_decay=0.6, attr_iters=3, attr_strength=0.15):
+                 cue_decay=0.6, attr_iters=3, attr_strength=0.15,
+                 node_ann=None, context_dim=0):
         super().__init__()
         assert alpha_memory in ("zero", "low", "learned", "full")
         assert plasticity_mode in ("amplify", "lower_resistance", "both", "none")
@@ -38,7 +39,7 @@ class ResistanceToggle(nn.Module):
         self.cue_decay = cue_decay
         self.attr_iters, self.attr_strength = attr_iters, attr_strength
 
-        # --- shared GNN machinery (as ToggleDynamics) ---
+        # --- shared GNN machinery ---
         self.id_emb = nn.Embedding(kg.num_nodes, hidden)
         self.type_emb = nn.Embedding(kg.num_types, hidden)
         self.in_proj = nn.Linear(1, hidden)
@@ -66,6 +67,13 @@ class ResistanceToggle(nn.Module):
             self.skip = nn.Linear(kg.num_nodes, len(kg.program_index) + 1)
         if attractor == "learned":
             self.attr_param = nn.Parameter(torch.tensor(-1.5))
+
+        # --- optional annotation layers (ported from the initial formulation; ablatable by omission) ---
+        self.ann_proj = None
+        if node_ann is not None:                          # per-node gene role + pathway terms
+            self.register_buffer("node_ann", torch.as_tensor(node_ann, dtype=torch.float32))
+            self.ann_proj = nn.Linear(self.node_ann.size(1), hidden, bias=False)
+        self.ctx_proj = nn.Linear(context_dim, hidden, bias=False) if context_dim > 0 else None
 
         # --- buffers: structure, masks, node-subset indices ---
         self.register_buffer("node_ids", torch.arange(kg.num_nodes))
@@ -114,23 +122,33 @@ class ResistanceToggle(nn.Module):
             logits = logits + s * (a - a.mean(dim=-1, keepdim=True))
         return logits
 
-    def forward(self, x0, plasticity=1.0):
+    def forward(self, x0, plasticity=1.0, cue_window=None, context=None):
+        """cue_window: if set, the extrinsic cue is injected only for steps t < cue_window,
+        then withdrawn (hysteresis/persistence test). context: optional [B, context_dim]
+        experiment-metadata vector conditioning the graph."""
         B = x0.size(0)
         if not torch.is_tensor(plasticity):
             plasticity = torch.full((B, 1), float(plasticity), device=x0.device)
         else:
             plasticity = plasticity.view(B, 1).to(x0.device)
-        base = (self.id_emb(self.node_ids) + self.type_emb(self.node_types)).unsqueeze(0)
+        base_node = self.id_emb(self.node_ids) + self.type_emb(self.node_types)
+        if self.ann_proj is not None:                             # gene-annotation features
+            base_node = base_node + self.ann_proj(self.node_ann)
+        base = base_node.unsqueeze(0)
         xin = self.in_proj(x0.unsqueeze(-1))
         mem_inj = xin * self.intrinsic_mask
         cue_inj = xin * self.cue_mask
         h = base.expand(B, -1, -1).contiguous()
+        if self.ctx_proj is not None and context is not None:     # experiment context
+            h = h + self.ctx_proj(context).unsqueeze(1)
         alpha = self._alpha()
 
         for t in range(self.steps):
             cue_t = cue_inj * (self.cue_decay ** t)
             if self.plasticity_mode in ("amplify", "both"):
                 cue_t = cue_t * plasticity.view(B, 1, 1)
+            if cue_window is not None and t >= cue_window:        # cue withdrawn (hysteresis)
+                cue_t = cue_t * 0.0
             cand = self.gru((self._rgcn(h) + cue_t).reshape(B * self.N, -1),
                             h.reshape(B * self.N, -1)).reshape(B, self.N, -1)
             if self.use_resistance:

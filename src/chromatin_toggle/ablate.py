@@ -4,12 +4,13 @@ Removes one load-bearing piece of the multiscale model at a time and re-measures
 program recall on a FIXED split (same split across ablations, so the delta is
 attributable to the removed piece, not to fold noise). Three families:
 
-  MECHANISM (thesis inductive biases; model flags)
+  MECHANISM (resistance-gated inductive biases; model flags)
     full                -- everything on
-    -asymmetric         -- symmetric integration (no persistent-strong intrinsic /
-                           transient-weak decaying extrinsic distinction)
-    -plasticity_gate    -- cue gain no longer scaled by the plasticity input
-    -attractor(WTA)     -- no winner-take-all sharpening among program logits
+    -resistance_gate    -- no transition inertia (pure candidate update each step)
+    -plasticity_gate    -- plasticity no longer lowers the transition resistance
+    -attractor(soft)    -- no soft attractor sharpening among program logits
+    -hybrid_residual    -- remove the linear skip (graph-only readout)
+    -memory_reinjection -- no intrinsic-memory re-injection (alpha_memory=0)
 
   STRUCTURE (what the literature graph contributes; adjacency edits)
     scramble_edges      -- permute the source axis (degree kept, wiring destroyed)
@@ -35,7 +36,8 @@ import numpy as np
 import torch
 
 from .device import pick_device
-from .dynamics import ToggleDynamics, _load, _mask_input, train, class_weights, predict, predict_proba
+from .dynamics import _load, _mask_input, train, class_weights, predict, predict_proba
+from .resistance import ResistanceToggle
 from .kg import DATA_DIR, load_kg
 from .oracle import QUIESCENT, all_classes
 
@@ -72,13 +74,16 @@ def _metrics(pred, proba, y, n_classes, prog_cols):
 
 
 def _run_one(name, kg, X, y, tr, te, n_classes, prog_cols, args, w, dev):
-    flags = dict(asymmetric=True, plasticity=True, attractor=True, hybrid=True)
+    # resistance-gated mechanisms (each ablatable). Defaults = the full model.
+    flags = dict(resistance=True, plasticity_mode="lower_resistance",
+                 attractor="soft", hybrid=True, alpha_memory="learned")
     Xtr, Xte = X[tr], X[te]
     adj_override = None
-    if name == "-asymmetric":       flags["asymmetric"] = False
-    elif name == "-plasticity_gate": flags["plasticity"] = False
-    elif name == "-attractor(WTA)":  flags["attractor"] = False
+    if name == "-resistance_gate":   flags["resistance"] = False        # no transition inertia
+    elif name == "-plasticity_gate": flags["plasticity_mode"] = "none"  # plasticity stops lowering resistance
+    elif name == "-attractor(soft)": flags["attractor"] = "none"        # no soft attractor sharpening
     elif name == "-hybrid_residual": flags["hybrid"] = False
+    elif name == "-memory_reinjection": flags["alpha_memory"] = "zero"  # no intrinsic re-injection
     elif name in ("scramble_edges", "no_edges", "collapse_relations"):
         adj = kg.structural_adjacency().clone()
         if name == "scramble_edges":
@@ -102,7 +107,7 @@ def _run_one(name, kg, X, y, tr, te, n_classes, prog_cols, args, w, dev):
         Xtr = _node_mask_input(Xtr, kg, drop); Xte = _node_mask_input(Xte, kg, drop)
 
     torch.manual_seed(args.seed)
-    m = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps, **flags).to(dev)
+    m = ResistanceToggle(kg, hidden=args.hidden, steps=args.steps, **flags).to(dev)
     if adj_override is not None:
         m.adjacency.copy_(adj_override.to(dev))
     train(m, Xtr, y[tr], args.epochs, args.batch_size, 1e-3, args.seed, weights=w, compile=args.compile)
@@ -145,8 +150,8 @@ def main():
     tr, te = _split(y, groups, args.val_frac, args.seed, args.group_split)
     w = class_weights(y[tr], n_classes) if args.class_weight else None
 
-    order = ["full", "-hybrid_residual", "-asymmetric", "-plasticity_gate", "-attractor(WTA)",
-             "scramble_edges", "no_edges", "collapse_relations",
+    order = ["full", "-hybrid_residual", "-resistance_gate", "-plasticity_gate", "-attractor(soft)",
+             "-memory_reinjection", "scramble_edges", "no_edges", "collapse_relations",
              "-intrinsic_memory", "-chromatin_nodes", "-tf_nodes"]
     print(f"Ablation | data={Path(args.data).name} n={X.size(0)} mask={args.mask} "
           f"group_split={args.group_split} class_weight={args.class_weight} "

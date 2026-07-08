@@ -6,7 +6,7 @@ Three structured priors (from data/annotations.yaml) are turned into model input
   context  -- per-sample one-hot experiment metadata (organism/modality/tissue/...)
 
 `role` + `pathway` enter as extra node features; `context` conditions the whole
-graph. The ablation trains the multiscale ToggleDynamics with each layer on/off
+graph. The ablation trains the resistance-gated model with each layer on/off
 and reports held-out validation accuracy, so we can see which annotation layer
 actually adds predictive power (vs. the no-annotation baseline).
 """
@@ -20,7 +20,8 @@ import torch
 import torch.nn as nn
 import yaml
 
-from .dynamics import ToggleDynamics, _load
+from .dynamics import _load
+from .resistance import ResistanceToggle
 from .kg import DATA_DIR, load_kg
 
 
@@ -75,8 +76,8 @@ def _split(n, val_frac, seed):
 def run_config(kg, X, y, ctx, ctx_dim, node_ann, use_ctx, tr, va,
                epochs, bs, lr, steps, hidden, seed):
     torch.manual_seed(seed)
-    model = ToggleDynamics(kg, hidden=hidden, steps=steps,
-                           node_ann=node_ann, context_dim=ctx_dim if use_ctx else 0)
+    model = ResistanceToggle(kg, hidden=hidden, steps=steps,
+                             node_ann=node_ann, context_dim=ctx_dim if use_ctx else 0)
     opt = torch.optim.Adam(model.parameters(), lr=lr)
     lossf = nn.CrossEntropyLoss()
     ctxt = torch.tensor(ctx) if use_ctx else None
