@@ -105,8 +105,6 @@ gene_map:
   # adipogenesis drivers/markers (PPARG master + CEBPA)
   Pparg: PPARG
   Cebpa: CEBPA
-  # endothelial-to-mesenchymal transition driver (SNAI1)
-  Snai1: SNAI1
 
 # Nodes whose activation is read out as the predicted phenotype.
 program_nodes:
@@ -224,8 +222,7 @@ nodes:
   - {id: Pparg, type: tf, bias: -0.5}
   - {id: Cebpa, type: tf, bias: -0.5}
 
-  # --- New program: endothelial-to-mesenchymal transition (SNAI1 -> mesenchymal) ---
-  - {id: Snai1, type: tf, bias: -0.5}
+  # (EndMT uses the existing Snai1 node -- see EMT cascade -- so no new driver node)
 
   # --- Response programs (outputs) ---
   - {id: InnateMemory, type: program, bias: -0.5}
