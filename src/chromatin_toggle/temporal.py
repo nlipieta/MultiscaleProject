@@ -52,7 +52,6 @@ def main():
                     choices=["none", "hard_wta", "soft", "delayed_soft", "learned"], default="soft")
     ap.add_argument("--plasticity-mode",
                     choices=["amplify", "lower_resistance", "both", "none"], default="lower_resistance")
-    ap.add_argument("--alpha-memory", choices=["zero", "low", "learned", "full"], default="learned")
     ap.add_argument("--batch-size", type=int, default=256,
                     help="GNN minibatch; BIG (1024-4096) is much faster on GPU (launch-bound model)")
     ap.add_argument("--compile", action="store_true",
@@ -101,8 +100,8 @@ def main():
         w = class_weights(yp, len(classes))
         torch.manual_seed(args.seed)
         model = ResistanceToggle(kg, hidden=args.hidden, steps=args.steps,
-                                 attractor=args.attractor_mode, plasticity_mode=args.plasticity_mode,
-                                 alpha_memory=args.alpha_memory).to(dev)
+                                 attractor=args.attractor_mode,
+                                 plasticity_mode=args.plasticity_mode).to(dev)
         if args.no_edges:
             model.adjacency.zero_()
         train(model, Xp, yp, args.epochs, args.batch_size, 1e-3, args.seed, weights=w, compile=args.compile)

@@ -122,7 +122,6 @@ def main():
     ap.add_argument("--no-gnn", action="store_true", help="skip the (slow) KG-GNN")
     ap.add_argument("--structure-test", action="store_true",
                     help="add kg_gnn_noedges (same model, graph removed) to isolate structure's value")
-    ap.add_argument("--alpha-memory", choices=["zero", "low", "learned", "full"], default="learned")
     ap.add_argument("--resistance-gate", choices=["on", "off"], default="on")
     ap.add_argument("--plasticity-mode",
                     choices=["amplify", "lower_resistance", "both", "none"], default="lower_resistance")
@@ -158,7 +157,7 @@ def main():
     gnn_models = [] if args.no_gnn else (["kg_gnn", "kg_gnn_noedges"] if args.structure_test else ["kg_gnn"])
     model_list = list(args.models) + gnn_models
     dev = pick_device(args.device)
-    rcfg = dict(alpha_memory=args.alpha_memory, resistance=(args.resistance_gate == "on"),
+    rcfg = dict(resistance=(args.resistance_gate == "on"),
                 plasticity_mode=args.plasticity_mode, attractor=args.attractor_mode)
     seeds = args.seeds if args.seeds else [args.seed]
     n_gene_cols = sum(1 for g in kg.gene_map if g in df.columns)  # gene nodes present in DATA

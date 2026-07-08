@@ -6,7 +6,14 @@ barrier; it does not amplify the cue. Update rule:
 
     candidate = KG_GNN(h, cue_t, graph)
     resistance = base_resist(lineage, chromatin, program state) * (1 - plasticity_effect)
-    h_next     = resistance * h + (1 - resistance) * candidate + alpha_memory * mem_inj
+    h_next     = resistance * h + (1 - resistance) * candidate
+
+Intrinsic identity is a PERSISTENT, DEEPLY-PROCESSED signal: the cell's expression is injected
+ONCE into the initial node state and then processed across all message-passing steps, carried
+forward by the resistance gate (memory = inertia). It is NOT re-injected each round -- forcibly
+re-adding the raw signal every step would short-circuit the processing depth and contradict the
+thesis's intrinsic(deep)/extrinsic(shallow) asymmetry. The extrinsic cue is the opposite: a
+transient, shallowly-processed signal injected with decay each step.
 
 Readout uses a SOFT / delayed attractor (graded), not hard winner-take-all, so temporal
 gradients are preserved. Forward signature: forward(x0, plasticity)
@@ -24,12 +31,11 @@ CHROMATIN_TYPES = {"modifier", "mark"}
 
 
 class ResistanceToggle(nn.Module):
-    def __init__(self, kg, hidden=64, steps=6, alpha_memory="learned", resistance=True,
+    def __init__(self, kg, hidden=64, steps=6, resistance=True,
                  plasticity_mode="lower_resistance", attractor="soft", hybrid=True,
                  cue_decay=0.6, attr_iters=3, attr_strength=0.15,
                  node_ann=None, context_dim=0, use_atac=False):
         super().__init__()
-        assert alpha_memory in ("zero", "low", "learned", "full")
         assert plasticity_mode in ("amplify", "lower_resistance", "both", "none")
         assert attractor in ("none", "hard_wta", "soft", "delayed_soft", "learned")
         self.N, self.steps, self.hidden = kg.num_nodes, steps, hidden
@@ -61,10 +67,6 @@ class ResistanceToggle(nn.Module):
         nn.init.zeros_(self.W_resist.weight); nn.init.zeros_(self.W_resist.bias)   # start resist~0.5
         nn.init.zeros_(self.W_plast.weight); nn.init.zeros_(self.W_plast.bias)
 
-        # --- learnable/configurable memory reinjection alpha ---
-        self._alpha_mode = alpha_memory
-        if alpha_memory == "learned":
-            self.alpha_param = nn.Parameter(torch.tensor(-2.2))   # sigmoid(-2.2)~0.1
         self.hybrid = hybrid
         if hybrid:
             self.skip = nn.Linear(kg.num_nodes, len(kg.program_index) + 1)
@@ -94,10 +96,6 @@ class ResistanceToggle(nn.Module):
             torch.tensor([i for i, t in enumerate(kg.node_type) if t in CHROMATIN_TYPES], dtype=torch.long))
         plast = [i for i, t in enumerate(kg.node_type) if t == "plasticity"]
         self.register_buffer("plasticity_idx", torch.tensor(plast, dtype=torch.long))
-
-    def _alpha(self):
-        return {"zero": 0.0, "low": 0.1, "full": 1.0}.get(
-            self._alpha_mode, None) if self._alpha_mode != "learned" else torch.sigmoid(self.alpha_param)
 
     def _pool(self, h, idx):
         return h[:, idx, :].mean(1) if idx.numel() else h.new_zeros(h.size(0), self.hidden)
@@ -144,12 +142,14 @@ class ResistanceToggle(nn.Module):
             xin = self.in_proj(torch.stack([x0, acc], dim=-1))    # [B,N,2] -> [B,N,H]
         else:
             xin = self.in_proj(x0.unsqueeze(-1))                  # [B,N,1] -> [B,N,H]
-        mem_inj = xin * self.intrinsic_mask
-        cue_inj = xin * self.cue_mask
-        h = base.expand(B, -1, -1).contiguous()
+        intrinsic_inj = xin * self.intrinsic_mask                 # persistent intrinsic state
+        cue_inj = xin * self.cue_mask                             # transient extrinsic cue
+        # inject the cell's expression ONCE, at init: intrinsic identity is the deeply-processed
+        # starting attractor; the graph + resistance carry it forward (memory = inertia, not
+        # a re-added drive). The cue is injected transiently each step (below).
+        h = base.expand(B, -1, -1).contiguous() + intrinsic_inj
         if self.ctx_proj is not None and context is not None:     # experiment context
             h = h + self.ctx_proj(context).unsqueeze(1)
-        alpha = self._alpha()
 
         for t in range(self.steps):
             cue_t = cue_inj * (self.cue_decay ** t)
@@ -170,7 +170,7 @@ class ResistanceToggle(nn.Module):
             else:
                 resist = torch.zeros(B, 1, device=x0.device)                     # ablation: pure candidate
             r = resist.view(B, 1, 1)
-            h = r * h + (1 - r) * cand + alpha * mem_inj
+            h = r * h + (1 - r) * cand                            # memory persists via resistance, no re-injection
 
         prog_logits = self.prog_head(h[:, self.program_index, :]).squeeze(-1)
         quiescent = self.quiescent_head(h.mean(dim=1))
@@ -184,7 +184,8 @@ class ResistanceToggle(nn.Module):
         """Diagnostic: mean transition resistance at the first step (0=movable, 1=frozen)."""
         B = x0.size(0)
         base = (self.id_emb(self.node_ids) + self.type_emb(self.node_types)).unsqueeze(0)
-        h = base.expand(B, -1, -1).contiguous()
+        xin = self.in_proj(x0.unsqueeze(-1))                      # match forward's init injection
+        h = base.expand(B, -1, -1).contiguous() + xin * self.intrinsic_mask
         feat = torch.cat([self._pool(h, self.chromatin_idx), self._pool(h, self.lineage_idx),
                           self._pool(h, self.program_index)], dim=-1)
         return torch.sigmoid(self.W_resist(feat)).mean().item()

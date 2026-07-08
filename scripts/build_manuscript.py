@@ -106,9 +106,12 @@ p("The model's objective is to predict a cell's response-program (pathway) state
 p("Intrinsic memory as transition resistance. Lineage/chromatin memory enters the model as "
   "transition RESISTANCE: it sets the barrier a cue must overcome to leave the current attractor, "
   "plasticity LOWERS that barrier (rather than amplifying the cue), and a soft/graded attractor "
-  "(not winner-take-all) preserves temporal gradients (Section 3.7). The resistance gate, "
-  "plasticity, soft attractor, and memory re-injection strength are each independently ablatable, "
-  "so the contribution of every mechanism can be measured (Section 3.5).")
+  "(not winner-take-all) preserves temporal gradients (Section 3.7). Intrinsic expression is "
+  "injected ONCE into the initial node state and processed across all message-passing steps "
+  "(deep processing), carried forward by the resistance gate as inertia rather than re-added each "
+  "round; the extrinsic cue is injected transiently with decay (shallow processing). The resistance "
+  "gate, plasticity, and soft attractor are each independently ablatable, so the contribution of "
+  "every mechanism can be measured (Section 3.5).")
 h("2.2 Data and labels", 2)
 p("The training pool is 18,392 cells, 12 programs, 19 datasets (capped at 600 cells per "
   "program-per-dataset to limit single-cell dominance), with inputs widened to a curated 148-gene "

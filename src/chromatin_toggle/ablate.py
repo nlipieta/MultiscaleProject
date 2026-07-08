@@ -10,7 +10,6 @@ attributable to the removed piece, not to fold noise). Three families:
     -plasticity_gate    -- plasticity no longer lowers the transition resistance
     -attractor(soft)    -- no soft attractor sharpening among program logits
     -hybrid_residual    -- remove the linear skip (graph-only readout)
-    -memory_reinjection -- no intrinsic-memory re-injection (alpha_memory=0)
 
   STRUCTURE (what the literature graph contributes; adjacency edits)
     scramble_edges      -- permute the source axis (degree kept, wiring destroyed)
@@ -76,14 +75,13 @@ def _metrics(pred, proba, y, n_classes, prog_cols):
 def _run_one(name, kg, X, y, tr, te, n_classes, prog_cols, args, w, dev):
     # resistance-gated mechanisms (each ablatable). Defaults = the full model.
     flags = dict(resistance=True, plasticity_mode="lower_resistance",
-                 attractor="soft", hybrid=True, alpha_memory="learned")
+                 attractor="soft", hybrid=True)
     Xtr, Xte = X[tr], X[te]
     adj_override = None
     if name == "-resistance_gate":   flags["resistance"] = False        # no transition inertia
     elif name == "-plasticity_gate": flags["plasticity_mode"] = "none"  # plasticity stops lowering resistance
     elif name == "-attractor(soft)": flags["attractor"] = "none"        # no soft attractor sharpening
     elif name == "-hybrid_residual": flags["hybrid"] = False
-    elif name == "-memory_reinjection": flags["alpha_memory"] = "zero"  # no intrinsic re-injection
     elif name in ("scramble_edges", "no_edges", "collapse_relations"):
         adj = kg.structural_adjacency().clone()
         if name == "scramble_edges":
@@ -151,7 +149,7 @@ def main():
     w = class_weights(y[tr], n_classes) if args.class_weight else None
 
     order = ["full", "-hybrid_residual", "-resistance_gate", "-plasticity_gate", "-attractor(soft)",
-             "-memory_reinjection", "scramble_edges", "no_edges", "collapse_relations",
+             "scramble_edges", "no_edges", "collapse_relations",
              "-intrinsic_memory", "-chromatin_nodes", "-tf_nodes"]
     print(f"Ablation | data={Path(args.data).name} n={X.size(0)} mask={args.mask} "
           f"group_split={args.group_split} class_weight={args.class_weight} "
