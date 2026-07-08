@@ -3,8 +3,9 @@
 # (data to hunt next). Regenerate after adding programs/datasets.
 ADM:
   chromatin_changes: '<gap: no scATAC/Multiome yet>'
-  cue: Caerulein
-  cue_source: registry/hint (no paper cue yet)
+  cue: Caerulein-induced pancreatic injury (2-4 wk) driving acinar-to-ductal/pyloric metaplasia (acinar
+    EYFP lineage-traced)
+  cue_source: literature
   evidence_quality: '2 source(s), 1172 cells (capped); labels: per-cell'
   initial_state: Acinar, Acinar.Prolif
   intermediate_regulators:
@@ -14,7 +15,8 @@ ADM:
   - ADM_pancreas
   - pancreatitis2
   reference:
-  - '<gap: no literature reference resolved>'
+  - Ma 2021, Gastroenterology (GSE172380; PMID:34695382)
+  - Melendez 2022, Development (GSE188819; PMID:35420133)
   reversibility: '<gap: not tested>'
   terminal_markers:
   - KRT19
@@ -31,8 +33,8 @@ ADM:
   time_course: '<gap: no time-course dataset>'
 Adipogenesis:
   chromatin_changes: '<gap: no scATAC/Multiome yet>'
-  cue: adipogenic induction cocktail (D0->D5)
-  cue_source: registry/hint (no paper cue yet)
+  cue: In vitro 3T3-L1 (and SGBS) adipogenic differentiation, D0 vs D5/D8 (standard adipogenic cocktail)
+  cue_source: literature
   evidence_quality: '1 source(s), 600 cells (capped); labels: sample/condition-level'
   initial_state: baseline / progenitor (Quiescent)
   intermediate_regulators:
@@ -42,7 +44,7 @@ Adipogenesis:
   pool_sources:
   - adipo_3t3l1
   reference:
-  - '<gap: no literature reference resolved>'
+  - Li 2023, Scientific Data (GSE226365; PMID:37328521)
   reversibility: '<gap: not tested>'
   terminal_markers:
   - PPARG
@@ -59,8 +61,8 @@ Adipogenesis:
   time_course: '<gap: no time-course dataset>'
 EMT:
   chromatin_changes: '<gap: no scATAC/Multiome yet>'
-  cue: TGF-beta / TNF-alpha
-  cue_source: registry/hint (no paper cue yet)
+  cue: EMT induced by TGFB1 / EGF / TNF across a 12-experiment time course in multiple cell lines
+  cue_source: literature
   evidence_quality: '1 source(s), 600 cells (capped); labels: per-cell'
   initial_state: baseline / progenitor (Quiescent)
   intermediate_regulators:
@@ -71,7 +73,7 @@ EMT:
   pool_sources:
   - emt_tnf
   reference:
-  - '<gap: no literature reference resolved>'
+  - Cook 2020, Nature Communications (GSE147405; PMID:32358524)
   reversibility: '<gap: not tested>'
   terminal_markers:
   - ZEB2
@@ -89,8 +91,8 @@ EMT:
     (edges removed) -- structure drives graded emergence
 EndMT:
   chromatin_changes: '<gap: no scATAC/Multiome yet>'
-  cue: IL1-beta + TGF-beta2
-  cue_source: registry/hint (no paper cue yet)
+  cue: HUVEC + IL-1-beta + TGF-beta2 up to 7 d, inducing endothelial-to-mesenchymal transition
+  cue_source: literature
   evidence_quality: '1 source(s), 600 cells (capped); labels: sample/condition-level'
   initial_state: baseline / progenitor (Quiescent)
   intermediate_regulators:
@@ -99,7 +101,7 @@ EndMT:
   pool_sources:
   - endmt_huvec
   reference:
-  - '<gap: no literature reference resolved>'
+  - Monteiro 2021, Circulation Research (GSE159843; PMID:33703914)
   reversibility: '<gap: not tested>'
   terminal_markers:
   - SNAI1
@@ -116,8 +118,9 @@ EndMT:
   time_course: '<gap: no time-course dataset>'
 Erythropoiesis:
   chromatin_changes: 10x Multiome GSE194122 -- scATAC gene-activity as a 2nd input channel (POC)
-  cue: hematopoietic differentiation (HSC -> erythroid)
-  cue_source: registry/hint (no paper cue yet)
+  cue: No perturbation -- healthy human BMMC (12 donors) 10x Multiome; endogenous hematopoietic differentiation
+    (erythro/megakaryopoiesis)
+  cue_source: literature
   evidence_quality: '0 source(s), 0 cells (capped); labels: not in main pool (POC dataset only)'
   initial_state: baseline / progenitor (Quiescent)
   intermediate_regulators:
@@ -126,7 +129,8 @@ Erythropoiesis:
   persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
   pool_sources: []
   reference:
-  - '<gap: no literature reference resolved>'
+  - Luecken 2021, NeurIPS Datasets & Benchmarks (proceedings) (GSE194122; not PubMed-indexed (NeurIPS
+    2021 proceedings))
   reversibility: '<gap: not tested>'
   terminal_markers:
   - KLF1
@@ -143,8 +147,9 @@ Erythropoiesis:
   time_course: '<gap: no time-course dataset>'
 Exhaustion:
   chromatin_changes: '<gap: no scATAC/Multiome yet>'
-  cue: chronic TCR stimulation (tumor)
-  cue_source: registry/hint (no paper cue yet)
+  cue: Observational pan-cancer TIL atlas -- endogenous tumor-microenvironment-driven CD8 exhaustion trajectory
+    (no applied perturbation)
+  cue_source: literature
   evidence_quality: '1 source(s), 600 cells (capped); labels: per-cell'
   initial_state: baseline / progenitor (Quiescent)
   intermediate_regulators:
@@ -157,7 +162,7 @@ Exhaustion:
   pool_sources:
   - exhaustion_tumor
   reference:
-  - '<gap: no literature reference resolved>'
+  - Zheng 2021, Science (GSE156728; PMID:34914499)
   reversibility: '<gap: not tested>'
   terminal_markers:
   - PDCD1
@@ -174,8 +179,9 @@ Exhaustion:
   time_course: '<gap: no time-course dataset>'
 Fibrosis:
   chromatin_changes: '<gap: no scATAC/Multiome yet>'
-  cue: MechanicalStiffness
-  cue_source: registry/hint (no paper cue yet)
+  cue: Human pulmonary fibrosis (IPF) disease state vs non-fibrotic control (disease-vs-control, not an
+    induced stimulus)
+  cue_source: literature
   evidence_quality: '3 source(s), 1785 cells (capped); labels: sample/condition-level'
   initial_state: Fibroblast
   intermediate_regulators:
@@ -188,7 +194,8 @@ Fibrosis:
   - kidney_fibrosis
   - lung_fibrosis
   reference:
-  - '<gap: no literature reference resolved>'
+  - Habermann 2020, Science Advances (GSE135893; PMID:32832598)
+  - Reck 2025, Nature Communications (GSE254185; PMID:40399382)
   reversibility: '<gap: not tested>'
   terminal_markers:
   - COL1A1
@@ -234,8 +241,8 @@ GerminalCenter:
   time_course: '<gap: no time-course dataset>'
 Hypertrophy:
   chromatin_changes: '<gap: no scATAC/Multiome yet>'
-  cue: MechanicalStretch
-  cue_source: registry/hint (no paper cue yet)
+  cue: Pressure overload via transverse aortic constriction (TAC) driving pathological cardiac hypertrophy
+  cue_source: literature
   evidence_quality: '2 source(s), 1200 cells (capped); labels: sample/condition-level'
   initial_state: normal
   intermediate_regulators:
@@ -245,7 +252,7 @@ Hypertrophy:
   - cardiac_hcm_human
   - cardiac_stretch
   reference:
-  - '<gap: no literature reference resolved>'
+  - Ren 2020, Circulation (GSE120064; PMID:32098504)
   reversibility: '<gap: not tested>'
   terminal_markers:
   - NPPA
@@ -262,8 +269,9 @@ Hypertrophy:
   time_course: '<gap: no time-course dataset>'
 InnateMemory:
   chromatin_changes: '<gap: no scATAC/Multiome yet>'
-  cue: beta-glucan / oxLDL / BCG (trained immunity)
-  cue_source: registry/hint (no paper cue yet)
+  cue: 'In vitro trained immunity: monocytes primed with beta-glucan / uric acid / MDP / oxLDL (vs RPMI),
+    LPS restimulation day 6'
+  cue_source: literature
   evidence_quality: '2 source(s), 1200 cells (capped); labels: sample/condition-level'
   initial_state: baseline / progenitor (Quiescent)
   intermediate_regulators:
@@ -273,7 +281,8 @@ InnateMemory:
   - trained_immunity
   - trained_immunity2
   reference:
-  - '<gap: no literature reference resolved>'
+  - Zhang 2022, Journal of Clinical Investigation (E-MTAB-9702; PMID:35133977)
+  - Kong 2021, Cell Reports (GSE184241; PMID:34788625)
   reversibility: '<gap: not tested>'
   terminal_markers:
   - IL6
@@ -320,8 +329,8 @@ IntestinalDiff:
   time_course: '<gap: no time-course dataset>'
 MacrophageActivation:
   chromatin_changes: '<gap: no scATAC/Multiome yet>'
-  cue: LPS + IFN-gamma (M1 classical activation)
-  cue_source: registry/hint (no paper cue yet)
+  cue: 'Mouse BMDM: M0 resting vs M1 (LPS + IFN-gamma) classical activation'
+  cue_source: literature
   evidence_quality: '1 source(s), 600 cells (capped); labels: sample/condition-level'
   initial_state: baseline / progenitor (Quiescent)
   intermediate_regulators:
@@ -331,7 +340,7 @@ MacrophageActivation:
   pool_sources:
   - macrophage_m1
   reference:
-  - '<gap: no literature reference resolved>'
+  - (cue confirmed at ingestion; publication pending literature pass) (GSE161125; unconfirmed)
   reversibility: '<gap: not tested>'
   terminal_markers:
   - NOS2
@@ -348,8 +357,9 @@ MacrophageActivation:
   time_course: '<gap: no time-course dataset>'
 Megakaryopoiesis:
   chromatin_changes: 10x Multiome GSE194122 -- scATAC gene-activity as a 2nd input channel (POC)
-  cue: hematopoietic differentiation (HSC -> megakaryocytic)
-  cue_source: registry/hint (no paper cue yet)
+  cue: No perturbation -- healthy human BMMC (12 donors) 10x Multiome; endogenous hematopoietic differentiation
+    (erythro/megakaryopoiesis)
+  cue_source: literature
   evidence_quality: '0 source(s), 0 cells (capped); labels: not in main pool (POC dataset only)'
   initial_state: baseline / progenitor (Quiescent)
   intermediate_regulators:
@@ -358,7 +368,8 @@ Megakaryopoiesis:
   persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
   pool_sources: []
   reference:
-  - '<gap: no literature reference resolved>'
+  - Luecken 2021, NeurIPS Datasets & Benchmarks (proceedings) (GSE194122; not PubMed-indexed (NeurIPS
+    2021 proceedings))
   reversibility: '<gap: not tested>'
   terminal_markers:
   - PF4
@@ -375,8 +386,8 @@ Megakaryopoiesis:
   time_course: '<gap: no time-course dataset>'
 MyogenicDiff:
   chromatin_changes: '<gap: no scATAC/Multiome yet>'
-  cue: serum withdrawal (myogenic differentiation)
-  cue_source: registry/hint (no paper cue yet)
+  cue: C2C12 myoblast-to-myotube differentiation (serum withdrawal); LR-Split-seq methods paper
+  cue_source: literature
   evidence_quality: '3 source(s), 522 cells (capped); labels: per-cell'
   initial_state: MB_cells, MB_nuclei
   intermediate_regulators:
@@ -388,7 +399,9 @@ MyogenicDiff:
   - myogenesis
   - myogenesis_human
   reference:
-  - '<gap: no literature reference resolved>'
+  - Rebboah 2021, Genome Biology (GSE168776; PMID:34620214)
+  - Mullen 2011, Cell (GSE21608; PMID:22036565)
+  - Al Tanoury 2020, Development (GSE149451; PMID:32541004)
   reversibility: '<gap: not tested>'
   terminal_markers:
   - MYOG
@@ -462,8 +475,8 @@ Osteogenesis:
   time_course: '<gap: no time-course dataset>'
 Pluripotency:
   chromatin_changes: '<gap: no scATAC/Multiome yet>'
-  cue: pluripotency / EB differentiation (no extrinsic cue)
-  cue_source: registry/hint (no paper cue yet)
+  cue: TGF-beta treatment / SB431542 inhibition; Smad3 co-binds cell-type master TFs (Oct4/MyoD1/PU.1)
+  cue_source: literature
   evidence_quality: '2 source(s), 602 cells (capped); labels: per-cell'
   initial_state: cardiac endothelial cell, endothelial cell, epithelial cell, hematopoietic precursor
     cell, kidney interstitial fibroblast, myeloid lineage restricted progenitor cell, progenitor cell,
@@ -478,7 +491,7 @@ Pluripotency:
   - TGFb_lineage
   - pluripotency
   reference:
-  - '<gap: no literature reference resolved>'
+  - Mullen 2011, Cell (GSE21608; PMID:22036565)
   reversibility: '<gap: not tested>'
   terminal_markers:
   - LIN28A
@@ -494,8 +507,9 @@ Pluripotency:
   time_course: '<gap: no time-course dataset>'
 Regeneration:
   chromatin_changes: '<gap: no scATAC/Multiome yet>'
-  cue: injury / partial hepatectomy / notexin (organ-dependent)
-  cue_source: registry/hint (no paper cue yet)
+  cue: Intratracheal LPS lung injury; TGF-beta must switch off to permit AEC2->AEC1 transdifferentiation
+    during alveolar regeneration
+  cue_source: literature
   evidence_quality: '3 source(s), 1800 cells (capped); labels: sample/condition-level'
   initial_state: baseline / progenitor (Quiescent)
   intermediate_regulators:
@@ -507,7 +521,9 @@ Regeneration:
   - lung_regeneration
   - muscle_regeneration
   reference:
-  - '<gap: no literature reference resolved>'
+  - Riemondy 2019, JCI Insight (GSE113049; PMID:30913038)
+  - De Micheli 2020, Cell Reports (GSE143437; PMID:32160558)
+  - Chen 2020, JCI Insight (GSE158866; PMID:33208554)
   reversibility: '<gap: not tested>'
   terminal_markers:
   - MKI67
@@ -523,8 +539,8 @@ Regeneration:
   time_course: '<gap: no time-course dataset>'
 Senescence:
   chromatin_changes: '<gap: no scATAC/Multiome yet>'
-  cue: oncogene-induced / irradiation / etoposide stress
-  cue_source: registry/hint (no paper cue yet)
+  cue: Oncogene-induced senescence via 4-OHT-activated ER:RasG12V; secondary senescence needs Notch
+  cue_source: literature
   evidence_quality: '1 source(s), 240 cells (capped); labels: per-cell'
   initial_state: baseline / progenitor (Quiescent)
   intermediate_regulators:
@@ -534,7 +550,7 @@ Senescence:
   pool_sources:
   - senescence_ois
   reference:
-  - '<gap: no literature reference resolved>'
+  - Teo 2019, Cell Reports (GSE115301; PMID:31018144)
   reversibility: '<gap: not tested>'
   terminal_markers:
   - GLB1

@@ -1,0 +1,88 @@
+# Dataset -> publication + cue, verified from the literature (GEO citation -> PubMed PMID/DOI;
+# cue read from the paper's abstract/methods). Consumed by scripts/build_transitions.py to
+# ground the atlas `cue` field + `reference`. 'note' flags where a paper diverges from the
+# assumed label. CELLxGENE-hosted datasets pending a follow-up literature pass.
+GSE172380:
+  citation: "Ma 2021, Gastroenterology"
+  pmid_or_doi: "PMID:34695382"
+  cue: "Caerulein-induced pancreatic injury (2-4 wk) driving acinar-to-ductal/pyloric metaplasia (acinar EYFP lineage-traced)"
+GSE188819:
+  citation: "Melendez 2022, Development"
+  pmid_or_doi: "PMID:35420133"
+  cue: "In vivo OSKM (Yamanaka-factor) reprogramming (i4F mice); caerulein only a comparison arm"
+  note: "MISMATCH: this is a reprogramming/NK-cell paper, NOT a caerulein-ADM 2nd source as the label assumes -- review whether it belongs as an ADM source."
+GSE120064:
+  citation: "Ren 2020, Circulation"
+  pmid_or_doi: "PMID:32098504"
+  cue: "Pressure overload via transverse aortic constriction (TAC) driving pathological cardiac hypertrophy"
+GSE135893:
+  citation: "Habermann 2020, Science Advances"
+  pmid_or_doi: "PMID:32832598"
+  cue: "Human pulmonary fibrosis (IPF) disease state vs non-fibrotic control (disease-vs-control, not an induced stimulus)"
+GSE254185:
+  citation: "Reck 2025, Nature Communications"
+  pmid_or_doi: "PMID:40399382"
+  cue: "Human kidney injury/CKD (obstructed vs unobstructed) driving proximal-tubule pro-fibrotic transition (HNF4a loss + NF-kB/AP-1)"
+E-MTAB-9702:
+  citation: "Zhang 2022, Journal of Clinical Investigation"
+  pmid_or_doi: "PMID:35133977"
+  cue: "In vitro trained immunity: monocytes primed with beta-glucan / uric acid / MDP / oxLDL (vs RPMI), LPS restimulation day 6"
+GSE184241:
+  citation: "Kong 2021, Cell Reports"
+  pmid_or_doi: "PMID:34788625"
+  cue: "In vivo BCG vaccination (baseline / 2 wk / 3 mo) with ex vivo LPS restimulation (trained immunity)"
+GSE168776:
+  citation: "Rebboah 2021, Genome Biology"
+  pmid_or_doi: "PMID:34620214"
+  cue: "C2C12 myoblast-to-myotube differentiation (serum withdrawal); LR-Split-seq methods paper"
+  note: "Cue is standard differentiation, not an engineered perturbation."
+GSE149451:
+  citation: "Al Tanoury 2020, Development"
+  pmid_or_doi: "PMID:32541004"
+  cue: "Directed in vitro differentiation of human iPSCs along the PAX7+ myogenic/satellite lineage"
+GSE113049:
+  citation: "Riemondy 2019, JCI Insight"
+  pmid_or_doi: "PMID:30913038"
+  cue: "Intratracheal LPS lung injury; TGF-beta must switch off to permit AEC2->AEC1 transdifferentiation during alveolar regeneration"
+GSE143437:
+  citation: "De Micheli 2020, Cell Reports"
+  pmid_or_doi: "PMID:32160558"
+  cue: "Notexin-induced muscle injury; regeneration D0/2/5/7 with FGF2/TGF-beta1/RSPO3 paracrine cues on MuSCs"
+GSE158866:
+  citation: "Chen 2020, JCI Insight"
+  pmid_or_doi: "PMID:33208554"
+  cue: "Partial hepatectomy (~2/3); hepatocytes transiently acquire fetal-like states during regeneration"
+GSE21608:
+  citation: "Mullen 2011, Cell"
+  pmid_or_doi: "PMID:22036565"
+  cue: "TGF-beta treatment / SB431542 inhibition; Smad3 co-binds cell-type master TFs (Oct4/MyoD1/PU.1)"
+  note: "MICROARRAY (Agilent 4x44K), NOT scRNA-seq -- a bulk dataset in a single-cell pool."
+GSE147405:
+  citation: "Cook 2020, Nature Communications"
+  pmid_or_doi: "PMID:32358524"
+  cue: "EMT induced by TGFB1 / EGF / TNF across a 12-experiment time course in multiple cell lines"
+GSE115301:
+  citation: "Teo 2019, Cell Reports"
+  pmid_or_doi: "PMID:31018144"
+  cue: "Oncogene-induced senescence via 4-OHT-activated ER:RasG12V; secondary senescence needs Notch"
+GSE156728:
+  citation: "Zheng 2021, Science"
+  pmid_or_doi: "PMID:34914499"
+  cue: "Observational pan-cancer TIL atlas -- endogenous tumor-microenvironment-driven CD8 exhaustion trajectory (no applied perturbation)"
+  note: "Observational, not a controlled perturbation."
+GSE226365:
+  citation: "Li 2023, Scientific Data"
+  pmid_or_doi: "PMID:37328521"
+  cue: "In vitro 3T3-L1 (and SGBS) adipogenic differentiation, D0 vs D5/D8 (standard adipogenic cocktail)"
+GSE159843:
+  citation: "Monteiro 2021, Circulation Research"
+  pmid_or_doi: "PMID:33703914"
+  cue: "HUVEC + IL-1-beta + TGF-beta2 up to 7 d, inducing endothelial-to-mesenchymal transition"
+GSE161125:
+  citation: "(cue confirmed at ingestion; publication pending literature pass)"
+  pmid_or_doi: "unconfirmed"
+  cue: "Mouse BMDM: M0 resting vs M1 (LPS + IFN-gamma) classical activation"
+GSE194122:
+  citation: "Luecken 2021, NeurIPS Datasets & Benchmarks (proceedings)"
+  pmid_or_doi: "not PubMed-indexed (NeurIPS 2021 proceedings)"
+  cue: "No perturbation -- healthy human BMMC (12 donors) 10x Multiome; endogenous hematopoietic differentiation (erythro/megakaryopoiesis)"
