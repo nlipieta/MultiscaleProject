@@ -113,6 +113,9 @@ DEFAULT_SOURCES = [
     ("data/osteogenesis.csv",             "osteo_craniofacial",  "snRNA"),       # Osteogenesis (NEW program)
     ("data/gse156728_exhaustion.csv",     "exhaustion_tumor",    "scRNA"),       # Exhaustion (NEW program, 13th)
     ("data/intestinal_diff.csv",           "intestinal_gutatlas", "scRNA"),       # IntestinalDiff (NEW program, 14th)
+    ("data/tonsil_tfh_treg.csv",           "tonsil_tcells",       "scRNA"),       # Tfh + Treg (NEW programs, 15th/16th)
+    ("data/tonsil_bcell_gc.csv",           "tonsil_bcells",       "scRNA"),       # GerminalCenter (NEW program, 17th)
+    ("data/trophoblast_organoid.csv",      "trophoblast_organoid","scRNA"),       # TrophoblastDiff (NEW program, 18th)
 ]
 
 

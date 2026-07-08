@@ -365,6 +365,51 @@ H5AD: dict[str, H5adDataset] = {
         },
         cue=None,
     ),
+    # King 2021 human tonsil CD4 T cells (CELLxGENE, 8.7k cells). TWO new programs
+    # from one dataset: T follicular helper cell -> Tfh; regulatory/follicular-
+    # regulatory T cell -> Treg; CD4 helper T cell = Quiescent baseline. Other T
+    # subsets (CD8/memory/NK/ILC) left unmapped -> clean CD4 contrast. In-vivo
+    # germinal-center microenvironment is the cue.
+    "Tonsil_Tfh_Treg": H5adDataset(
+        url="https://datasets.cellxgene.cziscience.com/033d8138-e31b-4e1d-9faf-539c65779a44.h5ad",
+        cell_type_col="cell_type",
+        program_map={
+            "T follicular helper cell": "Tfh",
+            "regulatory T cell": "Treg",
+            "T follicular regulatory cell": "Treg",
+            "CD4-positive helper T cell": "Quiescent",
+        },
+        cue=None,
+    ),
+    # King 2021 human tonsil B cells (CELLxGENE, 25.7k cells). NEW program:
+    # germinal-center/plasma differentiation. GC B cell + centroblast + centrocyte
+    # + plasmablast -> GerminalCenter; naive B cell = Quiescent. Memory/mature B
+    # left unmapped (ambiguous resting outputs). In-vivo GC reaction is the cue.
+    "Tonsil_Bcell_GC": H5adDataset(
+        url="https://datasets.cellxgene.cziscience.com/c0353db0-5c9d-4867-a1ee-1cd7079cf59c.h5ad",
+        cell_type_col="cell_type",
+        program_map={
+            "tonsil germinal center B cell": "GerminalCenter",
+            "centroblast": "GerminalCenter",
+            "centrocyte": "GerminalCenter",
+            "plasmablast": "GerminalCenter",
+            "naive B cell": "Quiescent",
+        },
+        cue=None,
+    ),
+    # Arutyunyan 2023 human trophoblast organoid (CELLxGENE, 26.9k cells). NEW
+    # program: trophoblast differentiation. Extravillous trophoblast + syncytio-
+    # trophoblast -> TrophoblastDiff; villous cytotrophoblast (progenitor) = Quiescent.
+    "Trophoblast_organoid": H5adDataset(
+        url="https://datasets.cellxgene.cziscience.com/cfd31c69-e4fe-4eb2-a04f-cd955d6ce6f0.h5ad",
+        cell_type_col="cell_type",
+        program_map={
+            "extravillous trophoblast": "TrophoblastDiff",
+            "syncytiotrophoblast cell": "TrophoblastDiff",
+            "placental villous trophoblast": "Quiescent",
+        },
+        cue=None,
+    ),
 }
 
 

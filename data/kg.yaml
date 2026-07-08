@@ -92,10 +92,20 @@ gene_map:
   Cdx2: CDX2
   Fabp2: FABP2
   Muc2: MUC2
+  # tonsil CD4 T-cell differentiation drivers (Tfh: BCL6/CXCR5; Treg: FOXP3)
+  Bcl6: BCL6
+  Cxcr5: CXCR5
+  Foxp3: FOXP3
+  # germinal-center B-cell differentiation drivers (AICDA -> GC; PRDM1 -> plasma)
+  Aicda: AICDA
+  Prdm1: PRDM1
+  # trophoblast differentiation drivers (GCM1 -> syncytio; TFAP2C -> trophoblast)
+  Gcm1: GCM1
+  Tfap2c: TFAP2C
 
 # Nodes whose activation is read out as the predicted phenotype.
 program_nodes:
-  [InnateMemory, Fibrosis, Hypertrophy, Regeneration, Pluripotency, MyogenicDiff, ADM, EMT, Senescence, NeuronalDiff, Osteogenesis, Exhaustion, IntestinalDiff]
+  [InnateMemory, Fibrosis, Hypertrophy, Regeneration, Pluripotency, MyogenicDiff, ADM, EMT, Senescence, NeuronalDiff, Osteogenesis, Exhaustion, IntestinalDiff, Tfh, Treg, GerminalCenter, TrophoblastDiff]
 
 nodes:
   # --- Extrinsic cues (inputs) ---
@@ -192,6 +202,19 @@ nodes:
   - {id: Fabp2, type: signaling, bias: -0.5}
   - {id: Muc2, type: signaling, bias: -0.5}
 
+  # --- New programs: tonsil CD4 T-cell fates (Tfh, Treg) ---
+  - {id: Bcl6, type: tf, bias: -0.5}
+  - {id: Cxcr5, type: signaling, bias: -0.5}
+  - {id: Foxp3, type: tf, bias: -0.5}
+
+  # --- New program: germinal-center B-cell differentiation ---
+  - {id: Aicda, type: tf, bias: -0.5}
+  - {id: Prdm1, type: tf, bias: -0.5}
+
+  # --- New program: trophoblast differentiation (GCM1/TFAP2C -> STB/EVT) ---
+  - {id: Gcm1, type: tf, bias: -0.5}
+  - {id: Tfap2c, type: tf, bias: -0.5}
+
   # --- Response programs (outputs) ---
   - {id: InnateMemory, type: program, bias: -0.5}
   - {id: Fibrosis, type: program, bias: -0.5}
@@ -206,6 +229,10 @@ nodes:
   - {id: Osteogenesis, type: program, bias: -0.5}
   - {id: Exhaustion, type: program, bias: -0.5}
   - {id: IntestinalDiff, type: program, bias: -0.5}
+  - {id: Tfh, type: program, bias: -0.5}
+  - {id: Treg, type: program, bias: -0.5}
+  - {id: GerminalCenter, type: program, bias: -0.5}
+  - {id: TrophoblastDiff, type: program, bias: -0.5}
   - {id: ChronicTCR, type: cue, bias: 0.0}
   - {id: NFAT, type: tf, bias: 0.0}
   - {id: TOX, type: tf, bias: 0.0}
@@ -345,3 +372,20 @@ edges:
   - {src: Cdx2, rel: ACTIVATES, dst: IntestinalDiff, w: 1.5}
   - {src: Fabp2, rel: ACTIVATES, dst: IntestinalDiff, w: 1.0}
   - {src: Muc2, rel: ACTIVATES, dst: IntestinalDiff, w: 1.0}
+
+  # Tonsil CD4 fates: Tfh via BCL6 + CXCR5 (Crotty 2014); Treg via FOXP3 (Fontenot
+  # 2003). BCL6 is shared with the germinal-center B-cell program (one regulator node).
+  - {src: Bcl6, rel: ACTIVATES, dst: Tfh, w: 1.5}
+  - {src: Cxcr5, rel: ACTIVATES, dst: Tfh, w: 1.0}
+  - {src: Foxp3, rel: ACTIVATES, dst: Treg, w: 1.5}
+
+  # Germinal-center B-cell fate: BCL6 + AICDA drive the GC reaction (Victora 2012);
+  # PRDM1/Blimp1 drives the plasmablast output. BCL6 shared with Tfh (one node).
+  - {src: Bcl6, rel: ACTIVATES, dst: GerminalCenter, w: 1.5}
+  - {src: Aicda, rel: ACTIVATES, dst: GerminalCenter, w: 1.5}
+  - {src: Prdm1, rel: ACTIVATES, dst: GerminalCenter, w: 1.0}
+
+  # Trophoblast differentiation: GCM1 drives syncytiotrophoblast fusion (Baczyk
+  # 2009); TFAP2C is the pan-trophoblast/EVT regulator. Villous CTB = progenitor.
+  - {src: Gcm1, rel: ACTIVATES, dst: TrophoblastDiff, w: 1.5}
+  - {src: Tfap2c, rel: ACTIVATES, dst: TrophoblastDiff, w: 1.0}

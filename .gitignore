@@ -31,3 +31,6 @@ data/osteogenesis.csv
 data/neuronal_diff.csv
 data/raw/
 data/intestinal_diff.csv
+data/tonsil_tfh_treg.csv
+data/tonsil_bcell_gc.csv
+data/trophoblast_organoid.csv
