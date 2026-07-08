@@ -209,11 +209,16 @@ def main():
                     default="none", help="knock out a resistance-gated mechanism")
     ap.add_argument("--mask", choices=["none", "no_markers", "lineage_only"],
                     default="none", help="marker-shortcut control on the inputs")
+    ap.add_argument("--subsample", type=int, default=0, help="subsample cells (0 = all)")
+    ap.add_argument("--save", default=None, help="write per-program hysteresis to this YAML")
     args = ap.parse_args()
 
     kg = load_kg()
     X, y, classes, df = _load(args.data, kg)
     X = _mask_input(X, kg, args.mask)
+    if args.subsample and X.size(0) > args.subsample:
+        idx = torch.randperm(X.size(0), generator=torch.Generator().manual_seed(0))[:args.subsample]
+        X, y = X[idx], y[idx]; df = df.iloc[idx.numpy()].reset_index(drop=True)
     qi = classes.index(QUIESCENT)
     prog_of = _pathway_programs(y, df, qi)
     flags = dict(resistance=True, plasticity_mode="lower_resistance", attractor="soft")
@@ -253,6 +258,23 @@ def main():
         n, t, s = mean
         print(f"{pw:<18}{classes[prog_i]:<14}{n:>14.2f}{t:>14.2f}{s:>14.2f}")
     print("\n(persistence/memory = TRANSIENT stays well above NEVER after cue removal)")
+
+    if args.save:
+        import yaml
+        out = {}
+        for pw, prog_i in prog_of.items():
+            n, t, s = hy[pw][0]
+            out[classes[prog_i]] = {
+                "never": round(float(n), 3), "transient": round(float(t), 3),
+                "sustained": round(float(s), 3),
+                # persistence = program still expressed after the cue is withdrawn;
+                # reversibility = how much it drops vs a sustained cue (large drop => reversible)
+                "persistence_after_cue_removal": round(float(t), 3),
+                "reversibility_drop": round(float(s - t), 3),
+                "pathway": pw,
+            }
+        Path(args.save).write_text(yaml.safe_dump(out, sort_keys=True))
+        print(f"saved per-program hysteresis -> {args.save}")
 
 
 if __name__ == "__main__":

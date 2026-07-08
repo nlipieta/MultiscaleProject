@@ -10,14 +10,16 @@ ADM:
   initial_state: Acinar, Acinar.Prolif
   intermediate_regulators:
   - Metaplasia
-  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  persistence_after_cue_removal: 'null: P(program) unchanged by cue (never=transient=sustained~=0.01)
+    -- no cue-driven dynamics on this real dataset'
   pool_sources:
   - ADM_pancreas
   - oskm_reprog_pancreas
   reference:
   - Ma 2021, Gastroenterology (GSE172380; PMID:34695382)
   - Melendez 2022, Development (GSE188819; PMID:35420133)
-  reversibility: '<gap: not tested>'
+  reversibility: 'null: cue-independent on this real dataset (sustained~=never); plasticity-gated hysteresis
+    is a simulation-only property (see 3.4), not measurable here'
   terminal_markers:
   - KRT19
   - ONECUT2
@@ -40,12 +42,14 @@ Adipogenesis:
   intermediate_regulators:
   - Pparg
   - Cebpa
-  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  persistence_after_cue_removal: 'null: P(program) unchanged by cue (never=transient=sustained~=0.00)
+    -- no cue-driven dynamics on this real dataset'
   pool_sources:
   - adipo_3t3l1
   reference:
   - Li 2023, Scientific Data (GSE226365; PMID:37328521)
-  reversibility: '<gap: not tested>'
+  reversibility: 'null: cue-independent on this real dataset (sustained~=never); plasticity-gated hysteresis
+    is a simulation-only property (see 3.4), not measurable here'
   terminal_markers:
   - PPARG
   - CEBPA
@@ -69,12 +73,14 @@ EMT:
   - Twist1
   - Snai1
   - ZEB1
-  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  persistence_after_cue_removal: 'null: P(program) unchanged by cue (never=transient=sustained~=0.00)
+    -- no cue-driven dynamics on this real dataset'
   pool_sources:
   - emt_tnf
   reference:
   - Cook 2020, Nature Communications (GSE147405; PMID:32358524)
-  reversibility: '<gap: not tested>'
+  reversibility: 'null: cue-independent on this real dataset (sustained~=never); plasticity-gated hysteresis
+    is a simulation-only property (see 3.4), not measurable here'
   terminal_markers:
   - ZEB2
   - SNAI2
@@ -97,12 +103,14 @@ EndMT:
   initial_state: baseline / progenitor (Quiescent)
   intermediate_regulators:
   - Snai1
-  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  persistence_after_cue_removal: 'null: P(program) unchanged by cue (never=transient=sustained~=0.00)
+    -- no cue-driven dynamics on this real dataset'
   pool_sources:
   - endmt_huvec
   reference:
   - Monteiro 2021, Circulation Research (GSE159843; PMID:33703914)
-  reversibility: '<gap: not tested>'
+  reversibility: 'null: cue-independent on this real dataset (sustained~=never); plasticity-gated hysteresis
+    is a simulation-only property (see 3.4), not measurable here'
   terminal_markers:
   - SNAI1
   - SNAI2
@@ -126,12 +134,12 @@ Erythropoiesis:
   intermediate_regulators:
   - Gata1
   - Klf1
-  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  persistence_after_cue_removal: '<gap: hysteresis not run>'
   pool_sources: []
   reference:
   - Luecken 2021, NeurIPS Datasets & Benchmarks (proceedings) (GSE194122; not PubMed-indexed (NeurIPS
     2021 proceedings))
-  reversibility: '<gap: not tested>'
+  reversibility: '<gap: hysteresis not run>'
   terminal_markers:
   - KLF1
   - GYPA
@@ -158,12 +166,14 @@ Exhaustion:
   - HAVCR2
   - LAG3
   - TIGIT
-  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  persistence_after_cue_removal: 'null: P(program) unchanged by cue (never=transient=sustained~=0.00)
+    -- no cue-driven dynamics on this real dataset'
   pool_sources:
   - exhaustion_tumor
   reference:
   - Zheng 2021, Science (GSE156728; PMID:34914499)
-  reversibility: '<gap: not tested>'
+  reversibility: 'null: cue-independent on this real dataset (sustained~=never); plasticity-gated hysteresis
+    is a simulation-only property (see 3.4), not measurable here'
   terminal_markers:
   - PDCD1
   - HAVCR2
@@ -188,7 +198,8 @@ Fibrosis:
   - TEAD
   - SWI_SNF
   - Regeneration
-  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  persistence_after_cue_removal: 'null: P(program) unchanged by cue (never=transient=sustained~=0.12)
+    -- no cue-driven dynamics on this real dataset'
   pool_sources:
   - cardiac_fibrosis
   - kidney_fibrosis
@@ -197,7 +208,8 @@ Fibrosis:
   - Habermann 2020, Science Advances (GSE135893; PMID:32832598)
   - Reck 2025, Nature Communications (GSE254185; PMID:40399382)
   - Reichart 2022, Science (CELLxGENE:9b7c7203; PMID:35926050)
-  reversibility: '<gap: not tested>'
+  reversibility: 'null: cue-independent on this real dataset (sustained~=never); plasticity-gated hysteresis
+    is a simulation-only property (see 3.4), not measurable here'
   terminal_markers:
   - COL1A1
   - COL3A1
@@ -222,12 +234,14 @@ GerminalCenter:
   - Bcl6
   - Aicda
   - Prdm1
-  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  persistence_after_cue_removal: 'null: P(program) unchanged by cue (never=transient=sustained~=0.00)
+    -- no cue-driven dynamics on this real dataset'
   pool_sources:
   - tonsil_bcells
   reference:
   - King 2021, Science Immunology (CELLxGENE:c0353db0; PMID:33579751)
-  reversibility: '<gap: not tested>'
+  reversibility: 'null: cue-independent on this real dataset (sustained~=never); plasticity-gated hysteresis
+    is a simulation-only property (see 3.4), not measurable here'
   terminal_markers:
   - AICDA
   - RGS13
@@ -249,14 +263,16 @@ Hypertrophy:
   initial_state: normal
   intermediate_regulators:
   - MEF2
-  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  persistence_after_cue_removal: 'null: P(program) unchanged by cue (never=transient=sustained~=0.29)
+    -- no cue-driven dynamics on this real dataset'
   pool_sources:
   - cardiac_hcm_human
   - cardiac_stretch
   reference:
   - Ren 2020, Circulation (GSE120064; PMID:32098504)
   - Lu 2024, Cell Proliferation (CELLxGENE:47a98d37; PMID:37766635)
-  reversibility: '<gap: not tested>'
+  reversibility: 'null: cue-independent on this real dataset (sustained~=never); plasticity-gated hysteresis
+    is a simulation-only property (see 3.4), not measurable here'
   terminal_markers:
   - NPPA
   - NPPB
@@ -279,14 +295,16 @@ InnateMemory:
   initial_state: baseline / progenitor (Quiescent)
   intermediate_regulators:
   - H3K4me1
-  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  persistence_after_cue_removal: 'null: P(program) unchanged by cue (never=transient=sustained~=0.03)
+    -- no cue-driven dynamics on this real dataset'
   pool_sources:
   - trained_immunity
   - trained_immunity2
   reference:
   - Zhang 2022, Journal of Clinical Investigation (E-MTAB-9702; PMID:35133977)
   - Kong 2021, Cell Reports (GSE184241; PMID:34788625)
-  reversibility: '<gap: not tested>'
+  reversibility: 'null: cue-independent on this real dataset (sustained~=never); plasticity-gated hysteresis
+    is a simulation-only property (see 3.4), not measurable here'
   terminal_markers:
   - IL6
   - TNF
@@ -311,12 +329,14 @@ IntestinalDiff:
   - Cdx2
   - Fabp2
   - Muc2
-  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  persistence_after_cue_removal: 'null: P(program) unchanged by cue (never=transient=sustained~=0.00)
+    -- no cue-driven dynamics on this real dataset'
   pool_sources:
   - intestinal_gutatlas
   reference:
   - Fawkner-Corbett 2021, Cell (CELLxGENE:fd89be61; PMID:33406409)
-  reversibility: '<gap: not tested>'
+  reversibility: 'null: cue-independent on this real dataset (sustained~=never); plasticity-gated hysteresis
+    is a simulation-only property (see 3.4), not measurable here'
   terminal_markers:
   - FABP2
   - ALPI
@@ -340,12 +360,14 @@ MacrophageActivation:
   intermediate_regulators:
   - Irf5
   - Nos2
-  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  persistence_after_cue_removal: 'null: P(program) unchanged by cue (never=transient=sustained~=0.49)
+    -- no cue-driven dynamics on this real dataset'
   pool_sources:
   - macrophage_m1
   reference:
   - Co-stimulation with opposing macrophage polarization cues (2021) (GSE161125; PMID:33436596)
-  reversibility: '<gap: not tested>'
+  reversibility: 'null: cue-independent on this real dataset (sustained~=never); plasticity-gated hysteresis
+    is a simulation-only property (see 3.4), not measurable here'
   terminal_markers:
   - NOS2
   - IL1B
@@ -369,12 +391,12 @@ Megakaryopoiesis:
   intermediate_regulators:
   - Gata1
   - Fli1
-  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  persistence_after_cue_removal: '<gap: hysteresis not run>'
   pool_sources: []
   reference:
   - Luecken 2021, NeurIPS Datasets & Benchmarks (proceedings) (GSE194122; not PubMed-indexed (NeurIPS
     2021 proceedings))
-  reversibility: '<gap: not tested>'
+  reversibility: '<gap: hysteresis not run>'
   terminal_markers:
   - PF4
   - PPBP
@@ -397,14 +419,16 @@ MyogenicDiff:
   intermediate_regulators:
   - Smad3
   - MyoD
-  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  persistence_after_cue_removal: 'null: P(program) unchanged by cue (never=transient=sustained~=0.01)
+    -- no cue-driven dynamics on this real dataset'
   pool_sources:
   - myogenesis
   - myogenesis_human
   reference:
   - Rebboah 2021, Genome Biology (GSE168776; PMID:34620214)
   - Al Tanoury 2020, Development (GSE149451; PMID:32541004)
-  reversibility: '<gap: not tested>'
+  reversibility: 'null: cue-independent on this real dataset (sustained~=never); plasticity-gated hysteresis
+    is a simulation-only property (see 3.4), not measurable here'
   terminal_markers:
   - MYOG
   - MYF5
@@ -428,12 +452,14 @@ NeuronalDiff:
   intermediate_regulators:
   - NeuroD
   - Dcx
-  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  persistence_after_cue_removal: 'null: P(program) unchanged by cue (never=transient=sustained~=0.06)
+    -- no cue-driven dynamics on this real dataset'
   pool_sources:
   - neuronal_organoid
   reference:
   - unconfirmed (CELLxGENE data-only deposit, no DOI) (CELLxGENE:0fff1010; unconfirmed)
-  reversibility: '<gap: not tested>'
+  reversibility: 'null: cue-independent on this real dataset (sustained~=never); plasticity-gated hysteresis
+    is a simulation-only property (see 3.4), not measurable here'
   terminal_markers:
   - RBFOX3
   - MAP2
@@ -458,12 +484,14 @@ Osteogenesis:
   - Runx2
   - Sp7
   - Bglap
-  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  persistence_after_cue_removal: 'null: P(program) unchanged by cue (never=transient=sustained~=0.02)
+    -- no cue-driven dynamics on this real dataset'
   pool_sources:
   - osteo_craniofacial
   reference:
   - Khouri-Farah 2026, Nature Communications (preprint PMID:39868299) (CELLxGENE:4d76b7b4; 10.1038/s41467-026-70232-6)
-  reversibility: '<gap: not tested>'
+  reversibility: 'null: cue-independent on this real dataset (sustained~=never); plasticity-gated hysteresis
+    is a simulation-only property (see 3.4), not measurable here'
   terminal_markers:
   - ALPL
   - IBSP
@@ -491,12 +519,14 @@ Pluripotency:
   - Oct4
   - NANOG
   - SOX2
-  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  persistence_after_cue_removal: 'null: P(program) unchanged by cue (never=transient=sustained~=0.00)
+    -- no cue-driven dynamics on this real dataset'
   pool_sources:
   - pluripotency
   reference:
   - Wellington 2025, Stem Cell Reports (CELLxGENE:734538f1; PMID:40972587)
-  reversibility: '<gap: not tested>'
+  reversibility: 'null: cue-independent on this real dataset (sustained~=never); plasticity-gated hysteresis
+    is a simulation-only property (see 3.4), not measurable here'
   terminal_markers:
   - LIN28A
   - DPPA4
@@ -519,7 +549,8 @@ Regeneration:
   intermediate_regulators:
   - Blastema
   - Fibrosis
-  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  persistence_after_cue_removal: 'null: P(program) unchanged by cue (never=transient=sustained~=0.00)
+    -- no cue-driven dynamics on this real dataset'
   pool_sources:
   - liver_regeneration
   - lung_regeneration
@@ -528,7 +559,8 @@ Regeneration:
   - Riemondy 2019, JCI Insight (GSE113049; PMID:30913038)
   - De Micheli 2020, Cell Reports (GSE143437; PMID:32160558)
   - Chen 2020, JCI Insight (GSE158866; PMID:33208554)
-  reversibility: '<gap: not tested>'
+  reversibility: 'null: cue-independent on this real dataset (sustained~=never); plasticity-gated hysteresis
+    is a simulation-only property (see 3.4), not measurable here'
   terminal_markers:
   - MKI67
   - TOP2A
@@ -550,12 +582,14 @@ Senescence:
   intermediate_regulators:
   - CDKN1A
   - CDKN2A
-  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  persistence_after_cue_removal: 'null: P(program) unchanged by cue (never=transient=sustained~=0.00)
+    -- no cue-driven dynamics on this real dataset'
   pool_sources:
   - senescence_ois
   reference:
   - Teo 2019, Cell Reports (GSE115301; PMID:31018144)
-  reversibility: '<gap: not tested>'
+  reversibility: 'null: cue-independent on this real dataset (sustained~=never); plasticity-gated hysteresis
+    is a simulation-only property (see 3.4), not measurable here'
   terminal_markers:
   - GLB1
   - SERPINE1
@@ -577,12 +611,12 @@ Tfh:
   intermediate_regulators:
   - Bcl6
   - Cxcr5
-  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  persistence_after_cue_removal: '<gap: hysteresis not run>'
   pool_sources:
   - tonsil_tcells
   reference:
   - King 2021, Science Immunology (CELLxGENE:033d8138; PMID:33579751)
-  reversibility: '<gap: not tested>'
+  reversibility: '<gap: hysteresis not run>'
   terminal_markers:
   - CXCR5
   - PDCD1
@@ -604,12 +638,14 @@ Treg:
   initial_state: CD4-positive helper T cell
   intermediate_regulators:
   - Foxp3
-  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  persistence_after_cue_removal: 'null: P(program) unchanged by cue (never=transient=sustained~=0.00)
+    -- no cue-driven dynamics on this real dataset'
   pool_sources:
   - tonsil_tcells
   reference:
   - King 2021, Science Immunology (CELLxGENE:033d8138; PMID:33579751)
-  reversibility: '<gap: not tested>'
+  reversibility: 'null: cue-independent on this real dataset (sustained~=never); plasticity-gated hysteresis
+    is a simulation-only property (see 3.4), not measurable here'
   terminal_markers:
   - FOXP3
   - IL2RA
@@ -632,12 +668,14 @@ TrophoblastDiff:
   intermediate_regulators:
   - Gcm1
   - Tfap2c
-  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  persistence_after_cue_removal: 'null: P(program) unchanged by cue (never=transient=sustained~=0.42)
+    -- no cue-driven dynamics on this real dataset'
   pool_sources:
   - trophoblast_organoid
   reference:
   - Arutyunyan 2023, Nature (CELLxGENE:cfd31c69; PMID:36991123)
-  reversibility: '<gap: not tested>'
+  reversibility: 'null: cue-independent on this real dataset (sustained~=never); plasticity-gated hysteresis
+    is a simulation-only property (see 3.4), not measurable here'
   terminal_markers:
   - CGA
   - CGB

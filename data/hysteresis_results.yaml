@@ -1,0 +1,133 @@
+ADM:
+  never: 0.009
+  pathway: oskm_reprog_pancreas
+  persistence_after_cue_removal: 0.009
+  reversibility_drop: 0.0
+  sustained: 0.009
+  transient: 0.009
+Adipogenesis:
+  never: 0.0
+  pathway: adipo_3t3l1
+  persistence_after_cue_removal: 0.0
+  reversibility_drop: 0.0
+  sustained: 0.0
+  transient: 0.0
+EMT:
+  never: 0.0
+  pathway: emt_tnf
+  persistence_after_cue_removal: 0.0
+  reversibility_drop: 0.0
+  sustained: 0.0
+  transient: 0.0
+EndMT:
+  never: 0.0
+  pathway: endmt_huvec
+  persistence_after_cue_removal: 0.0
+  reversibility_drop: 0.0
+  sustained: 0.0
+  transient: 0.0
+Exhaustion:
+  never: 0.0
+  pathway: exhaustion_tumor
+  persistence_after_cue_removal: 0.0
+  reversibility_drop: 0.0
+  sustained: 0.0
+  transient: 0.0
+Fibrosis:
+  never: 0.119
+  pathway: lung_fibrosis
+  persistence_after_cue_removal: 0.119
+  reversibility_drop: 0.0
+  sustained: 0.119
+  transient: 0.119
+GerminalCenter:
+  never: 0.0
+  pathway: tonsil_bcells
+  persistence_after_cue_removal: 0.0
+  reversibility_drop: 0.0
+  sustained: 0.0
+  transient: 0.0
+Hypertrophy:
+  never: 0.295
+  pathway: cardiac_stretch
+  persistence_after_cue_removal: 0.295
+  reversibility_drop: 0.0
+  sustained: 0.295
+  transient: 0.295
+InnateMemory:
+  never: 0.028
+  pathway: trained_immunity2
+  persistence_after_cue_removal: 0.028
+  reversibility_drop: 0.0
+  sustained: 0.028
+  transient: 0.028
+IntestinalDiff:
+  never: 0.0
+  pathway: intestinal_gutatlas
+  persistence_after_cue_removal: 0.0
+  reversibility_drop: 0.0
+  sustained: 0.0
+  transient: 0.0
+MacrophageActivation:
+  never: 0.492
+  pathway: macrophage_m1
+  persistence_after_cue_removal: 0.492
+  reversibility_drop: 0.0
+  sustained: 0.492
+  transient: 0.492
+MyogenicDiff:
+  never: 0.01
+  pathway: myogenesis_human
+  persistence_after_cue_removal: 0.01
+  reversibility_drop: 0.0
+  sustained: 0.01
+  transient: 0.01
+NeuronalDiff:
+  never: 0.056
+  pathway: neuronal_organoid
+  persistence_after_cue_removal: 0.056
+  reversibility_drop: 0.0
+  sustained: 0.056
+  transient: 0.056
+Osteogenesis:
+  never: 0.016
+  pathway: osteo_craniofacial
+  persistence_after_cue_removal: 0.016
+  reversibility_drop: 0.0
+  sustained: 0.016
+  transient: 0.016
+Pluripotency:
+  never: 0.0
+  pathway: pluripotency
+  persistence_after_cue_removal: 0.0
+  reversibility_drop: 0.0
+  sustained: 0.0
+  transient: 0.0
+Regeneration:
+  never: 0.0
+  pathway: muscle_regeneration
+  persistence_after_cue_removal: 0.0
+  reversibility_drop: 0.0
+  sustained: 0.0
+  transient: 0.0
+Senescence:
+  never: 0.0
+  pathway: senescence_ois
+  persistence_after_cue_removal: 0.0
+  reversibility_drop: 0.0
+  sustained: 0.0
+  transient: 0.0
+Treg:
+  never: 0.0
+  pathway: tonsil_tcells
+  persistence_after_cue_removal: 0.0
+  reversibility_drop: 0.0
+  sustained: 0.0
+  transient: 0.0
+TrophoblastDiff:
+  never: 0.419
+  pathway: trophoblast_organoid
+  persistence_after_cue_removal: 0.419
+  reversibility_drop: 0.0
+  sustained: 0.419
+  transient: 0.419

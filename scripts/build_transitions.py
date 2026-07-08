@@ -84,6 +84,30 @@ PATHWAY_ACC = {
 PROGRAM_ACC = {"Erythropoiesis": ["GSE194122"], "Megakaryopoiesis": ["GSE194122"]}
 
 
+def _hyst_reversibility(h):
+    """Interpret the hysteresis result honestly. If the cue doesn't drive the program at all
+    (sustained ~= never), the test is NULL on this real dataset (no manipulated cue signal) --
+    the plasticity-gated hysteresis is a simulation-only property (see 3.4), NOT a real-data readout."""
+    if not h:
+        return "<gap: hysteresis not run>"
+    if h["sustained"] - h["never"] <= 0.05:               # cue does nothing -> uninformative
+        return ("null: cue-independent on this real dataset (sustained~=never); plasticity-gated "
+                "hysteresis is a simulation-only property (see 3.4), not measurable here")
+    drop = h["reversibility_drop"]
+    return (f"drop {drop:+.2f} on cue removal -> "
+            f"{'reversible' if drop > 0.1 else 'persistent/irreversible'} (hysteresis, resistance)")
+
+
+def _hyst_persistence(h):
+    if not h:
+        return "<gap: hysteresis not run>"
+    if h["sustained"] - h["never"] <= 0.05:
+        return (f"null: P(program) unchanged by cue (never=transient=sustained~={h['never']:.2f}) -- "
+                "no cue-driven dynamics on this real dataset")
+    return (f"P(program) transient={h['transient']:.2f} vs sustained={h['sustained']:.2f} "
+            f"vs never={h['never']:.2f} (cue withdrawn; hysteresis, resistance)")
+
+
 def _match_ref(refs, acc):
     """Look up a dataset_refs entry by accession, tolerating GSE-number / UUID-substring keys."""
     if acc in refs:
@@ -122,6 +146,8 @@ def main():
     panel = (yaml.safe_load((DATA_DIR / "marker_panel.yaml").read_text()) or {}).get("panel", {})
     refs_path = DATA_DIR / "dataset_refs.yaml"
     refs = yaml.safe_load(refs_path.read_text()) if refs_path.exists() else {}
+    hyst_path = DATA_DIR / "hysteresis_results.yaml"        # from chromatin-dynamics --save
+    hyst = yaml.safe_load(hyst_path.read_text()) if hyst_path.exists() else {}
 
     # pool provenance: sources + cell counts per program
     pool = DATA_DIR / "cross_pathway_eval.csv"
@@ -156,8 +182,8 @@ def main():
             "terminal_markers": panel.get(p, [])[:10],
             "chromatin_changes": CHROMATIN.get(p, "<gap: no scATAC/Multiome yet>"),
             "time_course": TIME_COURSE.get(p, "<gap: no time-course dataset>"),
-            "reversibility": "<gap: not tested>",
-            "persistence_after_cue_removal": "<gap: hysteresis not run on resistance for this program>",
+            "reversibility": _hyst_reversibility(hyst.get(p)),
+            "persistence_after_cue_removal": _hyst_persistence(hyst.get(p)),
             "evidence_quality": f"{n_src} source(s), {n_cells} cells (capped); labels: {label_type}",
             "pool_sources": sorted(paths),
         }
