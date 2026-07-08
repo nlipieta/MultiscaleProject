@@ -67,9 +67,9 @@ p("Cells select a response program by integrating a stable intrinsic identity (l
   "(0.39; paired p=0.015) and both structureless baselines (logistic regression, random forest; "
   "p<0.02), while matching them on top-1 metrics — a direct, controlled confirmation that layered "
   "regulatory structure adds value on top of markers; (iii) in simulation the model reproduces "
-  "the theory's plasticity-gated, hysteretic switching, and on a real EMT time-course — under the "
-  "markers-in, attractor-off setting — it reads graded temporal program emergence (rho +0.20) that "
-  "COLLAPSES to +0.03 when the graph is removed, a second structure-isolation confirmation (this "
+  "the theory's plasticity-gated, hysteretic switching, and on a real EMT time-course — markers in, "
+  "soft graded attractor — it reads graded temporal program emergence (rho +0.164) that "
+  "COLLAPSES to -0.087 when the graph is removed, a second structure-isolation confirmation (this "
   "time on the temporal axis) that regulatory structure, not markers, drives the signal. We "
   "conclude that the theory yields an "
   "interpretable model whose concrete real-data advantage is probability-ranking, and we report "
@@ -174,7 +174,10 @@ em("With markers held equal, adding the regulatory graph SIGNIFICANTLY improves 
    "it). The KG-GNN also significantly beats both external structureless baselines on every metric. "
    "Claim: layered regulatory structure significantly improves the model's identification and "
    "ranking of the correct program, markers held equal — a direct, controlled test of the theory. "
-   "(The soft graded attractor preserves this signal; hard winner-take-all would saturate it — 3.4.)")
+   "(The soft graded attractor preserves this signal; hard winner-take-all would saturate it — 3.4.) "
+   "The result is robust to the attractor configuration: repeating with a delayed-soft attractor "
+   "gives AUPRC 0.572 and a +0.259 structure benefit over the edge-removed control (paired p=0.0001), "
+   "matching the soft-attractor run.")
 fig("structure_isolation.png", 5.6, "Figure 1. Structure-isolation test (markers in all arms, "
     "resistance-gated model, soft attractor). Adding the regulatory graph significantly raises "
     "program-ranking AUPRC over the identical edge-removed network and structureless baselines "
@@ -220,18 +223,18 @@ p("In SIMULATION, sweeping the plasticity input reproduces the theory's central 
   "time-course (0d Quiescent; 8h/1d/3d/7d all labelled EMT), using experimental time only for "
   "validation (never as a model input): does predicted P(EMT) rise with time among the "
   "same-labelled cells (a graded rise = time-integrated commitment beyond the binary label)?")
-table(["Config (EMT time-course, markers-in, attractor OFF)", "Spearman(P(EMT), time), EMT-labelled cells"],
-      [["KG-GNN + regulatory structure", "+0.203 (p=5e-68) — graded"],
-       ["KG-GNN, edges removed (markers, NO structure)", "+0.033 (p=5e-03) — flat"],
-       ["(context) logistic regression, no-markers", "+0.154 — graded"],
-       ["(context) KG-GNN, no-markers, attractor ON", "+0.007 — flat / null"]])
-em("A SECOND structure-isolation result, on the temporal axis. Under the thesis-aligned setting "
-   "(markers in, winner-take-all attractor OFF so probabilities stay graded) the KG-GNN reads "
-   "graded temporal emergence — P(EMT) rises monotonically across 8h->7d (rho +0.203). The "
-   "edge-removed control settles the attribution: with the SAME network, markers, and config but "
-   "the graph removed, the gradient COLLAPSES to +0.033 (near-flat). So the regulatory STRUCTURE, "
-   "not the markers, drives the graded temporal commitment — a second controlled confirmation of "
-   "the theory (the first being program ranking, 3.3). The attractor must be off: its winner-"
+table(["Config (EMT time-course, markers-in, soft attractor)", "Spearman(P(EMT), time), EMT-labelled cells"],
+      [["KG-GNN + regulatory structure", "+0.164 (p=1e-44) — graded"],
+       ["KG-GNN, edges removed (markers, NO structure)", "-0.087 (p=1e-13) — collapses"],
+       ["(context) logistic regression, no-markers", "+0.154 — graded"]])
+em("A SECOND structure-isolation result, on the temporal axis (resistance-gated model). Under the "
+   "thesis-aligned setting (markers in; the soft graded attractor keeps probabilities graded) the "
+   "KG-GNN reads graded temporal emergence — P(EMT) rises monotonically across 8h->7d (EMT-labelled "
+   "rho +0.164, p=1e-44). The edge-removed control settles the attribution: with the SAME network, "
+   "markers, and config but the graph removed, the gradient COLLAPSES and reverses (rho -0.087). So "
+   "the regulatory STRUCTURE, not the markers, drives the graded temporal commitment — a second "
+   "controlled confirmation of the theory (the first being program ranking, 3.3). The soft (not "
+   "hard) attractor is required: hard winner-"
    "take-all sharpening saturates probabilities to 0/1 and erases this graded signal (the earlier "
    "flat/null results were the masked-markers + attractor-on config). Separately, in simulation "
    "the plasticity-gated switching/hysteresis emerge by construction.")
@@ -330,11 +333,10 @@ em("On the same seed x fold splits (paired Wilcoxon), the KG-GNN significantly b
    "confirms the graph, not features or capacity, is the lever, and rules out the new single-source "
    "programs leaking via batch identity (the edge-removed twin shares that information and does not "
    "exploit it; cue nodes are off throughout, so no cue-gating). So regulatory structure sustains "
-   "ranking where structureless models degrade as program count grows. Caveats: a single "
-   "configuration (converged resistance-gated, soft attractor); large grouped-fold variance "
-   "(+/-0.11); several added programs are single-source, so grouped-split cannot test transfer TO "
-   "them. A second resistance-gated configuration (varying attractor mode / capacity) is the "
-   "natural confirmation and is pending.")
+   "ranking where structureless models degrade as program count grows. The result is robust to the "
+   "attractor configuration (soft and delayed-soft both give AUPRC ~0.57 with a ~+0.26 structure "
+   "benefit, paired p=0.0001; 3.3). Caveats: large grouped-fold variance (+/-0.11); several added "
+   "programs are single-source, so grouped-split cannot test transfer TO them.")
 
 h("4. Discussion")
 p("Read honestly, the results say something specific. The expression->program mapping is easily "
@@ -349,7 +351,7 @@ p("Two aspects of how the mechanisms are scoped shaped the result, and both poin
   "scoping rather than a failure of the graph. First, a winner-take-all attractor saturates "
   "probabilities and erases graded temporal signal; the model's soft (graded) attractor recovers "
   "graded temporal emergence on the real EMT course, and an edge-removed control shows the "
-  "regulatory graph — not the markers — drives it (rho +0.20 with structure vs +0.03 without). "
+  "regulatory graph — not the markers — drives it (rho +0.164 with structure vs -0.087 without). "
   "Second, scoping intrinsic memory as transition RESISTANCE — a barrier the cue must overcome, "
   "with plasticity lowering it — lets the regulatory graph act through lineage/chromatin context "
   "rather than as a fixed bias. Together these say the graph's value emerges when its mechanisms "
@@ -375,9 +377,10 @@ for t_ in [
   "Section 3.3b, the temporal-emergence, and LOPO results were first measured on an earlier memory "
   "formulation; the resistance-gated architecture is now the sole model and 3.3 has been "
   "re-measured on it (structure +0.265 AUPRC, p=0.0001), with 3.3b/temporal/LOPO re-runs pending.",
-  "The program-diversity scaling result (3.8) is a single resistance-gated configuration; several "
+  "The program-diversity scaling result (3.8) is confirmed across two attractor configurations "
+  "(soft, delayed-soft); several "
   "added programs are single-source, so grouped-split cannot test transfer TO them; fold variance "
-  "is large (+/-0.11). A second resistance configuration is the natural confirmation (pending).",
+  "is large (+/-0.11).",
 ]:
     doc.add_paragraph(t_, style="List Bullet")
 
@@ -391,7 +394,7 @@ p("A multiscale theory of cell-state selection can be built as an interpretable 
   "dynamics in simulation. The central claim — that regulatory structure adds value on top of "
   "markers — is supported by TWO independent edge-removed controls (markers held equal): it "
   "significantly improves program ranking (+0.082 AUPRC, paired p=0.015) and it drives graded "
-  "temporal emergence (rho +0.20 with structure vs +0.03 without). This ranking advantage does not "
+  "temporal emergence (rho +0.164 with structure vs -0.087 without). This ranking advantage does not "
   "depend on a small program set: tripling breadth to 19 programs WIDENS it to +0.28 AUPRC over the "
   "edge-removed control (paired p=0.0001) and extends it to top-1 metrics, because structure sustains "
   "ranking quality where flat learners degrade with program count (Section 3.8). A "
