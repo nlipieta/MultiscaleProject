@@ -27,7 +27,7 @@ class ResistanceToggle(nn.Module):
     def __init__(self, kg, hidden=64, steps=6, alpha_memory="learned", resistance=True,
                  plasticity_mode="lower_resistance", attractor="soft", hybrid=True,
                  cue_decay=0.6, attr_iters=3, attr_strength=0.15,
-                 node_ann=None, context_dim=0):
+                 node_ann=None, context_dim=0, use_atac=False):
         super().__init__()
         assert alpha_memory in ("zero", "low", "learned", "full")
         assert plasticity_mode in ("amplify", "lower_resistance", "both", "none")
@@ -38,11 +38,14 @@ class ResistanceToggle(nn.Module):
         self.attractor = attractor
         self.cue_decay = cue_decay
         self.attr_iters, self.attr_strength = attr_iters, attr_strength
+        # use_atac: node input becomes [expression, chromatin-accessibility] (2 channels)
+        # from paired 10x Multiome; default False keeps the RNA-only model byte-identical.
+        self.use_atac = use_atac
 
         # --- shared GNN machinery ---
         self.id_emb = nn.Embedding(kg.num_nodes, hidden)
         self.type_emb = nn.Embedding(kg.num_types, hidden)
-        self.in_proj = nn.Linear(1, hidden)
+        self.in_proj = nn.Linear(2 if use_atac else 1, hidden)
         self.rel_lin = nn.ModuleList([nn.Linear(hidden, hidden, bias=False)
                                       for _ in range(kg.num_relations)])
         self.self_lin = nn.Linear(hidden, hidden, bias=False)
@@ -122,10 +125,11 @@ class ResistanceToggle(nn.Module):
             logits = logits + s * (a - a.mean(dim=-1, keepdim=True))
         return logits
 
-    def forward(self, x0, plasticity=1.0, cue_window=None, context=None):
+    def forward(self, x0, plasticity=1.0, cue_window=None, context=None, atac=None):
         """cue_window: if set, the extrinsic cue is injected only for steps t < cue_window,
         then withdrawn (hysteresis/persistence test). context: optional [B, context_dim]
-        experiment-metadata vector conditioning the graph."""
+        experiment-metadata vector conditioning the graph. atac: optional [B, N] chromatin
+        accessibility per node (paired 10x Multiome); only used when use_atac=True."""
         B = x0.size(0)
         if not torch.is_tensor(plasticity):
             plasticity = torch.full((B, 1), float(plasticity), device=x0.device)
@@ -135,7 +139,11 @@ class ResistanceToggle(nn.Module):
         if self.ann_proj is not None:                             # gene-annotation features
             base_node = base_node + self.ann_proj(self.node_ann)
         base = base_node.unsqueeze(0)
-        xin = self.in_proj(x0.unsqueeze(-1))
+        if self.use_atac:                                         # 2-channel [expression, accessibility]
+            acc = atac if atac is not None else torch.zeros_like(x0)
+            xin = self.in_proj(torch.stack([x0, acc], dim=-1))    # [B,N,2] -> [B,N,H]
+        else:
+            xin = self.in_proj(x0.unsqueeze(-1))                  # [B,N,1] -> [B,N,H]
         mem_inj = xin * self.intrinsic_mask
         cue_inj = xin * self.cue_mask
         h = base.expand(B, -1, -1).contiguous()
