@@ -1,0 +1,566 @@
+# Cell-state transition atlas -- auto-built by scripts/build_transitions.py.
+# One record per program/transition. '<gap: ...>' marks provenance we do not yet have
+# (data to hunt next). Regenerate after adding programs/datasets.
+ADM:
+  chromatin_changes: '<gap: no scATAC/Multiome yet>'
+  cue: Caerulein
+  evidence_quality: '2 source(s), 1172 cells (capped); labels: per-cell'
+  initial_state: Acinar, Acinar.Prolif
+  intermediate_regulators:
+  - Metaplasia
+  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  pool_sources:
+  - ADM_pancreas
+  - pancreatitis2
+  reversibility: '<gap: not tested>'
+  terminal_markers:
+  - KRT19
+  - ONECUT2
+  - MUC1
+  - KRT8
+  - KRT18
+  - CFTR
+  - HNF1B
+  - SPP1
+  - AGR2
+  - KRT7
+  terminal_program: ADM
+  time_course: '<gap: no time-course dataset>'
+Adipogenesis:
+  chromatin_changes: '<gap: no scATAC/Multiome yet>'
+  cue: adipogenic induction cocktail (D0->D5)
+  evidence_quality: '1 source(s), 600 cells (capped); labels: sample/condition-level'
+  initial_state: baseline / progenitor (Quiescent)
+  intermediate_regulators:
+  - Pparg
+  - Cebpa
+  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  pool_sources:
+  - adipo_3t3l1
+  reversibility: '<gap: not tested>'
+  terminal_markers:
+  - PPARG
+  - CEBPA
+  - FABP4
+  - ADIPOQ
+  - LPL
+  - PLIN1
+  - CD36
+  - LEP
+  - CFD
+  - GPD1
+  terminal_program: Adipogenesis
+  time_course: '<gap: no time-course dataset>'
+EMT:
+  chromatin_changes: '<gap: no scATAC/Multiome yet>'
+  cue: TGF-beta / TNF-alpha
+  evidence_quality: '1 source(s), 600 cells (capped); labels: per-cell'
+  initial_state: baseline / progenitor (Quiescent)
+  intermediate_regulators:
+  - Twist1
+  - Snai1
+  - ZEB1
+  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  pool_sources:
+  - emt_tnf
+  reversibility: '<gap: not tested>'
+  terminal_markers:
+  - ZEB2
+  - SNAI2
+  - CDH2
+  - MMP2
+  - MMP9
+  - FN1
+  - SERPINE1
+  - VIM
+  - S100A4
+  - WNT5A
+  terminal_program: EMT
+  time_course: gse147405 (0d/8h/1d/3d/7d); EMT-only Spearman(P,time) rho +0.164 (structure) vs -0.087
+    (edges removed) -- structure drives graded emergence
+EndMT:
+  chromatin_changes: '<gap: no scATAC/Multiome yet>'
+  cue: IL1-beta + TGF-beta2
+  evidence_quality: '1 source(s), 600 cells (capped); labels: sample/condition-level'
+  initial_state: baseline / progenitor (Quiescent)
+  intermediate_regulators:
+  - Snai1
+  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  pool_sources:
+  - endmt_huvec
+  reversibility: '<gap: not tested>'
+  terminal_markers:
+  - SNAI1
+  - SNAI2
+  - ACTA2
+  - CDH2
+  - FN1
+  - TAGLN
+  - VIM
+  - COL1A1
+  - POSTN
+  - S100A4
+  terminal_program: EndMT
+  time_course: '<gap: no time-course dataset>'
+Erythropoiesis:
+  chromatin_changes: 10x Multiome GSE194122 -- scATAC gene-activity as a 2nd input channel (POC)
+  cue: hematopoietic differentiation (HSC -> erythroid)
+  evidence_quality: '0 source(s), 0 cells (capped); labels: not in main pool (POC dataset only)'
+  initial_state: baseline / progenitor (Quiescent)
+  intermediate_regulators:
+  - Gata1
+  - Klf1
+  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  pool_sources: []
+  reversibility: '<gap: not tested>'
+  terminal_markers:
+  - KLF1
+  - GYPA
+  - HBB
+  - HBA1
+  - TFRC
+  - ALAS2
+  - EPOR
+  - SLC4A1
+  - GATA1
+  - AHSP
+  terminal_program: Erythropoiesis
+  time_course: '<gap: no time-course dataset>'
+Exhaustion:
+  chromatin_changes: '<gap: no scATAC/Multiome yet>'
+  cue: chronic TCR stimulation (tumor)
+  evidence_quality: '1 source(s), 600 cells (capped); labels: per-cell'
+  initial_state: baseline / progenitor (Quiescent)
+  intermediate_regulators:
+  - TOX
+  - PDCD1
+  - HAVCR2
+  - LAG3
+  - TIGIT
+  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  pool_sources:
+  - exhaustion_tumor
+  reversibility: '<gap: not tested>'
+  terminal_markers:
+  - PDCD1
+  - HAVCR2
+  - LAG3
+  - TIGIT
+  - TOX
+  - CTLA4
+  - ENTPD1
+  - TOX2
+  - BATF
+  - NR4A1
+  terminal_program: Exhaustion
+  time_course: '<gap: no time-course dataset>'
+Fibrosis:
+  chromatin_changes: '<gap: no scATAC/Multiome yet>'
+  cue: MechanicalStiffness
+  evidence_quality: '3 source(s), 1785 cells (capped); labels: sample/condition-level'
+  initial_state: Fibroblast
+  intermediate_regulators:
+  - TEAD
+  - SWI_SNF
+  - Regeneration
+  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  pool_sources:
+  - cardiac_fibrosis
+  - kidney_fibrosis
+  - lung_fibrosis
+  reversibility: '<gap: not tested>'
+  terminal_markers:
+  - COL1A1
+  - COL3A1
+  - ACTA2
+  - FN1
+  - POSTN
+  - TAGLN
+  - TIMP1
+  - LOX
+  - CCN2
+  - PDGFRB
+  terminal_program: Fibrosis
+  time_course: '<gap: no time-course dataset>'
+GerminalCenter:
+  chromatin_changes: '<gap: no scATAC/Multiome yet>'
+  cue: germinal-center reaction (in vivo)
+  evidence_quality: '1 source(s), 600 cells (capped); labels: per-cell'
+  initial_state: naive B cell
+  intermediate_regulators:
+  - Bcl6
+  - Aicda
+  - Prdm1
+  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  pool_sources:
+  - tonsil_bcells
+  reversibility: '<gap: not tested>'
+  terminal_markers:
+  - AICDA
+  - RGS13
+  - MEF2B
+  - BCL6
+  - PRDM1
+  - XBP1
+  - IRF4
+  - SDC1
+  - MZB1
+  - MKI67
+  terminal_program: GerminalCenter
+  time_course: '<gap: no time-course dataset>'
+Hypertrophy:
+  chromatin_changes: '<gap: no scATAC/Multiome yet>'
+  cue: MechanicalStretch
+  evidence_quality: '2 source(s), 1200 cells (capped); labels: sample/condition-level'
+  initial_state: normal
+  intermediate_regulators:
+  - MEF2
+  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  pool_sources:
+  - cardiac_hcm_human
+  - cardiac_stretch
+  reversibility: '<gap: not tested>'
+  terminal_markers:
+  - NPPA
+  - NPPB
+  - MYH7
+  - ACTA1
+  - MYL2
+  - RCAN1
+  - GATA4
+  - TNNT2
+  - ANKRD1
+  - MYH6
+  terminal_program: Hypertrophy
+  time_course: '<gap: no time-course dataset>'
+InnateMemory:
+  chromatin_changes: '<gap: no scATAC/Multiome yet>'
+  cue: beta-glucan / oxLDL / BCG (trained immunity)
+  evidence_quality: '2 source(s), 1200 cells (capped); labels: sample/condition-level'
+  initial_state: baseline / progenitor (Quiescent)
+  intermediate_regulators:
+  - H3K4me1
+  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  pool_sources:
+  - trained_immunity
+  - trained_immunity2
+  reversibility: '<gap: not tested>'
+  terminal_markers:
+  - IL6
+  - TNF
+  - IL1B
+  - CXCL8
+  - NLRP3
+  - HIF1A
+  - CD14
+  - TLR4
+  - NFKB1
+  - CCL2
+  terminal_program: InnateMemory
+  time_course: '<gap: no time-course dataset>'
+IntestinalDiff:
+  chromatin_changes: '<gap: no scATAC/Multiome yet>'
+  cue: developmental crypt specification
+  evidence_quality: '1 source(s), 600 cells (capped); labels: per-cell'
+  initial_state: intestinal crypt stem cell of large intestine, intestinal crypt stem cell of small intestine,
+    progenitor cell, transit amplifying cell of colon, transit amplifying cell of small intestine
+  intermediate_regulators:
+  - Cdx2
+  - Fabp2
+  - Muc2
+  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  pool_sources:
+  - intestinal_gutatlas
+  reversibility: '<gap: not tested>'
+  terminal_markers:
+  - FABP2
+  - ALPI
+  - APOA4
+  - MUC2
+  - TFF3
+  - SPINK4
+  - CHGA
+  - CHGB
+  - KRT20
+  - VIL1
+  terminal_program: IntestinalDiff
+  time_course: '<gap: no time-course dataset>'
+MacrophageActivation:
+  chromatin_changes: '<gap: no scATAC/Multiome yet>'
+  cue: LPS + IFN-gamma (M1 classical activation)
+  evidence_quality: '1 source(s), 600 cells (capped); labels: sample/condition-level'
+  initial_state: baseline / progenitor (Quiescent)
+  intermediate_regulators:
+  - Irf5
+  - Nos2
+  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  pool_sources:
+  - macrophage_m1
+  reversibility: '<gap: not tested>'
+  terminal_markers:
+  - NOS2
+  - IL1B
+  - TNF
+  - CXCL9
+  - CD86
+  - IRF1
+  - STAT1
+  - CXCL10
+  - IL12B
+  - MARCO
+  terminal_program: MacrophageActivation
+  time_course: '<gap: no time-course dataset>'
+Megakaryopoiesis:
+  chromatin_changes: 10x Multiome GSE194122 -- scATAC gene-activity as a 2nd input channel (POC)
+  cue: hematopoietic differentiation (HSC -> megakaryocytic)
+  evidence_quality: '0 source(s), 0 cells (capped); labels: not in main pool (POC dataset only)'
+  initial_state: baseline / progenitor (Quiescent)
+  intermediate_regulators:
+  - Gata1
+  - Fli1
+  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  pool_sources: []
+  reversibility: '<gap: not tested>'
+  terminal_markers:
+  - PF4
+  - PPBP
+  - ITGA2B
+  - GP1BA
+  - VWF
+  - NFE2
+  - GP9
+  - TUBB1
+  - PLEK
+  - SELP
+  terminal_program: Megakaryopoiesis
+  time_course: '<gap: no time-course dataset>'
+MyogenicDiff:
+  chromatin_changes: '<gap: no scATAC/Multiome yet>'
+  cue: serum withdrawal (myogenic differentiation)
+  evidence_quality: '3 source(s), 522 cells (capped); labels: per-cell'
+  initial_state: MB_cells, MB_nuclei
+  intermediate_regulators:
+  - Smad3
+  - MyoD
+  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  pool_sources:
+  - TGFb_lineage
+  - myogenesis
+  - myogenesis_human
+  reversibility: '<gap: not tested>'
+  terminal_markers:
+  - MYOG
+  - MYF5
+  - MYH3
+  - DES
+  - TNNT3
+  - ACTN2
+  - CKM
+  - TTN
+  - TNNI1
+  - MYBPH
+  terminal_program: MyogenicDiff
+  time_course: '<gap: no time-course dataset>'
+NeuronalDiff:
+  chromatin_changes: '<gap: no scATAC/Multiome yet>'
+  cue: proneural differentiation (developmental; no extrinsic cue)
+  evidence_quality: '1 source(s), 600 cells (capped); labels: per-cell'
+  initial_state: neuronal-restricted precursor, progenitor cell
+  intermediate_regulators:
+  - NeuroD
+  - Dcx
+  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  pool_sources:
+  - neuronal_organoid
+  reversibility: '<gap: not tested>'
+  terminal_markers:
+  - RBFOX3
+  - MAP2
+  - TUBB3
+  - SYP
+  - NEFL
+  - NEFM
+  - STMN2
+  - ELAVL3
+  - SNAP25
+  - GAP43
+  terminal_program: NeuronalDiff
+  time_course: '<gap: no time-course dataset>'
+Osteogenesis:
+  chromatin_changes: '<gap: no scATAC/Multiome yet>'
+  cue: osteogenic differentiation (in vivo ossification; no extrinsic cue)
+  evidence_quality: '1 source(s), 600 cells (capped); labels: per-cell'
+  initial_state: mesenchymal cell
+  intermediate_regulators:
+  - Runx2
+  - Sp7
+  - Bglap
+  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  pool_sources:
+  - osteo_craniofacial
+  reversibility: '<gap: not tested>'
+  terminal_markers:
+  - ALPL
+  - IBSP
+  - SPARC
+  - DLX5
+  - MSX2
+  - COL1A1
+  - SPP1
+  - PHEX
+  - MEPE
+  - SATB2
+  terminal_program: Osteogenesis
+  time_course: '<gap: no time-course dataset>'
+Pluripotency:
+  chromatin_changes: '<gap: no scATAC/Multiome yet>'
+  cue: pluripotency / EB differentiation (no extrinsic cue)
+  evidence_quality: '2 source(s), 602 cells (capped); labels: per-cell'
+  initial_state: cardiac endothelial cell, endothelial cell, epithelial cell, hematopoietic precursor
+    cell, kidney interstitial fibroblast, myeloid lineage restricted progenitor cell, progenitor cell,
+    vein endothelial cell
+  intermediate_regulators:
+  - Smad3
+  - Oct4
+  - NANOG
+  - SOX2
+  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  pool_sources:
+  - TGFb_lineage
+  - pluripotency
+  reversibility: '<gap: not tested>'
+  terminal_markers:
+  - LIN28A
+  - DPPA4
+  - ZFP42
+  - SALL4
+  - DNMT3B
+  - UTF1
+  - TDGF1
+  - PRDM14
+  - ESRRB
+  terminal_program: Pluripotency
+  time_course: '<gap: no time-course dataset>'
+Regeneration:
+  chromatin_changes: '<gap: no scATAC/Multiome yet>'
+  cue: injury / partial hepatectomy / notexin (organ-dependent)
+  evidence_quality: '3 source(s), 1800 cells (capped); labels: sample/condition-level'
+  initial_state: baseline / progenitor (Quiescent)
+  intermediate_regulators:
+  - Blastema
+  - Fibrosis
+  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  pool_sources:
+  - liver_regeneration
+  - lung_regeneration
+  - muscle_regeneration
+  reversibility: '<gap: not tested>'
+  terminal_markers:
+  - MKI67
+  - TOP2A
+  - PCNA
+  - LGR5
+  - ASCL2
+  - CCND1
+  - AXIN2
+  - BIRC5
+  - CENPF
+  terminal_program: Regeneration
+  time_course: '<gap: no time-course dataset>'
+Senescence:
+  chromatin_changes: '<gap: no scATAC/Multiome yet>'
+  cue: oncogene-induced / irradiation / etoposide stress
+  evidence_quality: '1 source(s), 240 cells (capped); labels: per-cell'
+  initial_state: baseline / progenitor (Quiescent)
+  intermediate_regulators:
+  - CDKN1A
+  - CDKN2A
+  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  pool_sources:
+  - senescence_ois
+  reversibility: '<gap: not tested>'
+  terminal_markers:
+  - GLB1
+  - SERPINE1
+  - TP53
+  - CCL2
+  - IGFBP3
+  - IGFBP7
+  - GDF15
+  - CXCL1
+  - MMP3
+  terminal_program: Senescence
+  time_course: '<gap: no time-course dataset>'
+Tfh:
+  chromatin_changes: '<gap: no scATAC/Multiome yet>'
+  cue: follicular microenvironment (in vivo)
+  evidence_quality: '1 source(s), 600 cells (capped); labels: per-cell'
+  initial_state: CD4-positive helper T cell
+  intermediate_regulators:
+  - Bcl6
+  - Cxcr5
+  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  pool_sources:
+  - tonsil_tcells
+  reversibility: '<gap: not tested>'
+  terminal_markers:
+  - CXCR5
+  - PDCD1
+  - ICOS
+  - IL21
+  - BCL6
+  - TOX2
+  - CD200
+  - BTLA
+  - MAF
+  - CD40LG
+  terminal_program: Tfh
+  time_course: '<gap: no time-course dataset>'
+Treg:
+  chromatin_changes: '<gap: no scATAC/Multiome yet>'
+  cue: follicular/regulatory microenvironment (in vivo)
+  evidence_quality: '1 source(s), 600 cells (capped); labels: per-cell'
+  initial_state: CD4-positive helper T cell
+  intermediate_regulators:
+  - Foxp3
+  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  pool_sources:
+  - tonsil_tcells
+  reversibility: '<gap: not tested>'
+  terminal_markers:
+  - FOXP3
+  - IL2RA
+  - CTLA4
+  - IKZF2
+  - TNFRSF18
+  - LRRC32
+  - IL10
+  - TIGIT
+  - IKZF4
+  terminal_program: Treg
+  time_course: '<gap: no time-course dataset>'
+TrophoblastDiff:
+  chromatin_changes: '<gap: no scATAC/Multiome yet>'
+  cue: trophoblast differentiation (CTB -> STB/EVT)
+  evidence_quality: '1 source(s), 600 cells (capped); labels: per-cell'
+  initial_state: placental villous trophoblast
+  intermediate_regulators:
+  - Gcm1
+  - Tfap2c
+  persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
+  pool_sources:
+  - trophoblast_organoid
+  reversibility: '<gap: not tested>'
+  terminal_markers:
+  - CGA
+  - CGB
+  - GCM1
+  - ERVW1
+  - ERVFRD1
+  - CSH1
+  - PSG1
+  - PSG3
+  - INHA
+  - HLA-G
+  terminal_program: TrophoblastDiff
+  time_course: '<gap: no time-course dataset>'
