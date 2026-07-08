@@ -88,10 +88,14 @@ gene_map:
   Runx2: RUNX2
   Sp7: SP7
   Bglap: BGLAP
+  # intestinal-differentiation drivers/markers (CDX2 master -> enterocyte/goblet)
+  Cdx2: CDX2
+  Fabp2: FABP2
+  Muc2: MUC2
 
 # Nodes whose activation is read out as the predicted phenotype.
 program_nodes:
-  [InnateMemory, Fibrosis, Hypertrophy, Regeneration, Pluripotency, MyogenicDiff, ADM, EMT, Senescence, NeuronalDiff, Osteogenesis, Exhaustion]
+  [InnateMemory, Fibrosis, Hypertrophy, Regeneration, Pluripotency, MyogenicDiff, ADM, EMT, Senescence, NeuronalDiff, Osteogenesis, Exhaustion, IntestinalDiff]
 
 nodes:
   # --- Extrinsic cues (inputs) ---
@@ -183,6 +187,11 @@ nodes:
   - {id: Sp7, type: tf, bias: -0.5}
   - {id: Bglap, type: signaling, bias: -0.5}
 
+  # --- New program: intestinal differentiation (CDX2 -> enterocyte/goblet/EEC) ---
+  - {id: Cdx2, type: tf, bias: -0.5}
+  - {id: Fabp2, type: signaling, bias: -0.5}
+  - {id: Muc2, type: signaling, bias: -0.5}
+
   # --- Response programs (outputs) ---
   - {id: InnateMemory, type: program, bias: -0.5}
   - {id: Fibrosis, type: program, bias: -0.5}
@@ -196,6 +205,7 @@ nodes:
   - {id: NeuronalDiff, type: program, bias: -0.5}
   - {id: Osteogenesis, type: program, bias: -0.5}
   - {id: Exhaustion, type: program, bias: -0.5}
+  - {id: IntestinalDiff, type: program, bias: -0.5}
   - {id: ChronicTCR, type: cue, bias: 0.0}
   - {id: NFAT, type: tf, bias: 0.0}
   - {id: TOX, type: tf, bias: 0.0}
@@ -329,3 +339,9 @@ edges:
   - {src: Runx2, rel: ACTIVATES, dst: Osteogenesis, w: 1.0}
   - {src: Sp7, rel: ACTIVATES, dst: Osteogenesis, w: 1.5}
   - {src: Bglap, rel: ACTIVATES, dst: Osteogenesis, w: 1.0}
+
+  # Intestinal differentiation: CDX2 master TF -> absorptive/secretory lineages
+  # (Gao 2009). Fabp2 (enterocyte) + Muc2 (goblet) = differentiated readout markers.
+  - {src: Cdx2, rel: ACTIVATES, dst: IntestinalDiff, w: 1.5}
+  - {src: Fabp2, rel: ACTIVATES, dst: IntestinalDiff, w: 1.0}
+  - {src: Muc2, rel: ACTIVATES, dst: IntestinalDiff, w: 1.0}

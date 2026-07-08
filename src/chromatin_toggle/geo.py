@@ -343,6 +343,28 @@ H5AD: dict[str, H5adDataset] = {
         program_map={"osteoblast": "Osteogenesis", "mesenchymal cell": "Quiescent"},
         cue=None,
     ),
+    # Elmentaite 2021 human fetal gut cell atlas, Epithelium subset (CELLxGENE,
+    # 17.6k cells). NEW program: intestinal differentiation. Differentiated
+    # absorptive/secretory lineages = IntestinalDiff, crypt stem / transit-
+    # amplifying / progenitor = Quiescent. In vivo developmental crypt specification;
+    # no explicit perturbation cue.
+    "IntestinalDiff_gutatlas": H5adDataset(
+        url="https://datasets.cellxgene.cziscience.com/9c8cf5c7-6528-4bf0-b482-7ef38e55fe27.h5ad",
+        cell_type_col="cell_type",
+        program_map={
+            "enterocyte": "IntestinalDiff",
+            "gut absorptive cell": "IntestinalDiff",
+            "intestine goblet cell": "IntestinalDiff",
+            "enteroendocrine cell": "IntestinalDiff",
+            "secretory cell": "IntestinalDiff",
+            "intestinal crypt stem cell of small intestine": "Quiescent",
+            "intestinal crypt stem cell of large intestine": "Quiescent",
+            "transit amplifying cell of small intestine": "Quiescent",
+            "transit amplifying cell of colon": "Quiescent",
+            "progenitor cell": "Quiescent",
+        },
+        cue=None,
+    ),
 }
 
 
