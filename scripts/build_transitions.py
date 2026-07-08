@@ -64,6 +64,36 @@ SAMPLE_LEVEL = {"adipo_3t3l1", "endmt_huvec", "macrophage_m1", "liver_regenerati
                 "lung_fibrosis", "kidney_fibrosis", "cardiac_fibrosis", "cardiac_stretch",
                 "cardiac_hcm_human", "trained_immunity", "trained_immunity2"}
 
+# pool pathway tag -> source dataset accession (keys match data/dataset_refs.yaml)
+PATHWAY_ACC = {
+    "ADM_pancreas": "GSE172380", "pancreatitis2": "GSE188819",
+    "cardiac_stretch": "GSE120064", "cardiac_hcm_human": "CELLxGENE:47a98d37",
+    "lung_fibrosis": "GSE135893", "kidney_fibrosis": "GSE254185",
+    "cardiac_fibrosis": "CELLxGENE:9b7c7203", "trained_immunity": "E-MTAB-9702",
+    "trained_immunity2": "GSE184241", "myogenesis": "GSE168776", "myogenesis_human": "GSE149451",
+    "lung_regeneration": "GSE113049", "muscle_regeneration": "GSE143437",
+    "liver_regeneration": "GSE158866", "pluripotency": "CELLxGENE:734538f1",
+    "TGFb_lineage": "GSE21608", "emt_tnf": "GSE147405", "senescence_ois": "GSE115301",
+    "exhaustion_tumor": "GSE156728", "intestinal_gutatlas": "CELLxGENE:fd89be61",
+    "tonsil_tcells": "CELLxGENE:033d8138", "tonsil_bcells": "CELLxGENE:c0353db0",
+    "trophoblast_organoid": "CELLxGENE:cfd31c69", "neuronal_organoid": "CELLxGENE:0fff1010",
+    "osteo_craniofacial": "CELLxGENE:4d76b7b4", "adipo_3t3l1": "GSE226365",
+    "endmt_huvec": "GSE159843", "macrophage_m1": "GSE161125",
+}
+# programs with a dataset but not (yet) in the main pool
+PROGRAM_ACC = {"Erythropoiesis": ["GSE194122"], "Megakaryopoiesis": ["GSE194122"]}
+
+
+def _match_ref(refs, acc):
+    """Look up a dataset_refs entry by accession, tolerating GSE-number / UUID-substring keys."""
+    if acc in refs:
+        return refs[acc]
+    key = acc.split(":")[-1]
+    for k, v in refs.items():
+        if key and key in k:
+            return v
+    return None
+
 
 def main():
     kg = load_kg(panel=False)          # base cascade only (regulators, not panel markers)
@@ -90,6 +120,8 @@ def main():
                     initial_of[p] = inits
 
     panel = (yaml.safe_load((DATA_DIR / "marker_panel.yaml").read_text()) or {}).get("panel", {})
+    refs_path = DATA_DIR / "dataset_refs.yaml"
+    refs = yaml.safe_load(refs_path.read_text()) if refs_path.exists() else {}
 
     # pool provenance: sources + cell counts per program
     pool = DATA_DIR / "cross_pathway_eval.csv"
@@ -107,9 +139,17 @@ def main():
         sample_lvl = any(pw in SAMPLE_LEVEL for pw in paths)
         label_type = ("sample/condition-level" if sample_lvl and n_src else
                       "per-cell" if n_src else "not in main pool (POC dataset only)")
+        # literature references: this program's dataset accessions -> dataset_refs.yaml
+        accs = [PATHWAY_ACC[pw] for pw in paths if pw in PATHWAY_ACC] + PROGRAM_ACC.get(p, [])
+        matched = [(a, _match_ref(refs, a)) for a in dict.fromkeys(accs)]
+        reference = [f"{r['citation']} ({a}; {r.get('pmid_or_doi','?')})"
+                     for a, r in matched if r] or ["<gap: no literature reference resolved>"]
+        paper_cue = next((r["cue"] for _, r in matched if r and r.get("cue")), None)
         atlas[p] = {
             "terminal_program": p,
-            "cue": cue_of.get(p) or CUE_HINTS.get(p, "<unspecified>"),
+            "cue": paper_cue or cue_of.get(p) or CUE_HINTS.get(p, "<unspecified>"),
+            "cue_source": "literature" if paper_cue else "registry/hint (no paper cue yet)",
+            "reference": reference,
             "initial_state": (", ".join(initial_of[p]) if p in initial_of
                               else "baseline / progenitor (Quiescent)"),
             "intermediate_regulators": regulators.get(p, []),
