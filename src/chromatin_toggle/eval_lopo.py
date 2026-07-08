@@ -7,7 +7,7 @@ all rows whose `pathway != P`, evaluate on `pathway == P`.
 
 Three models are compared per fold so any generalization can be attributed to
 the KG STRUCTURE rather than to the features or the readout:
-  * kg_gnn   -- the real ToggleGNN over the literature KG
+  * kg_gnn   -- the resistance-gated KG-GNN over the literature KG
   * shuffled -- same GNN with the edge SOURCES permuted (degree preserved, wiring
                 destroyed); if kg_gnn doesn't beat this, the KG isn't helping
   * mlp      -- bag-of-genes MLP on the node vector (no graph at all)
@@ -28,7 +28,7 @@ import torch
 import torch.nn as nn
 
 from .kg import DATA_DIR, load_kg
-from .model import ToggleGNN
+from .resistance import ResistanceToggle
 from .oracle import QUIESCENT, all_classes
 
 
@@ -50,7 +50,7 @@ def _build(kind: str, kg, n_classes: int, seed: int, hidden: int = 64, steps: in
     torch.manual_seed(seed)
     if kind == "mlp":
         return BagOfGenesMLP(kg.num_nodes, n_classes, hidden=hidden)
-    model = ToggleGNN(kg, hidden=hidden, steps=steps)
+    model = ResistanceToggle(kg, hidden=hidden, steps=steps)
     if kind == "shuffled":
         # permute the SOURCE axis of each relation's adjacency: keeps per-dst
         # in-degree, destroys which biological source feeds which target.
@@ -156,7 +156,7 @@ def run(data: str, epochs: int, bs: int, lr: float, seed: int,
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Leave-one-pathway-out generalization harness")
-    ap.add_argument("--data", default=str(DATA_DIR / "cross_pathway.csv"))
+    ap.add_argument("--data", default=str(DATA_DIR / "cross_pathway_eval.csv"))
     ap.add_argument("--epochs", type=int, default=80)
     ap.add_argument("--batch-size", type=int, default=256)
     ap.add_argument("--lr", type=float, default=1e-3)
