@@ -376,7 +376,8 @@ for t_ in [
   "The wide-model ablation and perturbation confirmations are pending.",
   "Section 3.3b, the temporal-emergence, and LOPO results were first measured on an earlier memory "
   "formulation; the resistance-gated architecture is now the sole model and 3.3 has been "
-  "re-measured on it (structure +0.265 AUPRC, p=0.0001), with 3.3b/temporal/LOPO re-runs pending.",
+  "re-measured on it (structure +0.265 AUPRC, p=0.0001) and temporal confirmed (rho +0.164 vs "
+  "-0.087 edge-removed); 3.3b and LOPO re-runs on resistance still pending.",
   "The program-diversity scaling result (3.8) is confirmed across two attractor configurations "
   "(soft, delayed-soft); several "
   "added programs are single-source, so grouped-split cannot test transfer TO them; fold variance "
