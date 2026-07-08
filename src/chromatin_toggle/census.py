@@ -25,9 +25,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from .inputs import LEVELS, row_input
 from .kg import DATA_DIR, KnowledgeGraph, load_kg
-from .oracle import all_classes, oracle_label
 
 # Our context names -> CELLxGENE cell_type ontology labels (human).
 # Xenopus / planarian are not in the human Census, so they have no mapping.
@@ -167,30 +165,6 @@ def build_real_contexts(
     return df
 
 
-def make_training_csv(
-    kg: KnowledgeGraph,
-    contexts_df: pd.DataFrame,
-    out_csv: str | Path,
-    levels: tuple[str, ...] = ("low", "med", "high"),
-) -> None:
-    """Cross real memory vectors x cues x levels, label with the mechanistic
-    oracle, and write a CSV for `chromatin-train --data`. Memory is REAL; labels
-    are modeled (bootstrap) -- swap in measured labels for real supervision."""
-    cues = [n for n in kg.node_ids if kg.node_type[kg.node_index[n]] == "cue"]
-    node_cols = list(kg.node_ids)
-    out_rows = []
-    for _, r in contexts_df.iterrows():
-        base = {n: float(r[n]) for n in node_cols if n in r}
-        for cue in cues + [None]:
-            for lvl in (levels if cue else ("high",)):
-                x = row_input(kg, base, cue, lvl)
-                label = oracle_label(kg, x)
-                out_rows.append({**{n: float(x[kg.node_index[n]]) for n in node_cols},
-                                 "label": label})
-    pd.DataFrame(out_rows).to_csv(out_csv, index=False)
-    print(f"[census] wrote {len(out_rows)} real-memory training rows -> {out_csv}")
-
-
 def main() -> None:
     ap = argparse.ArgumentParser(
         description="Build expression-grounded memory contexts from CELLxGENE Census"
@@ -199,8 +173,6 @@ def main() -> None:
     ap.add_argument("--version", default="stable", help="Census version")
     ap.add_argument("--max-cells", type=int, default=2000, help="cells/type cap")
     ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--make-training", default=None,
-                    help="also write a real-memory training CSV to this path")
     args = ap.parse_args()
 
     kg = load_kg()
@@ -211,8 +183,6 @@ def main() -> None:
     print("\nExpression-grounded memory (scaled 0-1), key lineage factors:")
     show = [c for c in ["context", "PU1", "Oct4", "MyoD", "Sox9", "Smad3"] if c in df.columns]
     print(df[show].to_string(index=False))
-    if args.make_training:
-        make_training_csv(kg, df, args.make_training)
 
 
 if __name__ == "__main__":
