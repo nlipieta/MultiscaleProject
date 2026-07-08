@@ -26,12 +26,12 @@ from chromatin_toggle.kg import DATA_DIR
 
 TAR = DATA_DIR / "geo_cache" / "GSE159843_RAW.tar"
 OUT = DATA_DIR / "endmt.csv"
-SAMPLES = [
-    ("GSM4848247_Day0_filtered_gene_bc_matrices_h5.h5", "Quiescent"),
-    ("GSM4848248_Cont_Day3_filtered_gene_bc_matrices_h5.h5", "Quiescent"),
-    ("GSM4848249_EndMT_Day3_filtered_gene_bc_matrices_h5.h5", "EndMT"),
-    ("GSM4848250_Cont_Day7_filtered_gene_bc_matrices_h5.h5", "Quiescent"),
-    ("GSM4848251_EndMT_Day7_filtered_gene_bc_matrices_h5.h5", "EndMT"),
+SAMPLES = [  # (member, program label, timepoint in days)
+    ("GSM4848247_Day0_filtered_gene_bc_matrices_h5.h5", "Quiescent", 0),
+    ("GSM4848248_Cont_Day3_filtered_gene_bc_matrices_h5.h5", "Quiescent", 3),
+    ("GSM4848249_EndMT_Day3_filtered_gene_bc_matrices_h5.h5", "EndMT", 3),
+    ("GSM4848250_Cont_Day7_filtered_gene_bc_matrices_h5.h5", "Quiescent", 7),
+    ("GSM4848251_EndMT_Day7_filtered_gene_bc_matrices_h5.h5", "EndMT", 7),
 ]
 
 
@@ -42,7 +42,7 @@ def main() -> None:
     try:
         adatas = []
         with tarfile.open(TAR) as tar:
-            for member, label in SAMPLES:
+            for member, label, day in SAMPLES:
                 src = tar.extractfile(member)
                 if src is None:
                     raise SystemExit(f"member {member} not in {TAR.name}")
@@ -53,8 +53,9 @@ def main() -> None:
                 a.var_names_make_unique()
                 tag = member.split("_filtered")[0]
                 a.obs["_label"] = label
+                a.obs["_timepoint"] = float(day)           # days since cue (EndMT time course)
                 a.obs_names = [f"{tag}_{b}" for b in a.obs_names]
-                print(f"  {tag}: {a.n_obs} cells x {a.n_vars} genes -> {label}")
+                print(f"  {tag}: {a.n_obs} cells x {a.n_vars} genes -> {label} (day {day})")
                 adatas.append(a)
         adata = ad.concat(adatas, join="outer", index_unique=None)
         adata.var_names_make_unique()
@@ -66,7 +67,7 @@ def main() -> None:
         ingest_h5ad_percell(
             tmp_h5ad, OUT, cell_type_col="_label",
             program_map={"EndMT": "EndMT", "Quiescent": "Quiescent"},
-            cue=None,
+            cue=None, time_col="_timepoint",
         )
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

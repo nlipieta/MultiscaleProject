@@ -148,6 +148,8 @@ def main():
     refs = yaml.safe_load(refs_path.read_text()) if refs_path.exists() else {}
     hyst_path = DATA_DIR / "hysteresis_results.yaml"        # from chromatin-dynamics --save
     hyst = yaml.safe_load(hyst_path.read_text()) if hyst_path.exists() else {}
+    tres_path = DATA_DIR / "temporal_results.yaml"          # from chromatin-temporal --save
+    tres = yaml.safe_load(tres_path.read_text()) if tres_path.exists() else {}
 
     # pool provenance: sources + cell counts per program
     pool = DATA_DIR / "cross_pathway_eval.csv"
@@ -181,7 +183,11 @@ def main():
             "intermediate_regulators": regulators.get(p, []),
             "terminal_markers": panel.get(p, [])[:10],
             "chromatin_changes": CHROMATIN.get(p, "<gap: no scATAC/Multiome yet>"),
-            "time_course": TIME_COURSE.get(p, "<gap: no time-course dataset>"),
+            "time_course": (
+                (f"{tres[p]['target']}: {tres[p]['n_timepoints']} timepoints, EMT-style "
+                 f"Spearman(P,time) rho={tres[p]['rho_program']} (p={tres[p]['p']}), "
+                 f"edges={tres[p]['edges']}") if p in tres
+                else TIME_COURSE.get(p, "<gap: no time-course dataset>")),
             "reversibility": _hyst_reversibility(hyst.get(p)),
             "persistence_after_cue_removal": _hyst_persistence(hyst.get(p)),
             "evidence_quality": f"{n_src} source(s), {n_cells} cells (capped); labels: {label_type}",

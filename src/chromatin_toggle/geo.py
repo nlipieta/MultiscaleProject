@@ -527,12 +527,15 @@ def ingest_h5ad_percell(h5ad: Path, out: Path, cell_type_col: str,
                         program_map: dict[str, str], cue: str | None,
                         level: float = 1.0, layer: str | None = None,
                         normalize: bool = True, drop_unmapped: bool = True,
-                        max_cells: int | None = None, seed: int = 0) -> None:
+                        max_cells: int | None = None, seed: int = 0,
+                        time_col: str | None = None) -> None:
     """Per-cell ingestion of an AnnData .h5ad (e.g. a CELLxGENE dataset).
 
     Labels come from obs[cell_type_col] via program_map; genes named in gene_map
     are read from X (or a named layer), CP10K+log1p normalized if `normalize`,
     then min-max scaled across cells. cue (if given) is applied uniformly.
+    time_col (optional) = an obs column of numeric time -> written as a `timepoint`
+    column so the result can be a temporal-trajectory target (chromatin-temporal).
     """
     import anndata as ad
     import numpy as np
@@ -549,6 +552,11 @@ def ingest_h5ad_percell(h5ad: Path, out: Path, cell_type_col: str,
         idx = np.random.default_rng(seed).choice(idx, max_cells, replace=False)
     adata = adata[idx]
     prog = prog.iloc[idx]
+    times = None
+    if time_col is not None:
+        if time_col not in adata.obs.columns:
+            raise SystemExit(f"obs has no time_col '{time_col}'. Columns: {list(adata.obs.columns)}")
+        times = adata.obs[time_col].astype(float).to_numpy()
 
     # CELLxGENE h5ads index var by Ensembl ID; gene symbols live in feature_name.
     symbols = (adata.var["feature_name"] if "feature_name" in adata.var.columns
@@ -576,7 +584,7 @@ def ingest_h5ad_percell(h5ad: Path, out: Path, cell_type_col: str,
         X[:, node_cols.index(node)] = 0.0 if hi <= lo else (col - lo) / (hi - lo)
     print(f"  normalization: {'CP10K+log1p (raw counts)' if do_cp10k else 'min-max only (pre-normalized)'}")
 
-    header = node_cols + ["label"]
+    header = node_cols + ["label"] + (["timepoint"] if times is not None else [])
     lines = [",".join(header)]
     counts = {}
     labels = prog.to_numpy()
@@ -584,7 +592,10 @@ def ingest_h5ad_percell(h5ad: Path, out: Path, cell_type_col: str,
         row = {node_cols[j]: X[i, j] for j in range(len(node_cols))}
         if cue and cue in kg.node_index:              # uniform per dataset (NOT gated by
             row[cue] = level                          # outcome -- gating leaked the label)
-        lines.append(",".join(f"{row[c]}" if c != "label" else labels[i] for c in header))
+        vals = [f"{row[c]}" for c in node_cols] + [labels[i]]
+        if times is not None:
+            vals.append(f"{times[i]}")
+        lines.append(",".join(vals))
         counts[labels[i]] = counts.get(labels[i], 0) + 1
     out.write_text("\n".join(lines) + "\n")
     print(f"\nIngested {h5ad.name} ({adata.n_obs} cells) -> {out}")

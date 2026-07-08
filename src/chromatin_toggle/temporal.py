@@ -57,6 +57,7 @@ def main():
                     help="GNN minibatch; BIG (1024-4096) is much faster on GPU (launch-bound model)")
     ap.add_argument("--compile", action="store_true",
                     help="torch.compile(reduce-overhead) the GNN training forward (cuda only)")
+    ap.add_argument("--save", default=None, help="append this program's rho to a temporal-results YAML")
     args = ap.parse_args()
 
     kg = load_kg()
@@ -131,6 +132,20 @@ def main():
     print("Caveat: for time-course datasets the 0-timepoint IS the Quiescent label, so the")
     print("all-cells correlation partly reflects labelling; the program-only correlation is")
     print("the non-circular test.")
+
+    if args.save:
+        import yaml
+        p = Path(args.save)
+        existing = yaml.safe_load(p.read_text()) if p.exists() else {}
+        existing[args.program] = {
+            "rho_program": (round(float(rho_prog), 3) if rho_prog == rho_prog else None),
+            "p": (f"{p_prog_p:.1e}" if p_prog_p == p_prog_p else None),
+            "rho_all": round(float(rho_all), 3),
+            "n_timepoints": len(set(tp)), "target": Path(args.target).stem,
+            "edges": not args.no_edges, "model": args.model,
+        }
+        p.write_text(yaml.safe_dump(existing, sort_keys=True))
+        print(f"saved temporal result -> {args.save}")
 
 
 if __name__ == "__main__":
