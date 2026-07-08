@@ -105,10 +105,13 @@ gene_map:
   # adipogenesis drivers/markers (PPARG master + CEBPA)
   Pparg: PPARG
   Cebpa: CEBPA
+  # M1 macrophage classical-activation drivers (IRF5 + iNOS)
+  Irf5: IRF5
+  Nos2: NOS2
 
 # Nodes whose activation is read out as the predicted phenotype.
 program_nodes:
-  [InnateMemory, Fibrosis, Hypertrophy, Regeneration, Pluripotency, MyogenicDiff, ADM, EMT, Senescence, NeuronalDiff, Osteogenesis, Exhaustion, IntestinalDiff, Tfh, Treg, GerminalCenter, TrophoblastDiff, Adipogenesis, EndMT]
+  [InnateMemory, Fibrosis, Hypertrophy, Regeneration, Pluripotency, MyogenicDiff, ADM, EMT, Senescence, NeuronalDiff, Osteogenesis, Exhaustion, IntestinalDiff, Tfh, Treg, GerminalCenter, TrophoblastDiff, Adipogenesis, EndMT, MacrophageActivation]
 
 nodes:
   # --- Extrinsic cues (inputs) ---
@@ -224,6 +227,10 @@ nodes:
 
   # (EndMT uses the existing Snai1 node -- see EMT cascade -- so no new driver node)
 
+  # --- New program: M1 macrophage classical activation (IRF5/iNOS) ---
+  - {id: Irf5, type: tf, bias: -0.5}
+  - {id: Nos2, type: signaling, bias: -0.5}
+
   # --- Response programs (outputs) ---
   - {id: InnateMemory, type: program, bias: -0.5}
   - {id: Fibrosis, type: program, bias: -0.5}
@@ -244,6 +251,7 @@ nodes:
   - {id: TrophoblastDiff, type: program, bias: -0.5}
   - {id: Adipogenesis, type: program, bias: -0.5}
   - {id: EndMT, type: program, bias: -0.5}
+  - {id: MacrophageActivation, type: program, bias: -0.5}
   - {id: ChronicTCR, type: cue, bias: 0.0}
   - {id: NFAT, type: tf, bias: 0.0}
   - {id: TOX, type: tf, bias: 0.0}
@@ -409,3 +417,7 @@ edges:
   # -> mesenchymal (Kovacic 2019). Shares mesenchymal effectors with EMT; the
   # endothelial baseline (PECAM1/CDH5) is what distinguishes the two.
   - {src: Snai1, rel: ACTIVATES, dst: EndMT, w: 1.5}
+
+  # M1 macrophage classical activation: IRF5 + iNOS/Nos2 effector (Krausgruber 2011).
+  - {src: Irf5, rel: ACTIVATES, dst: MacrophageActivation, w: 1.5}
+  - {src: Nos2, rel: ACTIVATES, dst: MacrophageActivation, w: 1.0}

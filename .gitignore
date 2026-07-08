@@ -36,3 +36,5 @@ data/tonsil_bcell_gc.csv
 data/trophoblast_organoid.csv
 data/adipogenesis.csv
 data/endmt.csv
+data/macrophage_activation.csv
+data/liver_regen.csv
