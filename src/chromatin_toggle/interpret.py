@@ -15,7 +15,8 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from .dynamics import ToggleDynamics, _load, train
+from .resistance import ResistanceToggle
+from .dynamics import _load, train
 from .kg import DATA_DIR, load_kg
 from .oracle import QUIESCENT, all_classes
 
@@ -71,7 +72,7 @@ def main():
     k = int(X.size(0) * args.val_frac)
     va, tr = perm[:k], perm[k:]
 
-    model = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps)
+    model = ResistanceToggle(kg, hidden=args.hidden, steps=args.steps)
     train(model, X[tr], y[tr], args.epochs, 256, 1e-3, args.seed)
 
     base_pred = _predict(model, X[va])

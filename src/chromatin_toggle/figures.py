@@ -17,7 +17,8 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from .dynamics import ToggleDynamics, _load, _mask_input, train, class_weights
+from .resistance import ResistanceToggle
+from .dynamics import _load, _mask_input, train, class_weights
 from .kg import DATA_DIR, load_kg
 from .oracle import all_classes
 
@@ -37,7 +38,7 @@ def _confusion(data, subN, epochs, steps, seed):
     perm = torch.randperm(X.size(0), generator=torch.Generator().manual_seed(seed + 1))
     k = int(X.size(0) * 0.25)
     va, tr = perm[:k], perm[k:]
-    m = ToggleDynamics(kg, hidden=64, steps=steps)  # improved config
+    m = ResistanceToggle(kg, hidden=64, steps=steps)  # improved config
     train(m, X[tr], y[tr], epochs, 256, 1e-3, seed, weights=class_weights(y[tr], len(classes)))
     m.eval()
     with torch.no_grad():

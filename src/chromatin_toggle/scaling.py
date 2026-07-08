@@ -15,7 +15,8 @@ import numpy as np
 import torch
 
 from .device import pick_device
-from .dynamics import ToggleDynamics, _load, _mask_input, train
+from .resistance import ResistanceToggle
+from .dynamics import _load, _mask_input, train
 from .kg import DATA_DIR, load_kg
 from .oracle import QUIESCENT, all_classes
 
@@ -72,7 +73,7 @@ def main():
                 continue
             sub = pool[torch.randperm(len(pool), generator=g)[:N]]
             torch.manual_seed(s)
-            m = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps).to(dev)
+            m = ResistanceToggle(kg, hidden=args.hidden, steps=args.steps).to(dev)
             train(m, X[sub], y[sub], args.epochs, args.batch_size, 1e-3, s, compile=args.compile)
             acc, prog = _eval(m, X[te], y[te], classes, prog_cols)
             rows[N]["acc"].append(acc); rows[N]["prog"].append(prog)

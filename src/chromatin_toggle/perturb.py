@@ -21,7 +21,8 @@ import numpy as np
 import torch
 
 from .device import pick_device
-from .dynamics import ToggleDynamics, _load, _mask_input, train, class_weights
+from .resistance import ResistanceToggle
+from .dynamics import _load, _mask_input, train, class_weights
 from .kg import DATA_DIR, load_kg
 from .oracle import QUIESCENT, all_classes
 
@@ -87,7 +88,7 @@ def main():
 
     w = class_weights(y[torch.tensor(tr)], n_classes)
     torch.manual_seed(args.seed)
-    m = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps).to(dev)
+    m = ResistanceToggle(kg, hidden=args.hidden, steps=args.steps).to(dev)
     train(m, X[tr], y[tr], args.epochs, args.batch_size, 1e-3, args.seed, weights=w, compile=args.compile)
 
     Xte = X[torch.tensor(te)]

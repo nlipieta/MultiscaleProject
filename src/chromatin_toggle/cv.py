@@ -14,7 +14,8 @@ import numpy as np
 import torch
 
 from .device import pick_device
-from .dynamics import ToggleDynamics, _load, _mask_input, train, class_weights, predict
+from .resistance import ResistanceToggle
+from .dynamics import _load, _mask_input, train, class_weights, predict
 from .kg import DATA_DIR, load_kg
 from .oracle import QUIESCENT, all_classes
 
@@ -75,7 +76,7 @@ def main():
         tr = torch.tensor(np.concatenate([folds[i] for i in range(args.kfolds) if i != f]), dtype=torch.long)
         w = class_weights(y[tr], len(classes)) if args.class_weight else None
         torch.manual_seed(args.seed)
-        m = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps).to(dev)
+        m = ResistanceToggle(kg, hidden=args.hidden, steps=args.steps).to(dev)
         train(m, X[tr], y[tr], args.epochs, 256, 1e-3, args.seed, weights=w)
         pred = predict(m, X[te])
         acc = float((pred == y[te]).float().mean())
