@@ -99,9 +99,10 @@ DEFAULT_SOURCES = [
     ("data/gse113049_regeneration.csv",  "lung_regeneration",   "scRNA"),       # Regeneration
     ("data/gse143437_regeneration.csv",  "muscle_regeneration", "scRNA"),       # Regeneration
     ("data/eb_pluripotency.csv",         "pluripotency",        "scRNA"),       # Pluripotency
-    ("data/GSE21608.csv",                "TGFb_lineage",        "microarray"),  # TGF-beta
+    # (GSE21608 dropped 2026-07-08: it is a bulk microarray (Mullen 2011), not scRNA -- no place
+    #  in a single-cell pool.)
     # breadth: second, independent source per program (different tissue/organism)
-    ("data/gse188819_adm.csv",           "pancreatitis2",       "scRNA"),       # ADM (caerulein)
+    ("data/gse188819_adm.csv",           "oskm_reprog_pancreas", "scRNA"),      # ADM via OSKM reprogramming (Melendez 2022), NOT caerulein -- relabeled from "pancreatitis2"
     ("data/hcm_hypertrophy.csv",         "cardiac_hcm_human",   "scRNA"),       # Hypertrophy (human)
     ("data/gse254185_fibrosis.csv",      "kidney_fibrosis",     "scRNA"),       # Fibrosis (kidney)
     ("data/gse149451_myogenesis.csv",    "myogenesis_human",    "scRNA"),       # MyogenicDiff (human)

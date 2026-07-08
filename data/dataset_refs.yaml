@@ -79,9 +79,9 @@ GSE159843:
   pmid_or_doi: "PMID:33703914"
   cue: "HUVEC + IL-1-beta + TGF-beta2 up to 7 d, inducing endothelial-to-mesenchymal transition"
 GSE161125:
-  citation: "(cue confirmed at ingestion; publication pending literature pass)"
-  pmid_or_doi: "unconfirmed"
-  cue: "Mouse BMDM: M0 resting vs M1 (LPS + IFN-gamma) classical activation"
+  citation: "Co-stimulation with opposing macrophage polarization cues (2021)"
+  pmid_or_doi: "PMID:33436596"
+  cue: "Mouse BMDM: media control vs LPS+IFN-gamma (M1) vs IL-4 (M2) vs co-stimulation; we use M0 resting vs M1 (LPS+IFN-gamma) classical activation"
 GSE194122:
   citation: "Luecken 2021, NeurIPS Datasets & Benchmarks (proceedings)"
   pmid_or_doi: "not PubMed-indexed (NeurIPS 2021 proceedings)"

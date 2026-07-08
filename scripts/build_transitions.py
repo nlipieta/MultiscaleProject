@@ -66,7 +66,7 @@ SAMPLE_LEVEL = {"adipo_3t3l1", "endmt_huvec", "macrophage_m1", "liver_regenerati
 
 # pool pathway tag -> source dataset accession (keys match data/dataset_refs.yaml)
 PATHWAY_ACC = {
-    "ADM_pancreas": "GSE172380", "pancreatitis2": "GSE188819",
+    "ADM_pancreas": "GSE172380", "oskm_reprog_pancreas": "GSE188819",
     "cardiac_stretch": "GSE120064", "cardiac_hcm_human": "CELLxGENE:47a98d37",
     "lung_fibrosis": "GSE135893", "kidney_fibrosis": "GSE254185",
     "cardiac_fibrosis": "CELLxGENE:9b7c7203", "trained_immunity": "E-MTAB-9702",

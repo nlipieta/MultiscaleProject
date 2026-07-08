@@ -13,7 +13,7 @@ ADM:
   persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
   pool_sources:
   - ADM_pancreas
-  - pancreatitis2
+  - oskm_reprog_pancreas
   reference:
   - Ma 2021, Gastroenterology (GSE172380; PMID:34695382)
   - Melendez 2022, Development (GSE188819; PMID:35420133)
@@ -332,7 +332,8 @@ IntestinalDiff:
   time_course: '<gap: no time-course dataset>'
 MacrophageActivation:
   chromatin_changes: '<gap: no scATAC/Multiome yet>'
-  cue: 'Mouse BMDM: M0 resting vs M1 (LPS + IFN-gamma) classical activation'
+  cue: 'Mouse BMDM: media control vs LPS+IFN-gamma (M1) vs IL-4 (M2) vs co-stimulation; we use M0 resting
+    vs M1 (LPS+IFN-gamma) classical activation'
   cue_source: literature
   evidence_quality: '1 source(s), 600 cells (capped); labels: sample/condition-level'
   initial_state: baseline / progenitor (Quiescent)
@@ -343,7 +344,7 @@ MacrophageActivation:
   pool_sources:
   - macrophage_m1
   reference:
-  - (cue confirmed at ingestion; publication pending literature pass) (GSE161125; unconfirmed)
+  - Co-stimulation with opposing macrophage polarization cues (2021) (GSE161125; PMID:33436596)
   reversibility: '<gap: not tested>'
   terminal_markers:
   - NOS2
@@ -391,19 +392,17 @@ MyogenicDiff:
   chromatin_changes: '<gap: no scATAC/Multiome yet>'
   cue: C2C12 myoblast-to-myotube differentiation (serum withdrawal); LR-Split-seq methods paper
   cue_source: literature
-  evidence_quality: '3 source(s), 522 cells (capped); labels: per-cell'
+  evidence_quality: '2 source(s), 520 cells (capped); labels: per-cell'
   initial_state: MB_cells, MB_nuclei
   intermediate_regulators:
   - Smad3
   - MyoD
   persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
   pool_sources:
-  - TGFb_lineage
   - myogenesis
   - myogenesis_human
   reference:
   - Rebboah 2021, Genome Biology (GSE168776; PMID:34620214)
-  - Mullen 2011, Cell (GSE21608; PMID:22036565)
   - Al Tanoury 2020, Development (GSE149451; PMID:32541004)
   reversibility: '<gap: not tested>'
   terminal_markers:
@@ -483,7 +482,7 @@ Pluripotency:
   cue: Endothelial-to-hematopoietic transition during iPSC embryoid-body differentiation; FGF (FGF23)
     a barrier to EHT
   cue_source: literature
-  evidence_quality: '2 source(s), 602 cells (capped); labels: per-cell'
+  evidence_quality: '1 source(s), 600 cells (capped); labels: per-cell'
   initial_state: cardiac endothelial cell, endothelial cell, epithelial cell, hematopoietic precursor
     cell, kidney interstitial fibroblast, myeloid lineage restricted progenitor cell, progenitor cell,
     vein endothelial cell
@@ -494,11 +493,9 @@ Pluripotency:
   - SOX2
   persistence_after_cue_removal: '<gap: hysteresis not run on resistance for this program>'
   pool_sources:
-  - TGFb_lineage
   - pluripotency
   reference:
   - Wellington 2025, Stem Cell Reports (CELLxGENE:734538f1; PMID:40972587)
-  - Mullen 2011, Cell (GSE21608; PMID:22036565)
   reversibility: '<gap: not tested>'
   terminal_markers:
   - LIN28A
