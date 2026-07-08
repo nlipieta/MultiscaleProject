@@ -335,10 +335,14 @@ em("On the same seed x fold splits (paired Wilcoxon), the KG-GNN significantly b
    "quadrupled (+0.07 -> +0.28). The edge-removed model again collapsing onto logistic regression "
    "confirms the graph, not features or capacity, is the lever, and rules out the new single-source "
    "programs leaking via batch identity (the edge-removed twin shares that information and does not "
-   "exploit it; cue nodes are off throughout, so no cue-gating). Caveats: a single configuration; "
-   "large grouped-fold variance (+/-0.11); several added programs are single-source, so grouped-split "
-   "cannot test transfer TO them. A second-configuration confirmation is in progress before this is "
-   "treated as more than a single-config finding.")
+   "exploit it; cue nodes are off throughout, so no cue-gating). The finding is NOT architecture-"
+   "specific: repeating it with the initial re-injection formulation (arch=toggle, attractor off) on "
+   "a 20-program pool gives the same picture — KG-GNN AUPRC 0.579 vs logistic regression 0.302 / "
+   "random forest 0.305 / edge-removed 0.335, i.e. +0.240 over logistic regression and +0.238 over "
+   "the edge-removed control (both paired p=0.0001), again also leading top-1. So across two "
+   "architectures and two pool sizes (19 and 20 programs), regulatory structure sustains ranking "
+   "where structureless models degrade. Caveats: large grouped-fold variance (+/-0.11), and several "
+   "added programs are single-source, so grouped-split cannot test transfer TO them.")
 
 h("4. Discussion")
 p("Read honestly, the results say something specific. The expression->program mapping is easily "
@@ -375,9 +379,9 @@ for t_ in [
   "annotations; EMT and Senescence are single-source; interpretability is weak for EMT/Pluripotency.",
   "ADM's simulated dynamics are marker-dependent. Models are small; convergence was compute-limited.",
   "The wide-model ablation and perturbation confirmations are pending.",
-  "The 19-program scaling result (3.8) is a single configuration; several added programs are "
-  "single-source, so grouped-split cannot test transfer TO them. A second-configuration "
-  "confirmation is in progress.",
+  "The program-diversity scaling result (3.8) is confirmed across two architectures (resistance "
+  "and re-injection) but several added programs are single-source, so grouped-split cannot test "
+  "transfer TO them; fold variance is large (+/-0.11).",
 ]:
     doc.add_paragraph(t_, style="List Bullet")
 
@@ -394,7 +398,8 @@ p("A multiscale theory of cell-state selection can be built as an interpretable 
   "temporal emergence (rho +0.20 with structure vs +0.03 without). This ranking advantage does not "
   "depend on a small program set: tripling breadth to 19 programs WIDENS it to +0.28 AUPRC over the "
   "edge-removed control (paired p=0.0001) and extends it to top-1 metrics, because structure sustains "
-  "ranking quality where flat learners degrade with program count (single-config; Section 3.8). A "
+  "ranking quality where flat learners degrade with program count — confirmed across two "
+  "architectures (Section 3.8). A "
   "blanket top-1 classification "
   "win is NOT claimed (the model matches, not beats, on argmax), which we report directly. The "
   "contribution is a credibility-controlled framework and an honest map of where a mechanistic "
