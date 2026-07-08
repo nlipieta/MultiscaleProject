@@ -24,8 +24,8 @@ import pandas as pd
 import torch
 
 from .device import pick_device
-from .dynamics import (ToggleDynamics, _load, _mask_input, train, class_weights,
-                       predict_proba)
+from .dynamics import _load, _mask_input, train, class_weights, predict_proba
+from .resistance import ResistanceToggle
 from .kg import DATA_DIR, load_kg
 from .oracle import QUIESCENT, all_classes
 
@@ -46,11 +46,8 @@ def main():
     ap.add_argument("--hidden", type=int, default=64)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--device", default="auto")
-    ap.add_argument("--attractor", choices=["on", "off"], default="on",
-                    help="WTA attractor sharpening (off = honest graded classifier, no forced fate)")
     ap.add_argument("--no-edges", action="store_true",
                     help="remove the graph (markers-without-structure control) to isolate structure")
-    ap.add_argument("--arch", choices=["toggle", "resistance"], default="toggle")
     ap.add_argument("--attractor-mode",
                     choices=["none", "hard_wta", "soft", "delayed_soft", "learned"], default="soft")
     ap.add_argument("--plasticity-mode",
@@ -102,14 +99,9 @@ def main():
         dev = pick_device(args.device)
         w = class_weights(yp, len(classes))
         torch.manual_seed(args.seed)
-        if args.arch == "resistance":
-            from .resistance import ResistanceToggle
-            model = ResistanceToggle(kg, hidden=args.hidden, steps=args.steps,
-                                     attractor=args.attractor_mode, plasticity_mode=args.plasticity_mode,
-                                     alpha_memory=args.alpha_memory).to(dev)
-        else:
-            model = ToggleDynamics(kg, hidden=args.hidden, steps=args.steps,
-                                   attractor=(args.attractor == "on")).to(dev)
+        model = ResistanceToggle(kg, hidden=args.hidden, steps=args.steps,
+                                 attractor=args.attractor_mode, plasticity_mode=args.plasticity_mode,
+                                 alpha_memory=args.alpha_memory).to(dev)
         if args.no_edges:
             model.adjacency.zero_()
         train(model, Xp, yp, args.epochs, args.batch_size, 1e-3, args.seed, weights=w, compile=args.compile)

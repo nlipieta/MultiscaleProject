@@ -8,7 +8,7 @@ a grouped k-fold CV (whole datasets held out, so no batch leakage):
   * logreg     -- multinomial logistic regression (linear baseline)
   * rforest    -- random forest (non-linear, feature-interaction baseline)
   * gboost     -- gradient boosting (strong tabular baseline; sklearn, no xgboost dep)
-  * kg_gnn     -- the ToggleDynamics multiscale model over the literature KG
+  * kg_gnn     -- the resistance-gated KG-GNN over the literature KG
 
 All models see the identical masked node-vector (default no_markers, so the
 program-marker shortcut is removed for everyone). Reported per model: overall
@@ -25,8 +25,8 @@ import numpy as np
 import torch
 
 from .device import pick_device
-from .dynamics import (ToggleDynamics, _load, _mask_input, train, class_weights,
-                       predict, predict_proba)
+from .dynamics import _load, _mask_input, train, class_weights, predict, predict_proba
+from .resistance import ResistanceToggle
 from .kg import DATA_DIR, load_kg
 from .oracle import QUIESCENT, all_classes
 
@@ -91,15 +91,10 @@ def _fit_sklearn(kind, Xtr, ytr, Xte, n_classes, class_weight, seed):
 
 
 def _fit_gnn(kg, Xtr, ytr, Xte, n_classes, hidden, steps, epochs, class_weight, seed,
-             device, attractor=True, no_edges=False, arch="toggle", rcfg=None, bs=256,
-             compile=False):
+             device, no_edges=False, rcfg=None, bs=256, compile=False):
     w = class_weights(ytr, n_classes) if class_weight else None
     torch.manual_seed(seed)
-    if arch == "resistance":                       # resistance-gated / competence-gated KG-GNN
-        from .resistance import ResistanceToggle
-        m = ResistanceToggle(kg, hidden=hidden, steps=steps, **(rcfg or {})).to(device)
-    else:
-        m = ToggleDynamics(kg, hidden=hidden, steps=steps, attractor=attractor).to(device)
+    m = ResistanceToggle(kg, hidden=hidden, steps=steps, **(rcfg or {})).to(device)  # the KG-GNN
     if no_edges:                                   # markers-without-structure control
         m.adjacency.zero_()
     train(m, Xtr, ytr, epochs, bs, 1e-3, seed, weights=w, compile=compile)
@@ -125,12 +120,8 @@ def main():
     ap.add_argument("--steps", type=int, default=6, help="GNN message-passing rounds")
     ap.add_argument("--hidden", type=int, default=64)
     ap.add_argument("--no-gnn", action="store_true", help="skip the (slow) KG-GNN")
-    ap.add_argument("--attractor", choices=["on", "off"], default="on",
-                    help="WTA attractor sharpening; 'off' = honest graded classifier (no forced fate)")
     ap.add_argument("--structure-test", action="store_true",
                     help="add kg_gnn_noedges (same model, graph removed) to isolate structure's value")
-    ap.add_argument("--arch", choices=["toggle", "resistance"], default="toggle",
-                    help="GNN family: toggle (original) or resistance (resistance-gated)")
     ap.add_argument("--alpha-memory", choices=["zero", "low", "learned", "full"], default="learned")
     ap.add_argument("--resistance-gate", choices=["on", "off"], default="on")
     ap.add_argument("--plasticity-mode",
@@ -167,7 +158,6 @@ def main():
     gnn_models = [] if args.no_gnn else (["kg_gnn", "kg_gnn_noedges"] if args.structure_test else ["kg_gnn"])
     model_list = list(args.models) + gnn_models
     dev = pick_device(args.device)
-    attractor = args.attractor == "on"
     rcfg = dict(alpha_memory=args.alpha_memory, resistance=(args.resistance_gate == "on"),
                 plasticity_mode=args.plasticity_mode, attractor=args.attractor_mode)
     seeds = args.seeds if args.seeds else [args.seed]
@@ -177,8 +167,8 @@ def main():
           f"class_weight={args.class_weight} device={dev} seeds={seeds}")
     print(f"classes={n_classes} gene-columns-in-data={n_gene_cols} "
           f"(~42=narrow, ~148=WIDE) models={model_list}")
-    print(f"GNN: hidden={args.hidden} steps={args.steps} epochs={args.epochs} "
-          f"batch_size={args.batch_size} compile={args.compile} arch={args.arch}  "
+    print(f"GNN: resistance-gated | hidden={args.hidden} steps={args.steps} epochs={args.epochs} "
+          f"batch_size={args.batch_size} compile={args.compile} attractor={args.attractor_mode}  "
           f"(memory scales with batch_size; ~1024 fits a 22GB GPU at hidden128/steps8)\n")
 
     Xnp = X.numpy(); ynp = y.numpy()
@@ -194,9 +184,8 @@ def main():
                     try:
                         pred, proba = _fit_gnn(kg, X[tr], y[tr], X[te], n_classes, args.hidden,
                                                args.steps, args.epochs, args.class_weight, s, dev,
-                                               attractor=attractor, no_edges=m.endswith("noedges"),
-                                               arch=args.arch, rcfg=rcfg, bs=args.batch_size,
-                                               compile=args.compile)
+                                               no_edges=m.endswith("noedges"),
+                                               rcfg=rcfg, bs=args.batch_size, compile=args.compile)
                     except torch.cuda.OutOfMemoryError:
                         torch.cuda.empty_cache()
                         raise SystemExit(
