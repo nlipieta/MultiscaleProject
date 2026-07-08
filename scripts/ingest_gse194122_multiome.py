@@ -106,16 +106,21 @@ def main():
     node_by_sym = {s.upper(): n for n, s in kg.gene_map.items()}   # symbol -> KG node
     want = set(node_by_sym)
 
-    print(f"[multiome] reading {args.h5ad} ...")
-    a = ad.read_h5ad(args.h5ad)
-    ft = a.var["feature_types"].astype(str)
-    prog = a.obs["cell_type"].astype(str).map(program_of)
-    keep = prog.notna().to_numpy()
-    idx = np.where(keep)[0]
+    # BACKED mode: open with X left ON DISK; obs/var (small) come into memory so we can decide
+    # which cells to keep, then materialize ONLY those rows. Avoids loading the full ~70k x 124k
+    # matrix just to discard most of it (the expensive step + the usual Colab OOM).
+    print(f"[multiome] opening {args.h5ad} BACKED (obs only; X stays on disk) ...")
+    a = ad.read_h5ad(args.h5ad, backed="r")
+    prog = a.obs["cell_type"].astype(str).map(program_of)         # obs only -> no X read
+    idx = np.where(prog.notna().to_numpy())[0]                    # keep Erythro/Mega/HSC cells
     if args.max_cells and idx.size > args.max_cells:
         idx = np.random.default_rng(0).choice(idx, args.max_cells, replace=False)
-    a = a[idx]; prog = prog.iloc[idx]
-    print(f"[multiome] {a.n_obs} labelled cells; programs: {prog.value_counts().to_dict()}")
+    idx.sort()
+    print(f"[multiome] {idx.size} of {a.n_obs} cells kept; reading only those rows off disk ...")
+    a = a[idx].to_memory()                                        # materialize ONLY the kept rows
+    prog = prog.iloc[idx]
+    ft = a.var["feature_types"].astype(str)
+    print(f"[multiome] programs: {prog.value_counts().to_dict()}")
 
     gex = a[:, (ft == "GEX").to_numpy()]
     atac = a[:, (ft == "ATAC").to_numpy()]
