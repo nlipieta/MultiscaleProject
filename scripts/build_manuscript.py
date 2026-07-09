@@ -159,31 +159,30 @@ p("The core hypothesis — cellular state is shaped by LAYERED regulatory contex
   "structure. We test this directly with markers included in BOTH arms (mask=none), isolating "
   "structure as the only variable: the full resistance-gated KG-GNN vs the IDENTICAL network with "
   "the graph edges removed (kg_gnn_noedges) — same architecture, capacity, features, and markers. "
-  "Converged (hidden 128, 8 steps, 120 epochs), 5-fold x 3-seed grouped CV on the full 20-program / "
-  "21-class pool; the soft (graded) attractor preserves probability ranking (hard winner-take-all "
-  "would saturate it). Paired Wilcoxon over the same seed x fold splits.")
-table(["Model (markers in all, 20 programs)", "macro-AUPRC", "prog-recall", "vs KG-GNN AUPRC (paired)"],
-      [["KG-GNN (markers + structure)", "0.570", "0.370", "—"],
-       ["KG-GNN, edges removed (markers, no structure)", "0.310", "0.191", "+0.265, p=0.0001 *"],
-       ["Logistic regression (no structure)", "0.302", "0.213", "+0.278, p=0.0001 *"],
-       ["Random forest (no structure)", "0.305", "0.092", "+0.273, p=0.0001 *"]])
+  "Converged (hidden 128, 8 steps, 80 epochs), 5-fold x 3-seed grouped CV on the full 22-program / "
+  "23-class pool; the soft (graded) attractor preserves probability ranking (hard winner-take-all "
+  "would saturate it). Thesis-faithful model (per-step memory re-injection removed; Section 2.1). "
+  "Paired Wilcoxon over the same seed x fold splits.")
+table(["Model (markers in all, 22 programs)", "macro-AUPRC", "prog-recall", "vs KG-GNN AUPRC (paired)"],
+      [["KG-GNN (markers + structure)", "0.529", "0.230", "—"],
+       ["KG-GNN, edges removed (markers, no structure)", "0.272", "0.183", "+0.255, p=0.0001 *"],
+       ["Logistic regression (no structure)", "0.271", "0.200", "+0.278, p=0.0004 *"],
+       ["Random forest (no structure)", "0.279", "0.064", "+0.283, p=0.0006 *"]])
 em("With markers held equal, adding the regulatory graph SIGNIFICANTLY improves program "
-   "probability-ranking (+0.265 AUPRC over the edge-removed control, paired p=0.0001). The control "
-   "is decisive: removing the graph from the same network drops AUPRC to 0.310 — right onto the "
-   "logistic-regression level (0.302) — so the structure, not capacity or features, is the lever, "
-   "and the new single-source programs are not leaking via batch identity (the edge-removed twin "
-   "shares that information and does not exploit it). NOTE: the numbers in this table are the "
-   "pre-correction run (with per-step memory re-injection). On the thesis-faithful model (re-injection "
-   "removed; Section 2.1) the ranking gap is CONFIRMED (no-markers: +0.275 AUPRC over edge-removed, "
-   "p=0.0001; Section 3.3b), but the recall/top-1 lead does NOT survive — it was an artifact of the "
-   "re-injection term and is withdrawn. The markers-in headline is being re-measured on the corrected "
-   "model; the ranking claim is the robust, reported result. "
-   "Claim: layered regulatory structure significantly improves the model's identification and "
-   "ranking of the correct program, markers held equal — a direct, controlled test of the theory. "
-   "(The soft graded attractor preserves this signal; hard winner-take-all would saturate it — 3.4.) "
-   "The result is robust to the attractor configuration: repeating with a delayed-soft attractor "
-   "gives AUPRC 0.572 and a +0.259 structure benefit over the edge-removed control (paired p=0.0001), "
-   "matching the soft-attractor run.")
+   "probability-ranking (+0.255 AUPRC over the edge-removed control, paired p=0.0001). The control "
+   "is decisive: removing the graph from the same network drops AUPRC to 0.272 — right onto the "
+   "logistic-regression level (0.271) and random forest (0.279) — so the structure, not capacity or "
+   "features, is the lever, and the new single-source programs are not leaking via batch identity "
+   "(the edge-removed twin shares that information and does not exploit it). The advantage is specific "
+   "to RANKING: on top-1 the model is competitive, not superior (it ties logistic regression on program "
+   "recall, +0.017, p=0.33). This result is on the thesis-faithful model with the per-step memory "
+   "re-injection removed; the ranking gap is unchanged from the pre-correction run (+0.265 -> +0.255) "
+   "and matches the no-markers view (+0.275, p=0.0001; Section 3.3b), so the structure advantage does "
+   "NOT depend on that term. (An earlier configuration reported a top-1 lead here; it was traced to "
+   "re-injection and is withdrawn.) "
+   "Claim: layered regulatory structure significantly improves the model's ranking of the correct "
+   "program, markers held equal — a direct, controlled test of the theory. "
+   "(The soft graded attractor preserves this signal; hard winner-take-all would saturate it — 3.4.)")
 fig("structure_isolation.png", 5.6, "Figure 1. Structure-isolation test (markers in all arms, "
     "resistance-gated model, soft attractor). Adding the regulatory graph significantly raises "
     "program-ranking AUPRC over the identical edge-removed network and structureless baselines "
