@@ -202,7 +202,10 @@ def main():
                 a, b, p, f1, auprc = _metrics(pred, proba, ynp[te], n_classes, prog_cols)
                 scores[m]["acc"].append(a); scores[m]["bal"].append(b); scores[m]["prog"].append(p)
                 scores[m]["f1"].append(f1); scores[m]["auprc"].append(auprc)
-        print(f"  seed {s} done ({args.kfolds} folds)")
+            gnn_a = scores.get("kg_gnn", {}).get("auprc", [])
+            tail = f"  (kg_gnn AUPRC this fold {gnn_a[-1]:.3f})" if gnn_a else ""
+            print(f"  seed {s} fold {f + 1}/{args.kfolds} done{tail}", flush=True)  # live heartbeat
+        print(f"  seed {s} done ({args.kfolds} folds)", flush=True)
 
     print(f"\n{args.kfolds}-fold CV x {len(seeds)} seed(s) (mask={args.mask}, "
           f"class_weight={args.class_weight}):")
