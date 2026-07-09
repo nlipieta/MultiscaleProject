@@ -64,6 +64,8 @@ def main():
                     help="GNN minibatch; BIG (1024-4096) is much faster on GPU (launch-bound model)")
     ap.add_argument("--compile", action="store_true",
                     help="torch.compile(reduce-overhead) the GNN training forward (cuda only)")
+    ap.add_argument("--amp", action="store_true",
+                    help="fp16 mixed precision (tensor cores) -- ~1.9x on T4 (cuda only)")
     args = ap.parse_args()
     dev = pick_device(args.device)
 
@@ -89,7 +91,8 @@ def main():
     w = class_weights(y[torch.tensor(tr)], n_classes)
     torch.manual_seed(args.seed)
     m = ResistanceToggle(kg, hidden=args.hidden, steps=args.steps).to(dev)
-    train(m, X[tr], y[tr], args.epochs, args.batch_size, 1e-3, args.seed, weights=w, compile=args.compile)
+    train(m, X[tr], y[tr], args.epochs, args.batch_size, 1e-3, args.seed, weights=w,
+          compile=args.compile, amp=args.amp)
 
     Xte = X[torch.tensor(te)]
     yte = y[torch.tensor(te)].numpy()

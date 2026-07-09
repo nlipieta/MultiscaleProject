@@ -91,13 +91,13 @@ def _fit_sklearn(kind, Xtr, ytr, Xte, n_classes, class_weight, seed):
 
 
 def _fit_gnn(kg, Xtr, ytr, Xte, n_classes, hidden, steps, epochs, class_weight, seed,
-             device, no_edges=False, rcfg=None, bs=256, compile=False):
+             device, no_edges=False, rcfg=None, bs=256, compile=False, amp=False):
     w = class_weights(ytr, n_classes) if class_weight else None
     torch.manual_seed(seed)
     m = ResistanceToggle(kg, hidden=hidden, steps=steps, **(rcfg or {})).to(device)  # the KG-GNN
     if no_edges:                                   # markers-without-structure control
         m.adjacency.zero_()
-    train(m, Xtr, ytr, epochs, bs, 1e-3, seed, weights=w, compile=compile)
+    train(m, Xtr, ytr, epochs, bs, 1e-3, seed, weights=w, compile=compile, amp=amp)
     pred, proba = predict(m, Xte).numpy(), predict_proba(m, Xte).numpy()
     del m                                          # release GPU memory before the next fold
     if torch.cuda.is_available():
@@ -133,6 +133,8 @@ def main():
     ap.add_argument("--compile", action="store_true",
                     help="torch.compile(reduce-overhead) the GNN training forward -> CUDA graphs "
                          "collapse the per-step kernel launches (big win for this tiny launch-bound KG; cuda only)")
+    ap.add_argument("--amp", action="store_true",
+                    help="fp16 mixed precision (tensor cores) -- ~1.9x on T4, the main measured speedup (cuda only)")
     ap.add_argument("--save-folds", default=None, help="write per-(seed,fold) metrics to this CSV")
     ap.add_argument("--models", nargs="*",
                     default=["majority", "logreg", "rforest", "gboost"],
@@ -184,7 +186,8 @@ def main():
                         pred, proba = _fit_gnn(kg, X[tr], y[tr], X[te], n_classes, args.hidden,
                                                args.steps, args.epochs, args.class_weight, s, dev,
                                                no_edges=m.endswith("noedges"),
-                                               rcfg=rcfg, bs=args.batch_size, compile=args.compile)
+                                               rcfg=rcfg, bs=args.batch_size, compile=args.compile,
+                                               amp=args.amp)
                     except torch.cuda.OutOfMemoryError:
                         torch.cuda.empty_cache()
                         raise SystemExit(

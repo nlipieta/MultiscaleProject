@@ -56,6 +56,8 @@ def main():
                     help="GNN minibatch; BIG (1024-4096) is much faster on GPU (launch-bound model)")
     ap.add_argument("--compile", action="store_true",
                     help="torch.compile(reduce-overhead) the GNN training forward (cuda only)")
+    ap.add_argument("--amp", action="store_true",
+                    help="fp16 mixed precision (tensor cores) -- ~1.9x on T4 (cuda only)")
     ap.add_argument("--save", default=None, help="append this program's rho to a temporal-results YAML")
     args = ap.parse_args()
 
@@ -104,7 +106,8 @@ def main():
                                  plasticity_mode=args.plasticity_mode).to(dev)
         if args.no_edges:
             model.adjacency.zero_()
-        train(model, Xp, yp, args.epochs, args.batch_size, 1e-3, args.seed, weights=w, compile=args.compile)
+        train(model, Xp, yp, args.epochs, args.batch_size, 1e-3, args.seed, weights=w,
+              compile=args.compile, amp=args.amp)
         p_prog = predict_proba(model, Xt)[:, prog_i].numpy()
 
     # --- trajectory: mean P(program) per real timepoint ---

@@ -52,6 +52,8 @@ def main():
                     help="GNN minibatch; BIG (1024-4096) is much faster on GPU (launch-bound model)")
     ap.add_argument("--compile", action="store_true",
                     help="torch.compile(reduce-overhead) the GNN training forward (cuda only)")
+    ap.add_argument("--amp", action="store_true",
+                    help="fp16 mixed precision (tensor cores) -- ~1.9x on T4 (cuda only)")
     args = ap.parse_args()
     dev = pick_device(args.device)
 
@@ -74,7 +76,8 @@ def main():
             sub = pool[torch.randperm(len(pool), generator=g)[:N]]
             torch.manual_seed(s)
             m = ResistanceToggle(kg, hidden=args.hidden, steps=args.steps).to(dev)
-            train(m, X[sub], y[sub], args.epochs, args.batch_size, 1e-3, s, compile=args.compile)
+            train(m, X[sub], y[sub], args.epochs, args.batch_size, 1e-3, s,
+                  compile=args.compile, amp=args.amp)
             acc, prog = _eval(m, X[te], y[te], classes, prog_cols)
             rows[N]["acc"].append(acc); rows[N]["prog"].append(prog)
             print(f"  seed {s} N={N:6d}  acc {acc:.3f}  program-recall {prog:.3f}")
