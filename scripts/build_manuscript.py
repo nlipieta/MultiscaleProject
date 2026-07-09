@@ -168,13 +168,16 @@ table(["Model (markers in all, 20 programs)", "macro-AUPRC", "prog-recall", "vs 
        ["Logistic regression (no structure)", "0.302", "0.213", "+0.278, p=0.0001 *"],
        ["Random forest (no structure)", "0.305", "0.092", "+0.273, p=0.0001 *"]])
 em("With markers held equal, adding the regulatory graph SIGNIFICANTLY improves program "
-   "probability-ranking (+0.265 AUPRC over the edge-removed control, paired p=0.0001) AND program "
-   "recall (+0.148, p=0.0001) — on this converged 20-program model the structure advantage now "
-   "covers top-1, not only ranking. The control is decisive: removing the graph from the same "
-   "network drops AUPRC to 0.310 — right onto the logistic-regression level (0.302) — so the "
-   "structure, not capacity or features, is the lever, and the new single-source programs are not "
-   "leaking via batch identity (the edge-removed twin shares that information and does not exploit "
-   "it). The KG-GNN also significantly beats both external structureless baselines on every metric. "
+   "probability-ranking (+0.265 AUPRC over the edge-removed control, paired p=0.0001). The control "
+   "is decisive: removing the graph from the same network drops AUPRC to 0.310 — right onto the "
+   "logistic-regression level (0.302) — so the structure, not capacity or features, is the lever, "
+   "and the new single-source programs are not leaking via batch identity (the edge-removed twin "
+   "shares that information and does not exploit it). NOTE: the numbers in this table are the "
+   "pre-correction run (with per-step memory re-injection). On the thesis-faithful model (re-injection "
+   "removed; Section 2.1) the ranking gap is CONFIRMED (no-markers: +0.275 AUPRC over edge-removed, "
+   "p=0.0001; Section 3.3b), but the recall/top-1 lead does NOT survive — it was an artifact of the "
+   "re-injection term and is withdrawn. The markers-in headline is being re-measured on the corrected "
+   "model; the ranking claim is the robust, reported result. "
    "Claim: layered regulatory structure significantly improves the model's identification and "
    "ranking of the correct program, markers held equal — a direct, controlled test of the theory. "
    "(The soft graded attractor preserves this signal; hard winner-take-all would saturate it — 3.4.) "
@@ -189,32 +192,36 @@ fig("structure_isolation.png", 5.6, "Figure 1. Structure-isolation test (markers
 
 h("3.3b Cross-dataset classification vs baselines (no-markers view)", 2)
 p("Widened inputs, 5-fold x 3-seed grouped CV, markers removed, class-weighted (mean +/- std over "
-  "the 15 seed x fold estimates). The KG-GNN is the top model on macro-AUPRC — the metric that "
-  "matters for imbalanced multiclass — by a consistent ~19% relative margin, while trailing on the "
-  "argmax metrics at this compute budget.")
-table(["Model", "prog recall", "balanced acc", "macro-F1", "macro-AUPRC"],
-      [["KG-GNN", "0.270 +/-0.13", "0.319 +/-0.10", "0.136 +/-0.05", "0.472 +/-0.11"],
-       ["Random forest", "0.324 +/-0.16", "0.377 +/-0.12", "0.194 +/-0.06", "0.397 +/-0.13"],
-       ["Logistic regression", "0.307 +/-0.18", "0.365 +/-0.13", "0.161 +/-0.05", "0.396 +/-0.16"],
-       ["Gradient boosting", "0.211 +/-0.12", "0.345 +/-0.09", "0.173 +/-0.05", "0.392 +/-0.16"],
-       ["Majority class", "0.000", "0.220 +/-0.02", "0.138 +/-0.02", "0.154 +/-0.04"]])
+  "the 15 seed x fold estimates), converged (epochs 80) on the thesis-faithful model (per-step "
+  "memory re-injection removed; Section 2.1). The KG-GNN is the top model on macro-AUPRC — the "
+  "metric that matters for imbalanced multiclass — by a large margin (0.530 vs ~0.27 for every "
+  "structureless learner), while on the argmax metrics it is competitive, NOT superior (it does not "
+  "lead balanced-accuracy or macro-F1).")
+table(["Model (thesis-faithful: no re-injection; 22 programs)", "prog recall", "balanced acc", "macro-F1", "macro-AUPRC"],
+      [["KG-GNN (markers + structure)", "0.237 +/-0.12", "0.268 +/-0.10", "0.110 +/-0.05", "0.530 +/-0.11"],
+       ["KG-GNN, edges removed (no structure)", "0.184 +/-0.15", "0.202 +/-0.12", "0.069 +/-0.04", "0.273 +/-0.11"],
+       ["Random forest", "0.067 +/-0.06", "0.212 +/-0.04", "0.140 +/-0.04", "0.277 +/-0.12"],
+       ["Logistic regression", "0.202 +/-0.14", "0.257 +/-0.12", "0.101 +/-0.06", "0.270 +/-0.12"],
+       ["Gradient boosting", "0.149 +/-0.10", "0.268 +/-0.07", "0.124 +/-0.07", "0.264 +/-0.12"],
+       ["Majority class", "0.000", "0.164 +/-0.02", "0.106 +/-0.01", "0.102 +/-0.02"]])
 p("Significance (paired Wilcoxon signed-rank over the same seed x fold splits — the correct test, "
   "which controls for fold difficulty):")
 table(["KG-GNN vs", "AUPRC edge", "p-value"],
-      [["Logistic regression", "+0.069", "0.008 (significant)"],
-       ["Random forest", "+0.058", "0.018 (significant)"],
-       ["Majority", "+0.278", "0.0001 (significant)"]])
-em("The KG-GNN's macro-AUPRC advantage over both strong baselines is STATISTICALLY SIGNIFICANT "
-   "(p<0.02) on the paired test. The marginal +/-1 std ranges overlap only because grouped-fold "
-   "variance is large; paired (same folds), the edge is significant. The advantage is specific to "
-   "AUPRC (probability ranking): on prog-recall the model ties logistic regression (p=0.85) and "
-   "beats random forest (p=1e-4). The edge is consistent across every configuration (single-seed "
-   "0.500, multi-seed 0.477); widening inputs (42->148 genes) lifted all models ~0.03-0.05 AUPRC. "
-   "Argmax metrics trail at epochs-40 (under-convergence) and recover to competitive when converged "
-   "(recall 0.437 / balanced-acc 0.382, single seed). Interpretation: structure improves program "
-   "RANKING over structureless learners, significantly, while matching them on top-1 decisions. "
-   "This edge does not shrink as the program set grows — on a 19-program pool it widens and extends "
-   "to top-1 metrics (Section 3.8).")
+      [["Edge-removed twin (structure control)", "+0.275", "0.0001 (significant)"],
+       ["Logistic regression", "+0.277", "0.0004 (significant)"],
+       ["Random forest", "+0.275", "0.0004 (significant)"],
+       ["Gradient boosting", "+0.271", "0.0003 (significant)"]])
+em("The KG-GNN's macro-AUPRC advantage is large and STATISTICALLY SIGNIFICANT on the paired test "
+   "against every structureless learner (+0.27 to +0.28, p<=0.0004) AND against its own edge-removed "
+   "twin (+0.275, p=0.0001). The control is decisive: the edge-removed twin collapses to 0.273 — "
+   "right onto logistic regression (0.270) and random forest (0.277) — so the GRAPH, not features or "
+   "capacity, is the lever. The advantage is specific to probability-RANKING (AUPRC): on the argmax "
+   "metrics the model is competitive, not superior — it ties logistic regression on program recall "
+   "(+0.015, p=0.30) and does not lead balanced-accuracy or macro-F1. IMPORTANT: an earlier "
+   "configuration reported a top-1 lead here; that lead was traced to the per-step memory re-injection "
+   "term (Section 2.1 / ablation 3.4b) and is WITHDRAWN — with re-injection removed as thesis-required, "
+   "the honest claim is a ranking advantage, top-1 parity. The ranking edge is robust: it survives "
+   "removing re-injection (this run) and holds across attractor configurations (3.3).")
 
 h("3.4 Theory dynamics: simulation vs a real time-course", 2)
 p("In SIMULATION, sweeping the plasticity input reproduces the theory's central behavior: at low "
@@ -330,9 +337,9 @@ em("On the same seed x fold splits (paired Wilcoxon), the KG-GNN significantly b
    "unchanged from the 12/13-program pool (0.53 -> 0.54), while the structureless models degrade "
    "sharply as programs triple (logistic regression, random forest, and the edge-removed network all "
    "fall from ~0.40 to ~0.29). Regulatory structure thus buys ROBUSTNESS to program diversity: it "
-   "sustains ranking quality where flat learners do not, and the advantage — ranking-only and modest "
-   "on 12 programs — now also covers top-1 (balanced accuracy, program recall) and is roughly "
-   "quadrupled (+0.07 -> +0.28). The edge-removed model again collapsing onto logistic regression "
+   "sustains ranking quality where flat learners do not, and the ranking advantage — modest "
+   "on 12 programs — is roughly quadrupled (+0.07 -> +0.28) as breadth grows (top-1 stays competitive, "
+   "not superior). The edge-removed model again collapsing onto logistic regression "
    "confirms the graph, not features or capacity, is the lever, and rules out the new single-source "
    "programs leaking via batch identity (the edge-removed twin shares that information and does not "
    "exploit it; cue nodes are off throughout, so no cue-gating). So regulatory structure sustains "
@@ -359,8 +366,9 @@ p("Two aspects of how the mechanisms are scoped shaped the result, and both poin
   "with plasticity lowering it — lets the regulatory graph act through lineage/chromatin context "
   "rather than as a fixed bias. Together these say the graph's value emerges when its mechanisms "
   "are scoped to their biological roles (graded attractor, memory-as-inertia): with that scoping "
-  "the regulatory structure contributes on ranking, top-1, and temporally under honest grouped-"
-  "dataset evaluation. The gains are modest, and on cross-dataset classification the model remains "
+  "the regulatory structure contributes on program RANKING and temporally under honest grouped-"
+  "dataset evaluation (top-1 competitive, not superior). The gains are modest, and on cross-dataset "
+  "classification the model remains "
   "competitive rather than dominant; but the direction consistently supports the theory that "
   "lineage/chromatin context sets a transition barrier the cue must overcome.")
 
@@ -392,15 +400,16 @@ for t_ in [
 h("6. Conclusion")
 p("A multiscale theory of cell-state selection can be built as an interpretable knowledge-graph "
   "GNN and evaluated honestly on real multi-source single-cell data. After removing a label leak, "
-  "the model's reproducible real-data advantage is program probability-ranking (macro-AUPRC ~0.48 "
-  "vs ~0.40 baselines, paired p<0.02) on the hard cross-dataset-transfer regime; it matches baselines on top-1 "
-  "metrics once converged, recovers known regulators, and reproduces the theory's plasticity-gated "
+  "the model's reproducible real-data advantage is program probability-ranking (macro-AUPRC ~0.53 "
+  "vs ~0.27 baselines, paired p<=0.0004) on the hard cross-dataset-transfer regime; it is competitive "
+  "not superior on top-1 metrics, recovers known regulators, and reproduces the theory's plasticity-gated "
   "dynamics in simulation. The central claim — that regulatory structure adds value on top of "
-  "markers — is supported by TWO independent edge-removed controls (markers held equal): it "
-  "significantly improves program ranking (+0.082 AUPRC, paired p=0.015) and it drives graded "
+  "markers — is supported by TWO independent edge-removed controls (features held equal, only edges "
+  "removed): it significantly improves program ranking (+0.275 AUPRC, paired p=0.0001, thesis-faithful "
+  "model) and it drives graded "
   "temporal emergence (rho +0.164 with structure vs -0.087 without). This ranking advantage does not "
-  "depend on a small program set: tripling breadth to 19 programs WIDENS it to +0.28 AUPRC over the "
-  "edge-removed control (paired p=0.0001) and extends it to top-1 metrics, because structure sustains "
+  "depend on a small program set: tripling breadth to ~20 programs WIDENS it to +0.28 AUPRC over the "
+  "edge-removed control (paired p=0.0001), because structure sustains "
   "ranking quality where flat learners degrade with program count (Section 3.8). A "
   "blanket top-1 classification "
   "win is NOT claimed (the model matches, not beats, on argmax), which we report directly. The "
