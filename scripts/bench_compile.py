@@ -26,9 +26,11 @@ def _sync(dev):
         torch.cuda.synchronize()
 
 
-def run(compile_mode, X, y, w, kg, dev, hidden, steps, bs, lr, epochs, sparse=False):
+def run(compile_mode, X, y, w, kg, dev, hidden, steps, bs, lr, epochs, sparse=False, amp=False):
     torch.manual_seed(0)
     m = ResistanceToggle(kg, hidden=hidden, steps=steps, sparse_adj=sparse).to(dev)
+    use_amp = amp and dev.type == "cuda"
+    scaler = torch.amp.GradScaler(dev.type, enabled=use_amp)
     opt = torch.optim.AdamW(m.parameters(), lr=lr)
     lossf = nn.CrossEntropyLoss(weight=w.to(dev))
     n = X.size(0)
@@ -48,8 +50,11 @@ def run(compile_mode, X, y, w, kg, dev, hidden, steps, bs, lr, epochs, sparse=Fa
         for i in range(0, stop, bs):
             idx = perm[i:i + bs]
             opt.zero_grad()
-            lossf(fwd(X[idx], plasticity=1.0), y[idx]).backward()
-            opt.step()
+            with torch.autocast(device_type=dev.type, dtype=torch.float16, enabled=use_amp):
+                loss = lossf(fwd(X[idx], plasticity=1.0), y[idx])
+            scaler.scale(loss).backward()
+            scaler.step(opt)
+            scaler.update()
     _sync(dev); steady = time.perf_counter() - t
     per = steady / epochs
     del opt, fwd, m                                    # free before the next config runs
@@ -103,16 +108,18 @@ def main():
               "path may fall back or not reflect the real (GPU) speedup. Run with --device cuda.\n")
 
     A = args  # shorthand
-    configs = [                                        # eager first (the key dense-vs-sparse test),
-        ("dense  eager   ", False, False),             # then compiled (CUDA-graph memory-hungry)
-        ("sparse eager   ", False, True),
-        ("dense  compiled", True,  False),
-        ("sparse compiled", True,  True),
+    BASE = "dense eager     "
+    configs = [                                        # target what the profile indicts: fp16 tensor cores
+        (BASE,               False, False, False),     # your current path
+        ("dense eager+amp ", False, False, True),      # fp16 autocast (engages T4 tensor cores)
+        ("dense compiled  ", True,  False, False),
+        ("dense cmpl+amp  ", True,  False, True),
     ]
     res = {}
-    for label, comp, sparse in configs:
+    for label, comp, sparse, amp in configs:
         try:
-            warm, ep = run(comp, X, y, w, kg, dev, A.hidden, A.steps, A.bs, A.lr, A.epochs, sparse=sparse)
+            warm, ep = run(comp, X, y, w, kg, dev, A.hidden, A.steps, A.bs, A.lr, A.epochs,
+                           sparse=sparse, amp=amp)
             res[label] = (warm, ep)
             extra = f"   + {warm:.1f}s warmup/fold" if comp else ""
             print(f"{label}: {ep*1000:8.1f} ms/epoch{extra}")
@@ -122,12 +129,12 @@ def main():
             if dev.type == "cuda":
                 torch.cuda.empty_cache()
 
-    base = res.get("dense  eager   ")
+    base = res.get(BASE)
     if not base:
         raise SystemExit("dense-eager (baseline) failed; can't compare. Lower --bs / --n and retry.")
     base = base[1]                                     # current production path
     print(f"\nsteady-state speedup vs dense-eager (your current path):")
-    for label, _, _ in configs:
+    for label, *_ in configs:
         if res[label]:
             print(f"  {label}: {base/res[label][1]:.1f}x")
 
@@ -135,7 +142,7 @@ def main():
     folds = F * S
     print(f"\nfull run ({F}fold x {S}seed x {E}ep = {folds} trainings), end-to-end:")
     best = None
-    for label, comp, _ in configs:
+    for label, comp, _, _ in configs:
         if not res[label]:
             continue
         warm, ep = res[label]
@@ -144,8 +151,8 @@ def main():
         if best is None or total < best[1]:
             best = (label, total)
     print(f"\n-> fastest: {best[0].strip()} (~{best[1]/60:.0f} min)")
-    if "sparse" in best[0]:
-        print("   sparse adjacency is the win -> I'll make --sparse-adj the default for the real runs.")
+    if "amp" in best[0]:
+        print("   fp16 AMP is the win -> I'll wire --amp into baselines/ablate/perturb/temporal.")
 
 
 if __name__ == "__main__":

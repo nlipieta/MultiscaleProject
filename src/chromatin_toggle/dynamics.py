@@ -55,7 +55,7 @@ def class_weights(y, n_classes):
 
 
 def train(model, X, y, epochs, bs, lr, seed, plasticity_train=1.0, weights=None,
-          weight_decay=0.0, schedule=True, compile=False):
+          weight_decay=0.0, schedule=True, compile=False, amp=False):
     dev = next(model.parameters()).device          # follow the model's device (CPU/MPS/CUDA)
     X = X.to(dev); y = y.to(dev)                    # pre-move data ONCE (it's small) -> no per-batch
     opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)  # H2D copies
@@ -87,6 +87,11 @@ def train(model, X, y, epochs, bs, lr, seed, plasticity_train=1.0, weights=None,
             fwd, drop_last, compiled = model, False, False
             opt.zero_grad(set_to_none=True)
             torch.cuda.empty_cache()                 # reclaim the failed attempt's memory
+    # mixed precision: the matmuls are fp32 volta_sgemm (no tensor cores) + memory-bound
+    # elementwise; fp16 autocast engages the tensor cores and halves bandwidth. GradScaler
+    # keeps fp16 gradients stable; disabled==False -> a no-op passthrough, so one code path.
+    use_amp = amp and dev.type == "cuda"
+    scaler = torch.amp.GradScaler(dev.type, enabled=use_amp)
     stop = (n // bs) * bs if (drop_last and n >= bs) else n
     for ep in range(epochs):
         model.train()
@@ -94,9 +99,11 @@ def train(model, X, y, epochs, bs, lr, seed, plasticity_train=1.0, weights=None,
         for i in range(0, stop, bs):
             idx = perm[i:i + bs]
             opt.zero_grad()
-            loss = lossf(fwd(X[idx], plasticity=plasticity_train), y[idx])   # already on device
-            loss.backward()
-            opt.step()
+            with torch.autocast(device_type=dev.type, dtype=torch.float16, enabled=use_amp):
+                loss = lossf(fwd(X[idx], plasticity=plasticity_train), y[idx])  # already on device
+            scaler.scale(loss).backward()
+            scaler.step(opt)
+            scaler.update()
         if sched is not None:
             sched.step()
     if dev.type == "cuda":                            # free per-fold memory so it doesn't
