@@ -34,8 +34,10 @@ class ResistanceToggle(nn.Module):
     def __init__(self, kg, hidden=64, steps=6, resistance=True,
                  plasticity_mode="lower_resistance", attractor="soft", hybrid=True,
                  cue_decay=0.6, attr_iters=3, attr_strength=0.15,
-                 node_ann=None, context_dim=0, use_atac=False, sparse_adj=False):
+                 node_ann=None, context_dim=0, use_atac=False, sparse_adj=False,
+                 plasticity_source="const"):
         super().__init__()
+        assert plasticity_source in ("const", "atac")
         # sparse_adj: aggregate via sparse mm over the (~0.04%-dense) adjacency instead of a
         # dense [N,N]x[B,N,H] einsum. Numerically identical; big compute cut on GPU where the
         # dense einsum is the bottleneck. Opt-in until benchmarked per device.
@@ -71,6 +73,23 @@ class ResistanceToggle(nn.Module):
         self.W_plast = nn.Linear(hidden + 1, 1)
         nn.init.zeros_(self.W_resist.weight); nn.init.zeros_(self.W_resist.bias)   # start resist~0.5
         nn.init.zeros_(self.W_plast.weight); nn.init.zeros_(self.W_plast.bias)
+
+        # plasticity as a FUNCTION OF ATAC ACCESSIBILITY (thesis: epigenetic openness across the
+        # target pathway AND adjacent/alternative networks = plasticity). Per program, pool ATAC
+        # accessibility over its network genes (regulators + markers), row-normalized -> per-cell
+        # program-accessibility profile [B,P]; an MLP maps that to a per-cell plasticity in [0,1]
+        # (high when many programs are open = poised/multi-potent). Requires use_atac. No cue, no leak.
+        self.plasticity_source = plasticity_source
+        if plasticity_source == "atac":
+            P, N = len(kg.program_index), kg.num_nodes
+            prog_pos = {ni: r for r, ni in enumerate(kg.program_index)}
+            memb = torch.zeros(P, N)
+            for s, _rel, d, _w in kg.edges:                        # s (regulator/marker) -> d (program)
+                if d in prog_pos:
+                    memb[prog_pos[d], s] = 1.0
+            memb = memb / memb.sum(1, keepdim=True).clamp(min=1.0)  # mean accessibility per program network
+            self.register_buffer("prog_membership", memb)          # [P, N]
+            self.plast_from_atac = nn.Sequential(nn.Linear(P, hidden), nn.ReLU(), nn.Linear(hidden, 1))
 
         self.hybrid = hybrid
         if hybrid:
@@ -171,6 +190,12 @@ class ResistanceToggle(nn.Module):
         if self.ctx_proj is not None and context is not None:     # experiment context
             h = h + self.ctx_proj(context).unsqueeze(1)
 
+        plast_atac = None
+        if self.plasticity_source == "atac":                      # plasticity from ATAC accessibility
+            acc = atac if atac is not None else torch.zeros(B, self.N, device=x0.device)
+            prog_acc = acc @ self.prog_membership.t()             # [B,P] coverage: target + alt networks
+            plast_atac = torch.sigmoid(self.plast_from_atac(prog_acc))   # [B,1] per-cell plasticity
+
         for t in range(self.steps):
             cue_t = cue_inj * (self.cue_decay ** t)
             if self.plasticity_mode in ("amplify", "both"):
@@ -184,8 +209,11 @@ class ResistanceToggle(nn.Module):
                                   self._pool(h, self.lineage_idx),
                                   self._pool(h, self.program_index)], dim=-1)
                 base_r = torch.sigmoid(self.W_resist(feat))                       # [B,1]
-                plast_eff = torch.sigmoid(self.W_plast(
-                    torch.cat([self._pool(h, self.plasticity_idx), plasticity], dim=-1)))
+                if plast_atac is not None:                        # ATAC-derived plasticity (thesis)
+                    plast_eff = plast_atac
+                else:                                             # legacy: plasticity-node state + scalar
+                    plast_eff = torch.sigmoid(self.W_plast(
+                        torch.cat([self._pool(h, self.plasticity_idx), plasticity], dim=-1)))
                 resist = base_r * (1 - plast_eff) if self.plasticity_mode in ("lower_resistance", "both") else base_r
             else:
                 resist = torch.zeros(B, 1, device=x0.device)                     # ablation: pure candidate
