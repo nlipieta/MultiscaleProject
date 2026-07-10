@@ -52,9 +52,9 @@ def _strat_folds(y, k, seed):
     return [np.array(f) for f in folds]
 
 
-def _train(kg, X, A, y, n_classes, w, dev, epochs, bs, lr, seed, use_real_atac):
+def _train(kg, X, A, y, n_classes, w, dev, epochs, bs, lr, seed, use_real_atac, plast_source="const"):
     torch.manual_seed(seed)
-    m = ResistanceToggle(kg, hidden=64, steps=6, use_atac=True).to(dev)
+    m = ResistanceToggle(kg, hidden=64, steps=6, use_atac=True, plasticity_source=plast_source).to(dev)
     opt = torch.optim.AdamW(m.parameters(), lr=lr)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=epochs)
     lossf = nn.CrossEntropyLoss(weight=w.to(dev))
@@ -71,6 +71,15 @@ def _train(kg, X, A, y, n_classes, w, dev, epochs, bs, lr, seed, use_real_atac):
             loss.backward(); opt.step()
         sched.step()
     return m
+
+
+@torch.no_grad()
+def _plast_std(m, X, A, dev):
+    """Per-cell plasticity spread in the ATAC-plasticity arm (>0 => mechanism ACTIVE, not dormant)."""
+    if getattr(m, "plasticity_source", "const") != "atac":
+        return float("nan")
+    pa = A.to(dev) @ m.prog_membership.t()
+    return torch.sigmoid(m.plast_from_atac(pa)).std().item()
 
 
 @torch.no_grad()
@@ -106,32 +115,44 @@ def main():
     print(f"scATAC POC | data={Path(args.data).name} cells={X.size(0)} classes={n_classes} "
           f"| accessibility-bearing nodes={n_atac} | device={dev} seeds={args.seeds}\n")
 
-    scores = {"+ATAC": {"auprc": [], "prog": []}, "RNA-only": {"auprc": [], "prog": []}}
+    # three arms: accessibility withheld / accessibility as INPUT / accessibility routed into PLASTICITY
+    arms = [("RNA-only", False, "const"), ("+ATAC", True, "const"), ("+ATAC+plast", True, "atac")]
+    scores = {a[0]: {"auprc": [], "prog": []} for a in arms}
+    plast_std = []
     for s in args.seeds:
         folds = _strat_folds(y.numpy(), args.kfolds, s)
         for f in range(args.kfolds):
             te = folds[f]; tr = np.concatenate([folds[i] for i in range(args.kfolds) if i != f])
             w = class_weights(y[tr], n_classes)
-            for arm, real in (("+ATAC", True), ("RNA-only", False)):
+            for arm, real, ps in arms:
                 m = _train(kg, X[tr], A[tr], y[tr], n_classes, w, dev,
-                           args.epochs, args.batch_size, args.lr, s, real)
+                           args.epochs, args.batch_size, args.lr, s, real, plast_source=ps)
                 au, pr = _eval(m, X[te], A[te], y[te], dev, prog_cols, real)
                 scores[arm]["auprc"].append(au); scores[arm]["prog"].append(pr)
-        print(f"  seed {s} done")
+                if ps == "atac":
+                    plast_std.append(_plast_std(m, X[te], A[te], dev))
+        print(f"  seed {s} done", flush=True)
 
     print(f"\n{args.kfolds}-fold x {len(args.seeds)} seed(s):")
-    for arm in ("RNA-only", "+ATAC"):
+    for arm, _, _ in arms:
         a, p = scores[arm]["auprc"], scores[arm]["prog"]
-        print(f"  {arm:<10} prog-AUPRC {np.mean(a):.3f}+/-{np.std(a):.3f}   prog-recall {np.mean(p):.3f}+/-{np.std(p):.3f}")
+        print(f"  {arm:<12} prog-AUPRC {np.mean(a):.3f}+/-{np.std(a):.3f}   prog-recall {np.mean(p):.3f}+/-{np.std(p):.3f}")
+    if plast_std:
+        print(f"  ATAC-plasticity per-cell std = {np.mean(plast_std):.4f}  (>0 => plasticity gate is now ACTIVE)")
     try:
         from scipy.stats import wilcoxon
-        for k in ("auprc", "prog"):
-            d = np.array(scores["+ATAC"][k]) - np.array(scores["RNA-only"][k])
-            p = float(wilcoxon(scores["+ATAC"][k], scores["RNA-only"][k]).pvalue) if np.any(d) else float("nan")
-            print(f"  paired +ATAC vs RNA-only [{k}]: median dP={np.median(d):+.3f}  p={p:.4f}")
+        def paired(aarm, barm):
+            for k in ("auprc", "prog"):
+                da, db = scores[aarm][k], scores[barm][k]
+                d = np.array(da) - np.array(db)
+                p = float(wilcoxon(da, db).pvalue) if np.any(d) else float("nan")
+                print(f"  paired {aarm} vs {barm} [{k}]: median dP={np.median(d):+.3f}  p={p:.4f}")
+        paired("+ATAC", "RNA-only")            # does accessibility as an INPUT help?
+        paired("+ATAC+plast", "+ATAC")         # does routing ATAC into PLASTICITY (the thesis) add more?
     except ImportError:
         pass
-    print("\npositive dP = accessibility channel helps; the ablation isolates chromatin's added value.")
+    print("\n+ATAC vs RNA-only = accessibility as an input channel; +ATAC+plast vs +ATAC = the thesis")
+    print("mechanism (plasticity driven by chromatin openness across pathway + alternative networks).")
 
 
 if __name__ == "__main__":
