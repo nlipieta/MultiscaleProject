@@ -251,27 +251,31 @@ em("A SECOND structure-isolation result, on the temporal axis. Under the thesis-
    "the plasticity-gated switching/hysteresis emerge by construction.")
 
 h("3.4b Mechanism and structure ablation", 2)
-p("Knocking out one component at a time on a fixed converged split (markers-in), scored on "
-  "macro-AUPRC (the ranking metric of 3.3). Delta vs the full model:")
+p("Knocking out one component at a time on a fixed converged split (no-markers, thesis-faithful "
+  "model), scored on macro-AUPRC (the ranking metric of 3.3). Delta vs the full model (AUPRC 0.555):")
 table(["Knockout", "ΔAUPRC", "reading"],
-      [["scramble edges (wrong wiring)", "-0.155", "correct wiring matters (pro-structure)"],
-       ["attractor / WTA", "-0.109", "helps here; flattens temporal (mixed tradeoff)"],
-       ["remove chromatin nodes", "-0.058", "chromatin-memory carries ranking signal"],
-       ["collapse relation types", "-0.057", "relation-typing matters"],
-       ["remove TF nodes", "-0.020", "minor"],
-       ["hybrid residual / asymmetric", "-0.015 / -0.014", "minor"],
-       ["plasticity gate", "0.000", "inert for classification (a dynamics mechanism)"],
-       ["remove all edges (no_edges)", "+0.035", "single-split only — see caveat"]])
-em("Robust readings: the plasticity gate is INERT for static classification (it shapes the "
-   "simulated dynamics, not prediction); scrambling or collapsing the graph badly hurts ranking, so "
-   "correct relational wiring matters (pro-structure); removing chromatin-memory nodes also hurts "
-   "ranking (-0.058), supporting the intrinsic-memory component; the attractor is a genuine tradeoff (helps "
-   "this split's ranking but flattens the temporal continuum, 3.4). CAVEAT: this ablation is a "
-   "SINGLE fixed split, and grouped-split variance is large (~+/-0.12); its all-or-nothing no_edges "
-   "line came out +0.035, OPPOSITE to the reliable multi-seed, paired structure-isolation test in "
-   "3.3 (structure helps, +0.082, p=0.015). We therefore rely on 3.3 (15 estimates + paired test) "
-   "for the structure claim and treat the single-split no_edges as noise. A multi-seed ablation "
-   "would be needed to score the all-or-nothing structure knockout reliably here.")
+      [["scramble edges (wrong wiring)", "-0.413", "correct wiring is decisive (pro-structure)"],
+       ["remove all edges (no_edges)", "-0.331", "the graph is the lever (now agrees with 3.3)"],
+       ["hybrid residual (linear skip)", "-0.068", "modest non-graph path"],
+       ["plasticity gate", "-0.010", "inert for classification (a dynamics mechanism)"],
+       ["resistance gate", "+0.003", "inert for ranking (recall +0.108)"],
+       ["attractor (soft)", "+0.007", "inert for ranking"],
+       ["collapse relation types", "+0.035", "relation-TYPING not load-bearing; topology is"],
+       ["remove chromatin / TF / intrinsic-memory nodes", "~0", "inert on this task"]])
+em("The dominant result is STRUCTURE: scrambling the wiring (-0.413) or removing all edges (-0.331) "
+   "collapses ranking far beyond the ~+/-0.12 grouped-split noise — the graph, not the node features, "
+   "carries the signal. This now AGREES with the multi-seed paired test in 3.3 (structure +0.255, "
+   "p=0.0001): on the thesis-faithful model (per-step re-injection removed) the graph is the sole "
+   "path routing per-cell expression, so its knockout is decisive — resolving the earlier single-"
+   "split anomaly (a prior formulation's no_edges came out +0.035, which we had flagged as noise; it "
+   "was an artifact of re-injection bypassing the graph). Honest readings on the mechanisms: the "
+   "resistance gate, plasticity gate, and soft attractor are all INERT for static ranking (within "
+   "noise) — consistent with the mechanism-activity diagnostic showing they are dormant on this cue-"
+   "free classification task; their role is dynamical/interpretive (3.4, 3.7), and whether chromatin-"
+   "accessibility-driven plasticity activates them is tested directly on Multiome data (in progress). "
+   "Relation-TYPING is also not load-bearing (collapse_relations +0.035): the graph topology matters, "
+   "not the eight relation labels. Single fixed split, so sub-0.12 deltas are within noise; the two "
+   "structure knockouts are an order of magnitude larger and robust.")
 
 h("3.5 Interpretability", 2)
 p("Permutation importance shows the model relies on textbook regulators for most programs "
@@ -283,15 +287,19 @@ fig("importance_heatmap.png", 5.0, "Figure 2. Node x program permutation importa
 h("3.6 A falsifiable biological prediction (hypertrophy)", 2)
 p("The encoded hypertrophy cascade (MechanicalStretch -> CaMKII/PKD -> nuclear export of HDAC4/5 "
   "-> de-repression of MEF2 -> Hypertrophy) yields sign-specific predictions we tested in-silico by "
-  "editing node inputs on held-out hypertrophy cells (baseline P(Hypertrophy)=0.245). The result is "
-  "PARTIAL and reported honestly: the model captured the FORWARD-ACTIVATION direction — boosting "
-  "CaMKII raised P(Hypertrophy) by +0.121 — but did NOT reproduce the more distinctive DE-REPRESSION "
+  "editing node inputs on held-out hypertrophy cells (thesis-faithful model, baseline "
+  "P(Hypertrophy)=0.362). The result is PARTIAL and reported honestly: the model captured the "
+  "FORWARD-ACTIVATION direction strongly — boosting CaMKII raised P(Hypertrophy) by +0.275 (and "
+  "blocking CaMKII lowered it, -0.029) — but did NOT reproduce the more distinctive DE-REPRESSION "
   "prediction: HDAC4/5 knockdown, which should enhance the program by releasing MEF2, produced ~0 "
-  "change (-0.001). CaMKII/PKD blockade moved P(Hypertrophy) in the correct (down) direction but "
-  "negligibly (-0.012 / -0.000). So the learned representation respects the activator axis but not "
-  "the HDAC4/5 de-repression logic; the HDAC4/5 direction therefore remains an UNCONFIRMED, "
-  "falsifiable wet-lab prediction (KN-93 CaMKII inhibition; HDAC4/5 knockdown in NRVM / hiPSC-CM), "
-  "not an in-silico success.")
+  "change (-0.006, wrong sign). The CaMKII activation effect is notably larger than in the "
+  "pre-correction model (+0.121), consistent with the graph cascade carrying more of the signal once "
+  "the re-injection shortcut is removed. (The PKD-block line is a NON-TEST and excluded: PRKD1 is "
+  "expressed in only ~6% of these cells, so zeroing it changes almost nothing regardless of the "
+  "model.) So the learned representation respects the activator axis — now clearly — but not the "
+  "HDAC4/5 de-repression logic (which needs signed/de-repression edges, currently unimplemented); "
+  "the HDAC4/5 direction therefore remains an UNCONFIRMED, falsifiable wet-lab prediction (KN-93 "
+  "CaMKII inhibition; HDAC4/5 knockdown in NRVM / hiPSC-CM), not an in-silico success.")
 
 # ---------------- 4 Discussion ----------------
 h("3.7 Architecture: intrinsic memory as transition resistance", 2)
