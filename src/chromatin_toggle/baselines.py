@@ -127,6 +127,9 @@ def main():
                     choices=["amplify", "lower_resistance", "both", "none"], default="lower_resistance")
     ap.add_argument("--attractor-mode",
                     choices=["none", "hard_wta", "soft", "delayed_soft", "learned"], default="soft")
+    ap.add_argument("--plasticity-source", choices=["const", "atac", "intrinsic"], default="const",
+                    help="const=dormant (legacy); intrinsic=chromatin-openness proxy from expression "
+                         "(wakes the gate on RNA-only); atac=from paired accessibility (Multiome)")
     ap.add_argument("--device", default="auto", help="cpu / cuda / mps / auto")
     ap.add_argument("--batch-size", type=int, default=256,
                     help="GNN minibatch; BIG (1024-4096) is much faster on GPU (launch-bound model)")
@@ -160,7 +163,8 @@ def main():
     model_list = list(args.models) + gnn_models
     dev = pick_device(args.device)
     rcfg = dict(resistance=(args.resistance_gate == "on"),
-                plasticity_mode=args.plasticity_mode, attractor=args.attractor_mode)
+                plasticity_mode=args.plasticity_mode, attractor=args.attractor_mode,
+                plasticity_source=args.plasticity_source)
     seeds = args.seeds if args.seeds else [args.seed]
     n_gene_cols = sum(1 for g in kg.gene_map if g in df.columns)  # gene nodes present in DATA
     print(f"Baseline comparison | data={Path(args.data).name} n={X.size(0)} "

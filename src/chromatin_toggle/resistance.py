@@ -37,7 +37,7 @@ class ResistanceToggle(nn.Module):
                  node_ann=None, context_dim=0, use_atac=False, sparse_adj=False,
                  plasticity_source="const"):
         super().__init__()
-        assert plasticity_source in ("const", "atac")
+        assert plasticity_source in ("const", "atac", "intrinsic")
         # sparse_adj: aggregate via sparse mm over the (~0.04%-dense) adjacency instead of a
         # dense [N,N]x[B,N,H] einsum. Numerically identical; big compute cut on GPU where the
         # dense einsum is the bottleneck. Opt-in until benchmarked per device.
@@ -90,6 +90,11 @@ class ResistanceToggle(nn.Module):
             memb = memb / memb.sum(1, keepdim=True).clamp(min=1.0)  # mean accessibility per program network
             self.register_buffer("prog_membership", memb)          # [P, N]
             self.plast_from_atac = nn.Sequential(nn.Linear(P, hidden), nn.ReLU(), nn.Linear(hidden, 1))
+        if plasticity_source == "intrinsic":
+            # RNA-only analog: plasticity = chromatin OPENNESS proxied from the chromatin-modifier
+            # node states (varies per cell; wakes the gate without a cue or ATAC). Distinct head so
+            # it isn't tied to the resistance gate's identity barrier.
+            self.plast_intrinsic = nn.Linear(hidden, 1)
 
         self.hybrid = hybrid
         if hybrid:
@@ -211,6 +216,8 @@ class ResistanceToggle(nn.Module):
                 base_r = torch.sigmoid(self.W_resist(feat))                       # [B,1]
                 if plast_atac is not None:                        # ATAC-derived plasticity (thesis)
                     plast_eff = plast_atac
+                elif self.plasticity_source == "intrinsic":       # chromatin-openness proxy (RNA-only)
+                    plast_eff = torch.sigmoid(self.plast_intrinsic(self._pool(h, self.chromatin_idx)))
                 else:                                             # legacy: plasticity-node state + scalar
                     plast_eff = torch.sigmoid(self.W_plast(
                         torch.cat([self._pool(h, self.plasticity_idx), plasticity], dim=-1)))
