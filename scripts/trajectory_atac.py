@@ -87,7 +87,7 @@ def _p(m, X, A, dev, prog_i, real, bs=2048):
 def _plast_std(m, A, dev):
     if getattr(m, "plasticity_source", "const") != "atac":
         return float("nan")
-    return torch.sigmoid(m.plast_from_atac(A.to(dev) @ m.prog_membership.t())).std().item()
+    return m._atac_plasticity(A.to(dev)).std().item()
 
 
 def main():

@@ -89,7 +89,10 @@ class ResistanceToggle(nn.Module):
                     memb[prog_pos[d], s] = 1.0
             memb = memb / memb.sum(1, keepdim=True).clamp(min=1.0)  # mean accessibility per program network
             self.register_buffer("prog_membership", memb)          # [P, N]
-            self.plast_from_atac = nn.Sequential(nn.Linear(P, hidden), nn.ReLU(), nn.Linear(hidden, 1))
+            # plasticity = f(epigenetic landscape): per-program accessibility profile (pathway +
+            # adjacent networks) + GLOBAL chromatin openness + accessibility DIVERSITY across programs
+            # (multi-lineage priming = the poised/plastic state). +2 = [openness, diversity].
+            self.plast_from_atac = nn.Sequential(nn.Linear(P + 2, hidden), nn.ReLU(), nn.Linear(hidden, 1))
         if plasticity_source == "intrinsic":
             # RNA-only analog: plasticity = chromatin OPENNESS proxied from the chromatin-modifier
             # node states (varies per cell; wakes the gate without a cue or ATAC). Distinct head so
@@ -128,6 +131,17 @@ class ResistanceToggle(nn.Module):
 
     def _pool(self, h, idx):
         return h[:, idx, :].mean(1) if idx.numel() else h.new_zeros(h.size(0), self.hidden)
+
+    def _atac_plasticity(self, acc):
+        """Plasticity from the epigenetic landscape (ATAC). acc: [B,N] accessibility -> [B,1] in [0,1].
+        Features: per-program accessibility profile (pathway + adjacent networks) + global chromatin
+        openness + cross-program accessibility diversity (multi-lineage priming = poised/plastic)."""
+        prog_acc = acc @ self.prog_membership.t()                  # [B,P]
+        openness = acc.mean(dim=1, keepdim=True)                   # [B,1]
+        q = prog_acc.clamp(min=0)
+        q = q / q.sum(dim=1, keepdim=True).clamp(min=1e-6)
+        diversity = -(q * (q + 1e-9).log()).sum(dim=1, keepdim=True)   # [B,1]
+        return torch.sigmoid(self.plast_from_atac(torch.cat([prog_acc, openness, diversity], dim=-1)))
 
     def _sparse_list(self):
         """Per-relation sparse adjacency, cached per device (rebuilt if device changes).
@@ -196,10 +210,9 @@ class ResistanceToggle(nn.Module):
             h = h + self.ctx_proj(context).unsqueeze(1)
 
         plast_atac = None
-        if self.plasticity_source == "atac":                      # plasticity from ATAC accessibility
+        if self.plasticity_source == "atac":                      # plasticity from the epigenetic landscape
             acc = atac if atac is not None else torch.zeros(B, self.N, device=x0.device)
-            prog_acc = acc @ self.prog_membership.t()             # [B,P] coverage: target + alt networks
-            plast_atac = torch.sigmoid(self.plast_from_atac(prog_acc))   # [B,1] per-cell plasticity
+            plast_atac = self._atac_plasticity(acc)               # [B,1] per-cell plasticity
 
         for t in range(self.steps):
             cue_t = cue_inj * (self.cue_decay ** t)

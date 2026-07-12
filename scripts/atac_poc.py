@@ -78,8 +78,7 @@ def _plast_std(m, X, A, dev):
     """Per-cell plasticity spread in the ATAC-plasticity arm (>0 => mechanism ACTIVE, not dormant)."""
     if getattr(m, "plasticity_source", "const") != "atac":
         return float("nan")
-    pa = A.to(dev) @ m.prog_membership.t()
-    return torch.sigmoid(m.plast_from_atac(pa)).std().item()
+    return m._atac_plasticity(A.to(dev)).std().item()
 
 
 @torch.no_grad()
