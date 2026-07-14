@@ -118,7 +118,8 @@ def main():
     ap = argparse.ArgumentParser(description="Ingest GSE207308 SHARE-seq BMMC (erythroid trajectory)")
     ap.add_argument("--tar", default=str(DATA_DIR / "geo_cache" / "GSE207308_RAW.tar"))
     ap.add_argument("--out", default=str(DATA_DIR / "bmmc_shareseq.csv"))
-    ap.add_argument("--coords", default=str(DATA_DIR / "gene_coords.tsv"))
+    ap.add_argument("--coords", default=str(DATA_DIR / "gene_coords_hg19.tsv"),
+                    help="GSE207308 peaks are hg19 -> use GRCh37 coords (build_gene_coords.py)")
     args = ap.parse_args()
 
     kg = load_kg()
