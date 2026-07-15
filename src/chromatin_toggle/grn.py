@@ -30,6 +30,15 @@ class GRNDynamics(nn.Module):
                     for c in self.classes]
         self.register_buffer("cls_node", torch.tensor(cls_node, dtype=torch.long))
         self.q_index = self.classes.index(QUIESCENT) if QUIESCENT in self.classes else -1
+        # active-node mask: dynamics runs only on these nodes (others held at 0). All-active by default;
+        # set_active() restricts to a focused subnetwork (Phase-0 representation probe).
+        self.register_buffer("active_mask", torch.ones(self.N))
+
+    def set_active(self, node_idx):
+        """Restrict the dynamics to a subnetwork: only these node indices evolve; others held at 0."""
+        mask = torch.zeros(self.N, device=self.active_mask.device)
+        mask[torch.tensor(list(node_idx), dtype=torch.long)] = 1.0
+        self.active_mask.copy_(mask)
 
     def _step(self, x):
         m = torch.nn.functional.softplus(self.mag) * self.sign    # [E] signed weights
@@ -40,11 +49,11 @@ class GRNDynamics(nn.Module):
     def settle(self, x0, clamp_idx=None, n_steps=None):
         """Evolve to the fixed point; returns the settled activity state [B, N]."""
         steps = n_steps if n_steps is not None else self.steps
-        x = x0 * self.in_scale
+        x = x0 * self.in_scale * self.active_mask          # inactive nodes held at 0
         if clamp_idx is not None:
             x = x.clone(); x[:, clamp_idx] = 0.0
         for _ in range(steps):
-            x = self._step(x)
+            x = self._step(x) * self.active_mask
             if clamp_idx is not None:
                 x[:, clamp_idx] = 0.0
         return x

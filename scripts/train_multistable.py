@@ -57,6 +57,9 @@ def main():
     ap.add_argument("--balance", action="store_true",
                     help="inverse-frequency weight the flow loss so a majority fate can't collapse the "
                          "minority basin (report BALANCED accuracy + per-fate sensitivity)")
+    ap.add_argument("--subnet", choices=["hemato"], default=None,
+                    help="Phase-0 probe: run the dynamics on a focused hematopoietic subnetwork only "
+                         "(concentrates fate signal; tests whether representation dilution causes the collapse)")
     ap.add_argument("--classes", nargs="+", default=None,
                     help="store only these programs as attractors + subset the data to their cells "
                          "(e.g. --classes Erythropoiesis Megakaryopoiesis for the MEP fork)")
@@ -83,8 +86,24 @@ def main():
         inv = torch.tensor([1.0 / max(1, c) for c in counts], dtype=torch.float32)
         fate_w = (inv / inv.sum() * len(present)).to(dev)           # inverse-freq, mean 1
 
+    # Phase-0 focused hematopoietic subnetwork: fate TFs/toggle + erythroid + myeloid effectors + programs
+    HEMATO = ["Gata1", "Klf1", "TAL1", "Fli1", "NFE2", "PU1", "RUNX1",
+              "EPOR", "HBB", "HBA1", "ALAS2", "GYPA", "SLC4A1", "AHSP", "SPTA1", "TFRC",
+              "NOS2", "IRF1", "STAT1", "CD86", "CXCL9", "IRF5", "CXCL10", "IL12B", "MARCO", "CCL5", "CD80",
+              "Erythropoiesis", "MacrophageActivation", "Megakaryopoiesis", "PU1"]
+    active = None
+    if a.subnet == "hemato":
+        active = [kg.node_index[g] for g in HEMATO if g in kg.node_index]
+        amask = torch.zeros(kg.num_nodes)
+        amask[torch.tensor(active)] = 1.0
+        proto_init = proto_init * amask                      # zero inactive dims (consistent subspace)
+        print(f"subnet=hemato: dynamics restricted to {len(active)} nodes "
+              f"(of {kg.num_nodes}); fate signal concentrated.")
+
     torch.manual_seed(a.seed)
     m = MultistableGRN(kg, stored, proto_init=proto_init, steps=a.steps, eta=a.eta).to(dev)
+    if active is not None:
+        m.set_active(active)
     opt = torch.optim.AdamW(m.parameters(), lr=a.lr)
     ce = nn.CrossEntropyLoss()
     Xd, yd = X.to(dev), y.to(dev); n = Xd.size(0)
