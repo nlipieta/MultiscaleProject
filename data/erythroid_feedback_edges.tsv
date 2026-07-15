@@ -1,5 +1,6 @@
 src	rel	dst	note
 Gata1	ACTIVATES	Gata1	GATA1 positive autoregulation (TRRUST Activation PMID:16492768) -- self-activation bistable motif
 PU1	INHIBITS	Gata1	second arm of the GATA1<->PU.1 double-negative toggle; canonical mutual repression, sign per thesis ruling (NB TRRUST lists SPI1->GATA1 as Activation, overridden as non-canonical)
+PU1	ACTIVATES	PU1	PU.1/SPI1 positive autoregulation (URE); completes the symmetric GATA1<->PU.1 bistable switch (Huang 2007); canonical, not in TRRUST
 Klf1	INHIBITS	Fli1	KLF1<->FLI1 double-negative toggle (MEP erythroid-vs-megakaryocyte switch); canonical EKLF/KLF1-FLI1 cross-antagonism (Starck 2003), not in TRRUST
 Fli1	INHIBITS	Klf1	KLF1<->FLI1 double-negative toggle (MEP erythroid-vs-megakaryocyte switch); canonical EKLF/KLF1-FLI1 cross-antagonism (Starck 2003), not in TRRUST

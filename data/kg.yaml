@@ -466,3 +466,8 @@ edges:
   #     requirement for MULTISTABILITY (distinct stable attractors). ---
   - {src: Klf1, rel: INHIBITS, dst: Fli1, w: 1.0}   # KLF1<->FLI1 double-negative toggle (MEP erythroid-vs-megakaryocyte switch); canonical EKLF/KLF1-FLI1 cross-antagonism (Starck 2003), not in TRRUST
   - {src: Fli1, rel: INHIBITS, dst: Klf1, w: 1.0}   # KLF1<->FLI1 double-negative toggle (MEP erythroid-vs-megakaryocyte switch); canonical EKLF/KLF1-FLI1 cross-antagonism (Starck 2003), not in TRRUST
+
+  # --- Erythroid FEEDBACK circuits (autoregulation + double-negative toggle; see
+  #     data/erythroid_feedback_edges.tsv). Positive feedback = the topological
+  #     requirement for MULTISTABILITY (distinct stable attractors). ---
+  - {src: PU1, rel: ACTIVATES, dst: PU1, w: 1.0}   # PU.1/SPI1 positive autoregulation (URE); completes the symmetric GATA1<->PU.1 bistable switch (Huang 2007); canonical, not in TRRUST

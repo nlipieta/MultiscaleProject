@@ -29,14 +29,20 @@ PROMOTER = 2000  # bp window added around the gene body for gene-activity
 
 
 def program_of(ct: str) -> str | None:
+    """Map BMMC cell types to the erythroid-vs-myeloid FATE BIFURCATION (the GATA1<->PU.1 toggle).
+    Both fates come from the SAME experiment (all 13 batches) so their separation is not confounded
+    with batch. BMMC lacks mature megakaryocytes (Ficoll depletes them; only MK/E prog present), so
+    the demonstrable fork is erythroid vs myeloid, not erythroid vs Mk."""
     c = str(ct).lower()
     if any(k in c for k in ("erythro", "normoblast", "proerythro")):
         return "Erythropoiesis"
-    if "megakaryo" in c or c == "mk" or "mkp" in c:
+    if "megakaryo" in c or c == "mk" or "mkp" in c:              # mature Mk (absent in BMMC, kept for reuse)
         return "Megakaryopoiesis"
+    if any(k in c for k in ("mono", "myeloid", "g/m prog", "gmp")):   # monocyte/granulocyte myeloid fate
+        return "MacrophageActivation"                            # = myeloid basin (monocyte/GMP proxy)
     if "hsc" in c or c == "mpp" or "multipotent" in c or "hematopoietic stem" in c:
         return "Quiescent"
-    return None  # MEP (shared erythro/mega) + lymphoid/myeloid -> dropped for a clean POC
+    return None  # MK/E prog, DCs, and lymphoid (T/B/NK/ILC/Plasma) -> dropped (not on the Ery/myeloid fork)
 
 
 def load_coords(path: Path) -> dict[str, tuple[str, int, int]]:
@@ -142,8 +148,9 @@ def main():
     acc_n = _cp10k_log1p_minmax(acc, a.n_obs)
 
     node_cols = list(kg.node_ids)
-    header = node_cols + [f"{n}__atac" for n in node_cols] + ["label", "dataset", "pathway"]
+    header = node_cols + [f"{n}__atac" for n in node_cols] + ["label", "dataset", "pathway", "batch"]
     labels = prog.to_numpy()
+    batches = a.obs["batch"].astype(str).to_numpy() if "batch" in a.obs else np.array(["na"] * a.n_obs)
     lines = [",".join(header)]
     for i in range(a.n_obs):
         row = {c: 0.0 for c in node_cols}
@@ -153,7 +160,7 @@ def main():
         for sym, v in acc_n.items():
             arow[f"{node_by_sym[sym]}__atac"] = v[i]
         vals = [f"{row[c]}" for c in node_cols] + [f"{arow[f'{c}__atac']}" for c in node_cols]
-        lines.append(",".join(vals + [labels[i], "bmmc_multiome", "hematopoiesis_multiome"]))
+        lines.append(",".join(vals + [labels[i], "bmmc_multiome", "hematopoiesis_multiome", batches[i]]))
     Path(args.out).write_text("\n".join(lines) + "\n")
     print(f"[multiome] wrote {a.n_obs} cells x ({len(expr_n)} expr + {len(acc_n)} atac) -> {args.out}")
 
