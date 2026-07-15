@@ -67,9 +67,16 @@ def main():
     a = ap.parse_args()
     kg = load_kg(); dev = pick_device(a.device)
     X, y, _ = _load(a.data, kg); classes = all_classes(kg)
+    counts = {classes[int(i)]: int((y == i).sum()) for i in torch.unique(y)}
     keep = [classes.index(c) for c in a.classes]
     mask = torch.tensor([int(v) in keep for v in y])
     X, y = X[mask], y[mask]
+    if X.size(0) == 0 or any(int((y == i).sum()) == 0 for i in keep):
+        avail = ", ".join(f"{k}({v})" for k, v in sorted(counts.items(), key=lambda kv: -kv[1]))
+        raise SystemExit(f"ERROR: {a.data} has no cells for {a.classes} "
+                         f"(per-class: {[(classes[i], int((y==i).sum())) for i in keep]}).\n"
+                         f"Available programs in this file: {avail}\n"
+                         f"Pick --classes from two well-populated, well-separated programs above.")
     proto_init = torch.stack([X[y == i].mean(0) for i in keep])
 
     torch.manual_seed(a.seed)
