@@ -304,27 +304,41 @@ p("The encoded hypertrophy cascade (MechanicalStretch -> CaMKII/PKD -> nuclear e
 h("3.6b Perturbation predictions validated against a REAL knockdown experiment (erythropoiesis)", 2)
 p("The hypertrophy prediction (3.6) is in-silico only (no public single-cell HDAC4/5 or CaMKII "
   "perturbation data exists). For erythropoiesis we can validate against a held-out REAL experiment: "
-  "Replogle 2022 K562 genome-scale CRISPRi Perturb-seq. The model is trained on the erythroid Multiome "
-  "(SHARE-seq) and applied unchanged to K562; non-targeting controls read as strongly erythroid "
-  "(P(Erythropoiesis)=0.78), a nontrivial cross-dataset generalization that gates the comparison. For "
-  "each erythroid regulator the model encodes, the REAL knockdown effect (KD cells vs controls) is "
-  "compared to the model's IN-SILICO knockdown (zeroing that node on control cells):")
-table(["Regulator (real KD n)", "real dP(Ery)", "in-silico dP(Ery)", "sign"],
-      [["GATA1 (master, n=46)", "-0.205", "-0.075", "agree"],
-       ["KLF1 (n=157)", "-0.109", "-0.031", "agree"],
-       ["TAL1 (n=408)", "-0.020", "-0.007", "agree"]])
-em("All three agree in SIGN -- knockdown lowers erythroid identity -- with a biologically sensible "
-   "ordering (master GATA1 > KLF1 > TAL1). This is a genuine cross-experiment validation of framework "
-   "question Q2 (which perturbations move the state): the model, trained on primary bone marrow, "
-   "correctly predicts the DIRECTION of real CRISPRi knockdowns in a leukemia line it never saw. "
-   "HONEST scope: DIRECTION is validated, MAGNITUDE is not -- in-silico effects are ~3x smaller because "
-   "zeroing a single node does not propagate the full downstream program-collapse a real knockdown "
-   "triggers (the real KD cells' transcriptomes carry that cascade; the in-silico edit does not). "
-   "Closing that magnitude gap is the motivation for a potential-landscape / attractor-relaxation "
-   "formulation (letting a perturbation settle into the new basin rather than reading the immediate "
-   "response). Scope caveats: erythroid only; GATA1 is noisy (n=46, though the effect is largest); "
-   "LMO2 is not yet a KG node (no in-silico comparison). This is the sharpest 'predicts an experimental "
-   "outcome' result in the paper, reported as directional not quantitative.")
+  "Replogle 2022 K562 genome-scale CRISPRi Perturb-seq. We use the signed-GRN DYNAMICAL model (the "
+  "landscape realization of framework Q2): node activities evolve on the KG's signed edges to a fixed "
+  "point (an attractor), a knockdown is applied by CLAMPING that node to zero and re-settling to the "
+  "new fixed point, and the readout is the erythroid program-node activity. The model is trained on the "
+  "erythroid Multiome (SHARE-seq; train AUPRC 0.976 -- it models the erythroid state well) and applied "
+  "unchanged to K562; non-targeting controls read as strongly erythroid (P(Erythropoiesis)=0.74), a "
+  "nontrivial cross-dataset generalization that gates the comparison. The erythroid regulatory cascade "
+  "in the KG was densified with literature-curated TF->target edges (TRRUST v2, PMID-backed) so a "
+  "knockdown can propagate through the graph (GATA1 out-degree 2->9). For each regulator the model "
+  "encodes, the REAL knockdown effect (KD cells vs controls) is compared to the model's clamp-and-"
+  "resettle knockdown:")
+table(["Regulator (real KD n)", "real dP(Ery)", "GRN clamp dP(Ery)", "sign"],
+      [["GATA1 (master, n=46)", "-0.248", "-0.738", "agree"],
+       ["KLF1 (n=157)", "-0.043", "-0.654", "agree"],
+       ["TAL1 (n=408)", "-0.009", "-0.416", "agree"]])
+em("All three agree in SIGN -- knockdown lowers erythroid identity -- and the model reproduces the "
+   "real severity ORDERING exactly (GATA1 > KLF1 > TAL1; Spearman rho = 1 over the three measured "
+   "regulators, though n=3 so this is directional, not statistical). This validates framework question "
+   "Q2 (which perturbations move the state) at the level of DIRECTION and RANK: a model trained on "
+   "primary bone marrow correctly predicts both the sign and the relative severity of real CRISPRi "
+   "knockdowns in a leukemia line it never saw. MAGNITUDE, by contrast, is NOT a calibrated prediction "
+   "of this model, and we do not report it as one. The size of an in-silico clamp is governed by the "
+   "perturbed node's graph CENTRALITY, not by biology: on the original sparse KG (master TFs with no "
+   "downstream targets) node-zeroing UNDERSHOT the real effect ~3-fold because the edit could not "
+   "propagate; on the densified KG, clamping a now-central hub to zero collapses much of the erythroid "
+   "attractor and OVERSHOOTS 3-15 fold. The real value is bracketed by the two formulations but matched "
+   "by neither -- and clamp-to-zero is anyway a complete deletion, whereas CRISPRi is a partial "
+   "knockdown, so overshoot versus a partial KD is expected. We therefore report Q2 as directional/"
+   "rank-order, not quantitative, and explicitly do NOT tune edge counts or clamp fractions to hit the "
+   "experimental magnitude. Scope caveats: erythroid only; K562 is a cross-dataset leukemia line; "
+   "GATA1's real effect is measured on n=46; LMO2 is not yet a KG node (no in-silico comparison); and "
+   "real TAL1 knockdown is essentially inert (dP -0.009 -- TAL1 is buffered/redundant in K562), which "
+   "the purely topological model cannot capture because it treats TAL1 as an erythroid hub. This "
+   "remains the sharpest 'predicts an experimental outcome' result in the paper, honestly scoped to the "
+   "direction and ordering of perturbation effects rather than their absolute size.")
 
 # ---------------- 4 Discussion ----------------
 h("3.7 Architecture: intrinsic memory as transition resistance", 2)
