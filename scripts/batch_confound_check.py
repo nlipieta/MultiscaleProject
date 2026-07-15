@@ -39,16 +39,26 @@ def _load(path, kg):
 
 
 def _train(m, Xd, yd, epochs, bs, seed, dev):
+    # lambdas matched to scripts/train_multistable.py defaults (1/1/1) so this test reflects the same
+    # config that separates fates in-sample (mismatched reg previously gave a misleadingly low number).
     opt = torch.optim.AdamW(m.parameters(), lr=5e-3); ce = nn.CrossEntropyLoss()
     n = Xd.size(0); g = torch.Generator().manual_seed(seed)
     for ep in range(epochs):
         m.train(); perm = torch.randperm(n, generator=g).to(dev)
         for i in range(0, n, bs):
             idx = perm[i:i+bs]; opt.zero_grad()
-            loss = (m.flow_loss(Xd[idx], yd[idx]) + 5 * m.fp_loss() + 5 * m.basin_loss()
-                    + 2 * m.anchor_loss() + 0.1 * ce(m(Xd[idx]), yd[idx]))
+            loss = (m.flow_loss(Xd[idx], yd[idx]) + m.fp_loss() + m.basin_loss()
+                    + m.anchor_loss() + 0.1 * ce(m(Xd[idx]), yd[idx]))
             loss.backward(); nn.utils.clip_grad_norm_(m.parameters(), 5.0); opt.step()
     m.eval()
+
+
+def _report(tag, pred, yl, sel):
+    p, t = pred[sel], yl[sel]
+    sens = [float((p[t == c] == c).float().mean()) if (t == c).any() else float("nan") for c in (0, 1)]
+    bal = float(np.nanmean(sens))
+    print(f"    {tag:>7}: balanced acc {bal:.3f}  (fate0 sens {sens[0]:.3f}, fate1 sens {sens[1]:.3f}, "
+          f"n={int(sel.sum())})")
 
 
 def main():
@@ -78,13 +88,13 @@ def main():
     m = MultistableGRN(kg, a.classes, proto_init=proto_init).to(dev)
     _train(m, X[tr].to(dev), yl[tr].to(dev), a.epochs, a.batch_size, a.seed, dev)
     with torch.no_grad():
-        pred = m.assign(X.to(dev)).cpu()
-    acc_seen = float((pred[tr] == yl[tr]).float().mean())
-    acc_unseen = float((pred[te] == yl[te]).float().mean())
-    print(f"\n(2) LEAVE-BATCHES-OUT (train on {len(train_b)} batches, test on {len(test_b)} unseen):")
-    print(f"    fate accuracy on SEEN batches   : {acc_seen:.3f}")
-    print(f"    fate accuracy on UNSEEN batches : {acc_unseen:.3f}")
-    print(f"    => {'BIOLOGY (generalizes to unseen batches)' if acc_unseen > 0.85 and acc_seen-acc_unseen < 0.1 else 'POSSIBLE BATCH EFFECT (drop on unseen batches)'}")
+        pred = torch.cat([m.assign(X[i:i+4096].to(dev)).cpu() for i in range(0, X.size(0), 4096)])
+    print(f"\n(2) LEAVE-BATCHES-OUT (train on {len(train_b)} batches, test on {len(test_b)} unseen); "
+          f"BALANCED acc + per-fate sensitivity:")
+    _report("SEEN", pred, yl, tr)
+    _report("UNSEEN", pred, yl, te)
+    print("    => generalizes (biology) if UNSEEN balanced acc stays high and ~= SEEN; a big drop or a")
+    print("       fate sensitivity ->0 on unseen batches = batch/donor dependence, not portable fate.")
 
     # ---- (1) per-batch fate accuracy (uniform high across batches = biology) ----
     print(f"\n(1) PER-BATCH fate accuracy (uniform => separation is fate, not batch):")
