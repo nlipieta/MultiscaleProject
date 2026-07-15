@@ -181,7 +181,7 @@ class ResistanceToggle(nn.Module):
             logits = logits + s * (a - a.mean(dim=-1, keepdim=True))
         return logits
 
-    def forward(self, x0, plasticity=1.0, cue_window=None, context=None, atac=None):
+    def forward(self, x0, plasticity=1.0, cue_window=None, context=None, atac=None, n_steps=None):
         """cue_window: if set, the extrinsic cue is injected only for steps t < cue_window,
         then withdrawn (hysteresis/persistence test). context: optional [B, context_dim]
         experiment-metadata vector conditioning the graph. atac: optional [B, N] chromatin
@@ -214,7 +214,8 @@ class ResistanceToggle(nn.Module):
             acc = atac if atac is not None else torch.zeros(B, self.N, device=x0.device)
             plast_atac = self._atac_plasticity(acc)               # [B,1] per-cell plasticity
 
-        for t in range(self.steps):
+        steps = n_steps if n_steps is not None else self.steps    # relax further at inference (attractor settling)
+        for t in range(steps):
             cue_t = cue_inj * (self.cue_decay ** t)
             if self.plasticity_mode in ("amplify", "both"):
                 cue_t = cue_t * plasticity.view(B, 1, 1)

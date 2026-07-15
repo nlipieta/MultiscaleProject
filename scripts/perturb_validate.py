@@ -46,9 +46,9 @@ def _load_nodes(path, kg, need_pert=False):
 
 
 @torch.no_grad()
-def _p(m, X, dev, prog_i, bs=2048):
+def _p(m, X, dev, prog_i, n_steps=None, bs=2048):
     m.eval()
-    return torch.cat([torch.softmax(m(X[i:i+bs].to(dev)), -1)[:, prog_i].cpu()
+    return torch.cat([torch.softmax(m(X[i:i+bs].to(dev), n_steps=n_steps), -1)[:, prog_i].cpu()
                       for i in range(0, X.size(0), bs)]).numpy()
 
 
@@ -63,6 +63,9 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--device", default="auto")
     ap.add_argument("--amp", action="store_true")
+    ap.add_argument("--relax-steps", type=int, default=None,
+                    help="also compute in-silico dP with the perturbed state RELAXED for N steps "
+                         "(attractor settling / landscape prototype) -- does it grow toward the real dP?")
     a = ap.parse_args()
     kg = load_kg(); dev = pick_device(a.device)
     classes = all_classes(kg); prog_i = classes.index("Erythropoiesis")
@@ -79,11 +82,16 @@ def main():
     ctrl = pert == "control"
     P = _p(m, Xp, dev, prog_i)
     p_ctrl = P[ctrl].mean()
-    print(f"\ncontrol P(Erythropoiesis) baseline = {p_ctrl:.3f}  (n={int(ctrl.sum())} non-targeting cells)\n")
-    print(f"{'target':>8}{'n_KD':>7}{'real dP':>10}{'in-silico dP':>14}{'sign match':>12}")
-    print("-" * 51)
-    targets = [t for t in ["GATA1", "TAL1", "KLF1", "LMO2"] if (pert == t).any()]
     Xc = Xp[torch.tensor(np.where(ctrl)[0])]
+    relax = a.relax_steps
+    p_ctrl_relax = _p(m, Xc, dev, prog_i, n_steps=relax).mean() if relax else None  # relaxed baseline
+    print(f"\ncontrol P(Erythropoiesis) baseline = {p_ctrl:.3f}  (n={int(ctrl.sum())} non-targeting cells)")
+    if relax:
+        print(f"control baseline @ relax {relax} steps = {p_ctrl_relax:.3f}")
+    rlx_col = f"{'in-silico dP@relax'+str(relax):>20}" if relax else ""
+    print(f"\n{'target':>8}{'n_KD':>7}{'real dP':>10}{'in-silico dP':>14}{rlx_col}{'sign':>7}")
+    print("-" * (51 + (20 if relax else 0)))
+    targets = [t for t in ["GATA1", "TAL1", "KLF1", "LMO2"] if (pert == t).any()]
     for t in targets:
         real_dp = P[pert == t].mean() - p_ctrl                      # real KD cells vs control
         node = t if t in kg.node_index else next((n for n, s in kg.gene_map.items()
@@ -94,7 +102,15 @@ def main():
         Xz = Xc.clone(); Xz[:, kg.node_index[node]] = 0.0           # in-silico KD: zero the node input
         insilico_dp = _p(m, Xz, dev, prog_i).mean() - p_ctrl
         match = "yes" if np.sign(real_dp) == np.sign(insilico_dp) and abs(real_dp) > 0.005 else "—"
-        print(f"{t:>8}{int((pert==t).sum()):>7}{real_dp:>+10.3f}{insilico_dp:>+14.3f}{match:>12}")
+        rlx = ""
+        if relax:                                                   # perturbed state relaxed to settling
+            insilico_relax = _p(m, Xz, dev, prog_i, n_steps=relax).mean() - p_ctrl_relax
+            rlx = f"{insilico_relax:>+20.3f}"
+        print(f"{t:>8}{int((pert==t).sum()):>7}{real_dp:>+10.3f}{insilico_dp:>+14.3f}{rlx}{match:>7}")
+    if relax:
+        print(f"\nRELAX = perturbed state run to {relax} steps (attractor settling). If in-silico dP@relax")
+        print("grows toward the real dP, letting the perturbation propagate/settle closes the magnitude gap")
+        print("-> motivates the explicit potential-landscape model.")
     print("\nBoth negative = KD lowers erythroid identity, in-silico agrees with the real experiment.")
     print("Sign agreement on held-out real knockdowns = Q2 validated (model predicts perturbation")
     print("outcomes, not just self-consistent in-silico edits). Caveat: K562 cell line, cross-dataset;")
