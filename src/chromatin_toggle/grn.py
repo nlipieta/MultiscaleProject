@@ -110,8 +110,9 @@ class MultistableGRN(GRNDynamics):
         return ((xs - tgt) ** 2).mean()
 
     @torch.no_grad()
-    def assign(self, x0, n_steps=None):
-        """Settle then assign each cell to the nearest prototype; returns stored-position indices."""
-        xs = self.settle(x0, n_steps=n_steps)
+    def assign(self, x0, clamp_idx=None, n_steps=None):
+        """Settle (optionally with a node clamped throughout = a held knockdown) then assign each cell to
+        the nearest prototype; returns stored-position indices."""
+        xs = self.settle(x0, clamp_idx=clamp_idx, n_steps=n_steps)
         d = torch.cdist(xs, self.proto)          # [B, C]
         return d.argmin(1)
