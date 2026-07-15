@@ -1,9 +1,10 @@
 """Ingest Replogle 2022 K562 Perturb-seq -> the Q2 perturbation-VALIDATION set for Erythropoiesis.
 
-Real CRISPRi knockdowns of erythroid regulators (GATA1/TAL1/KLF1/LMO2) + non-targeting controls.
-Used to VALIDATE the model's in-silico perturbations: does knocking down GATA1 in-silico shift the
-model's predicted state the same way the REAL GATA1-KD cells shifted? (turns Q2 from a hypothesis
-generator into 'predicts experimental outcomes').
+Real CRISPRi knockdowns + non-targeting controls. Keeps EVERY perturbation whose target gene is a KG
+node (with enough cells), so the shift model can be validated against as many real knockdowns as the
+data provides -- a proper sample size for the potency-RANK test, not just a handful. Used to VALIDATE
+the model's in-silico perturbations: does knocking down gene X in-silico shift the model's state the
+same way the REAL X-KD cells shifted? (turns Q2 from a hypothesis generator into 'predicts outcomes').
 
 Source (verified public, no paywall): pertpy mirror is the smallest single-cell handle --
   https://exampledata.scverse.org/pertpy/replogle_2022_k562_essential.h5ad   (~1.55 GB)
@@ -22,15 +23,15 @@ import numpy as np
 
 from chromatin_toggle.kg import DATA_DIR, load_kg
 
-TARGETS = ["GATA1", "TAL1", "KLF1", "LMO2"]     # erythroid regulators we also perturb in-silico
-
 
 def main():
     ap = argparse.ArgumentParser(description="Replogle K562 Perturb-seq -> Q2 erythroid validation CSV")
     ap.add_argument("--h5ad", required=True, help="path to K562_essential*singlecell*.h5ad")
     ap.add_argument("--out", default=str(DATA_DIR / "replogle_k562.csv"))
     ap.add_argument("--max-control", type=int, default=4000, help="subsample non-targeting controls")
-    ap.add_argument("--max-per-target", type=int, default=1500)
+    ap.add_argument("--max-per-target", type=int, default=1000)
+    ap.add_argument("--min-per-target", type=int, default=50,
+                    help="keep any KG-node perturbation with at least this many cells")
     args = ap.parse_args()
     import anndata as ad
 
@@ -47,10 +48,15 @@ def main():
     ntc = next((c for c in ("non-targeting", "control", "non_targeting", "NTC") if c in set(g)), None)
     if ntc is None:
         raise SystemExit(f"no non-targeting label found; top obs.gene values: {vc.head(10).to_dict()}")
-    present = [t for t in TARGETS if t in set(g)]
-    print(f"[replogle] control label='{ntc}' (n={int(vc.get(ntc,0))}); targets present={present}")
+    # keep EVERY perturbation whose target is a KG node and has >= min_per_target cells
+    present = sorted([t for t in set(g) if t != ntc and t.upper() in want
+                      and int(vc.get(t, 0)) >= args.min_per_target],
+                     key=lambda t: -int(vc[t]))
+    print(f"[replogle] control label='{ntc}' (n={int(vc.get(ntc,0))}); {len(present)} KG-node targets "
+          f">= {args.min_per_target} cells: {present}")
     if not present:
-        raise SystemExit(f"none of {TARGETS} in obs.gene; sample values: {list(vc.head(20).index)}")
+        raise SystemExit(f"no KG-node perturbations with >= {args.min_per_target} cells; "
+                         f"sample obs.gene: {list(vc.head(20).index)}")
 
     rng = np.random.default_rng(0)
     keep_idx, pert = [], []
