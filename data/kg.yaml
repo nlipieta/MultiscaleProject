@@ -439,3 +439,18 @@ edges:
   - {src: Klf1, rel: ACTIVATES, dst: Erythropoiesis, w: 1.5}
   - {src: Gata1, rel: ACTIVATES, dst: Megakaryopoiesis, w: 1.0}
   - {src: Fli1, rel: ACTIVATES, dst: Megakaryopoiesis, w: 1.5}
+
+  # --- Erythroid regulatory cascade (TRRUST v2, literature-curated; see
+  #     scripts/densify_erythroid_kg.py + data/erythroid_regulatory_edges.tsv). Adds the
+  #     TF->effector layer so an in-silico knockdown propagates through the graph. ---
+  - {src: Fli1, rel: ACTIVATES, dst: Gata1, w: 1.0}   # TRRUST Activation PMID:12724402
+  - {src: Gata1, rel: ACTIVATES, dst: ALAS2, w: 1.0}   # TRRUST Unknown PMID:23935018 [dir inferred from marker]
+  - {src: Gata1, rel: ACTIVATES, dst: EPOR, w: 1.0}   # TRRUST Activation PMID:16471262
+  - {src: Gata1, rel: ACTIVATES, dst: HBA1, w: 1.0}   # TRRUST Unknown PMID:12609092 [dir inferred from marker]
+  - {src: Gata1, rel: ACTIVATES, dst: HBB, w: 1.0}   # TRRUST Unknown PMID:15833715 [dir inferred from marker]
+  - {src: Gata1, rel: ACTIVATES, dst: Klf1, w: 1.0}   # TRRUST Unknown PMID:18487511 [dir inferred from marker]
+  - {src: Gata1, rel: INHIBITS, dst: PU1, w: 1.0}   # TRRUST Repression PMID:10753833
+  - {src: Gata1, rel: ACTIVATES, dst: TAL1, w: 1.0}   # TRRUST Unknown PMID:8058326 [dir inferred from marker]
+  - {src: Klf1, rel: ACTIVATES, dst: HBB, w: 1.0}   # TRRUST Unknown PMID:21539536 [dir inferred from marker]
+  - {src: RUNX1, rel: ACTIVATES, dst: PU1, w: 1.0}   # TRRUST Activation PMID:12576332
+  - {src: TAL1, rel: ACTIVATES, dst: EPOR, w: 1.0}   # TRRUST Unknown PMID:22982397 [dir inferred from marker]
