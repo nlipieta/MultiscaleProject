@@ -76,6 +76,10 @@ class MultistableGRN(GRNDynamics):
         C = len(self.stored)
         self.proto = nn.Parameter(proto_init.clone() if proto_init is not None
                                   else torch.zeros(C, self.N))
+        # anchor: each attractor must stay near its class's data mean, or the optimizer collapses all
+        # prototypes onto one shared stable point (a degenerate solution to flow/fp/basin).
+        self.register_buffer("proto_anchor", proto_init.clone() if proto_init is not None
+                             else torch.zeros(C, self.N))
         # map full-class index -> stored position (-1 if that class is not stored)
         full2stored = [-1] * len(self.classes)
         for j, c in enumerate(self.stored):
@@ -85,6 +89,10 @@ class MultistableGRN(GRNDynamics):
     def fp_loss(self):
         """Prototypes must be fixed points of the dynamics: ||step(p) - p||^2."""
         return ((self._step(self.proto) - self.proto) ** 2).mean()
+
+    def anchor_loss(self):
+        """Keep each attractor near its class's data mean (anti-collapse)."""
+        return ((self.proto - self.proto_anchor) ** 2).mean()
 
     def basin_loss(self, eps=0.1, k=4):
         """Each prototype must be a STABLE attractor: perturb it and require re-settling to RETURN.

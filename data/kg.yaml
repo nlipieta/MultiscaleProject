@@ -460,3 +460,9 @@ edges:
   #     requirement for MULTISTABILITY (distinct stable attractors). ---
   - {src: Gata1, rel: ACTIVATES, dst: Gata1, w: 1.0}   # GATA1 positive autoregulation (TRRUST Activation PMID:16492768) -- self-activation bistable motif
   - {src: PU1, rel: INHIBITS, dst: Gata1, w: 1.0}   # second arm of the GATA1<->PU.1 double-negative toggle; canonical mutual repression, sign per thesis ruling (NB TRRUST lists SPI1->GATA1 as Activation, overridden as non-canonical)
+
+  # --- Erythroid FEEDBACK circuits (autoregulation + double-negative toggle; see
+  #     data/erythroid_feedback_edges.tsv). Positive feedback = the topological
+  #     requirement for MULTISTABILITY (distinct stable attractors). ---
+  - {src: Klf1, rel: INHIBITS, dst: Fli1, w: 1.0}   # KLF1<->FLI1 double-negative toggle (MEP erythroid-vs-megakaryocyte switch); canonical EKLF/KLF1-FLI1 cross-antagonism (Starck 2003), not in TRRUST
+  - {src: Fli1, rel: INHIBITS, dst: Klf1, w: 1.0}   # KLF1<->FLI1 double-negative toggle (MEP erythroid-vs-megakaryocyte switch); canonical EKLF/KLF1-FLI1 cross-antagonism (Starck 2003), not in TRRUST

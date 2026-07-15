@@ -52,7 +52,11 @@ def main():
     ap.add_argument("--lr", type=float, default=5e-3)
     ap.add_argument("--lambda-fp", type=float, default=1.0)
     ap.add_argument("--lambda-basin", type=float, default=1.0)
+    ap.add_argument("--lambda-anchor", type=float, default=1.0)
     ap.add_argument("--lambda-ce", type=float, default=0.1)
+    ap.add_argument("--classes", nargs="+", default=None,
+                    help="store only these programs as attractors + subset the data to their cells "
+                         "(e.g. --classes Erythropoiesis Megakaryopoiesis for the MEP fork)")
     ap.add_argument("--n-random", type=int, default=500)
     ap.add_argument("--eps-rms", type=float, default=0.08)
     ap.add_argument("--seed", type=int, default=0)
@@ -60,10 +64,16 @@ def main():
     a = ap.parse_args()
     kg = load_kg(); dev = pick_device(a.device)
     X, y, classes = _load(a.data, kg)
-    present = sorted(set(y.tolist()))
+    if a.classes:                                                    # restrict to a chosen fork
+        keep = [classes.index(c) for c in a.classes]
+        mask = torch.tensor([int(v) in keep for v in y])
+        X, y = X[mask], y[mask]
+        present = keep
+    else:
+        present = sorted(set(y.tolist()))
     stored = [classes[i] for i in present]
     proto_init = torch.stack([X[y == i].mean(0) for i in present])   # per-program mean state
-    print(f"stored program attractors: {stored}")
+    print(f"stored program attractors: {stored}  (n={X.size(0)} cells)")
 
     torch.manual_seed(a.seed)
     m = MultistableGRN(kg, stored, proto_init=proto_init, steps=a.steps, eta=a.eta).to(dev)
@@ -72,19 +82,20 @@ def main():
     Xd, yd = X.to(dev), y.to(dev); n = Xd.size(0)
     g = torch.Generator().manual_seed(a.seed)
     print(f"training multistable GRN (steps={a.steps}, lambda_fp={a.lambda_fp}, "
-          f"lambda_basin={a.lambda_basin}, lambda_ce={a.lambda_ce}) ...")
+          f"lambda_basin={a.lambda_basin}, lambda_anchor={a.lambda_anchor}, lambda_ce={a.lambda_ce}) ...")
     for ep in range(a.epochs):
-        m.train(); perm = torch.randperm(n, generator=g).to(dev); tot = np.zeros(4)
+        m.train(); perm = torch.randperm(n, generator=g).to(dev); tot = np.zeros(5)
         for i in range(0, n, a.batch_size):
             idx = perm[i:i+a.batch_size]; opt.zero_grad()
-            lf = m.flow_loss(Xd[idx], yd[idx]); lp = m.fp_loss(); lb = m.basin_loss(); lc = ce(m(Xd[idx]), yd[idx])
-            loss = lf + a.lambda_fp * lp + a.lambda_basin * lb + a.lambda_ce * lc
+            lf = m.flow_loss(Xd[idx], yd[idx]); lp = m.fp_loss(); lb = m.basin_loss()
+            la = m.anchor_loss(); lc = ce(m(Xd[idx]), yd[idx])
+            loss = lf + a.lambda_fp * lp + a.lambda_basin * lb + a.lambda_anchor * la + a.lambda_ce * lc
             loss.backward(); nn.utils.clip_grad_norm_(m.parameters(), 5.0); opt.step()
-            tot += [lf.item(), lp.item(), lb.item(), lc.item()]
+            tot += [lf.item(), lp.item(), lb.item(), la.item(), lc.item()]
         if ep % 10 == 0 or ep == a.epochs - 1:
             nb = max(1, n // a.batch_size)
             print(f"  epoch {ep}: flow {tot[0]/nb:.4f}  fp {tot[1]/nb:.4f}  basin {tot[2]/nb:.4f}  "
-                  f"ce {tot[3]/nb:.3f}", flush=True)
+                  f"anchor {tot[3]/nb:.4f}  ce {tot[4]/nb:.3f}", flush=True)
     m.eval()
 
     # ---- verification ----
@@ -107,7 +118,7 @@ def main():
     # or do they collapse together? (a continuum trajectory naturally has ~1 basin, not a fork.)
     with torch.no_grad():
         pstar, psteps, _ = settle_converged(A, b, eta, m.proto)
-    pd_init = torch.cdist(m.proto, m.proto)
+    pd_init = torch.cdist(m.proto.detach(), m.proto.detach())
     pd_conv = torch.cdist(pstar, pstar)
     print("\n[prototype convergence] pairwise RMS/node distance between program attractors:")
     for i in range(len(stored)):
