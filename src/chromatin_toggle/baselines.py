@@ -223,16 +223,24 @@ def main():
     print("\nmacro-F1 = precision+recall balance; prog-AUPRC = threshold-independent, "
           "program classes.")
 
-    # optional: persist per-(seed,fold) values for external paired analysis
+    # optional: persist per-(seed,fold) values for external paired analysis.
+    # Wrapped so a bad path can NEVER abort the run before the paired test below (a missing
+    # results/ dir once cost a full multi-seed GPU run); auto-create the parent dir.
     if args.save_folds:
-        import csv
-        n = len(next(iter(scores.values()))["auprc"])
-        with open(args.save_folds, "w", newline="") as fh:
-            w = csv.writer(fh); w.writerow(["model", "idx", "acc", "bal", "prog", "f1", "auprc"])
-            for m in model_list:
-                for i in range(n):
-                    w.writerow([m, i] + [scores[m][k][i] for k in ("acc", "bal", "prog", "f1", "auprc")])
-        print(f"per-fold metrics -> {args.save_folds}")
+        import csv, os
+        try:
+            parent = os.path.dirname(args.save_folds)
+            if parent:
+                os.makedirs(parent, exist_ok=True)
+            n = len(next(iter(scores.values()))["auprc"])
+            with open(args.save_folds, "w", newline="") as fh:
+                w = csv.writer(fh); w.writerow(["model", "idx", "acc", "bal", "prog", "f1", "auprc"])
+                for m in model_list:
+                    for i in range(n):
+                        w.writerow([m, i] + [scores[m][k][i] for k in ("acc", "bal", "prog", "f1", "auprc")])
+            print(f"per-fold metrics -> {args.save_folds}")
+        except OSError as e:
+            print(f"WARNING: could not write --save-folds ({e}); continuing to paired test.")
 
     # paired significance: KG-GNN vs each baseline on the SAME seed x fold splits.
     # scores[m][metric] are aligned by (seed,fold) across models, so a paired
