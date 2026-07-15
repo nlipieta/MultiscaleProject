@@ -103,6 +103,19 @@ def main():
     print(f"[cells@fixed-points] RMS/node displacement: median {np.median(disp):.3f}  p90 "
           f"{np.percentile(disp,90):.3f}   (classifier-GRN baseline was 0.759 -> want much smaller)")
 
+    # decisive check: do the stored program prototypes remain DISTINCT stable attractors at convergence,
+    # or do they collapse together? (a continuum trajectory naturally has ~1 basin, not a fork.)
+    with torch.no_grad():
+        pstar, psteps, _ = settle_converged(A, b, eta, m.proto)
+    pd_init = torch.cdist(m.proto, m.proto)
+    pd_conv = torch.cdist(pstar, pstar)
+    print("\n[prototype convergence] pairwise RMS/node distance between program attractors:")
+    for i in range(len(stored)):
+        for j in range(i + 1, len(stored)):
+            di = float(pd_init[i, j]) / (m.N ** 0.5); dc = float(pd_conv[i, j]) / (m.N ** 0.5)
+            print(f"    {stored[i]} vs {stored[j]}: at prototype {di:.3f} -> at convergence {dc:.3f}"
+                  f"   ({'STAY DISTINCT' if dc > a.eps_rms else 'COLLAPSE to one attractor'})")
+
     lo, hi = (Xd.amin(0) * in_scale), (Xd.amax(0) * in_scale)
     rand = lo + (hi - lo) * torch.rand(a.n_random, m.N, generator=torch.Generator().manual_seed(a.seed)).to(dev)
     all_x0 = torch.cat([cell_x0, rand])
@@ -111,8 +124,7 @@ def main():
     K = cents.size(0)
     print(f"\n[multistability] {K} distinct attractor(s) at eps_rms={a.eps_rms} "
           f"(classifier-GRN baseline was 1)")
-    with torch.no_grad():
-        proto = m.proto.cpu()
+    proto = m.proto.detach().to(cents.device)
     for rank, k in enumerate(sorted(range(K), key=lambda k: -(labels == k).sum().item())):
         sel = labels == k
         near = int(torch.cdist(cents[k:k+1], proto).argmin())
