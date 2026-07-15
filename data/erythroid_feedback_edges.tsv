@@ -1,0 +1,3 @@
+src	rel	dst	note
+Gata1	ACTIVATES	Gata1	GATA1 positive autoregulation (TRRUST Activation PMID:16492768) -- self-activation bistable motif
+PU1	INHIBITS	Gata1	second arm of the GATA1<->PU.1 double-negative toggle; canonical mutual repression, sign per thesis ruling (NB TRRUST lists SPI1->GATA1 as Activation, overridden as non-canonical)
