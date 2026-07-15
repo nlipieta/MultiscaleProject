@@ -116,3 +116,11 @@ class MultistableGRN(GRNDynamics):
         xs = self.settle(x0, clamp_idx=clamp_idx, n_steps=n_steps)
         d = torch.cdist(xs, self.proto)          # [B, C]
         return d.argmin(1)
+
+    @torch.no_grad()
+    def basin_prob(self, x0, clamp_idx=None, n_steps=None, temp=0.5):
+        """Graded basin membership: softmax over -distance to each prototype after settling. More
+        sensitive to PARTIAL destabilization than the hard nearest-prototype assignment."""
+        xs = self.settle(x0, clamp_idx=clamp_idx, n_steps=n_steps)
+        d = torch.cdist(xs, self.proto)          # [B, C]
+        return torch.softmax(-d / temp, dim=1)

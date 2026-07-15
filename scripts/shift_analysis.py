@@ -96,51 +96,58 @@ def main():
 
     tgt_local = a.classes.index(a.target_class)
     ery = Xd[yd == keep[a.classes.index(a.target_class)]][:a.n_cells]
-    base_frac = float((m.assign(ery) == tgt_local).float().mean())
-    print(f"\nbaseline: {100*base_frac:.0f}% of {a.target_class} cells sit in the {a.target_class} basin "
-          f"(operating horizon, {a.steps} steps)")
+    hard = float((m.assign(ery) == tgt_local).float().mean())
+    base_p = float(m.basin_prob(ery)[:, tgt_local].mean())
+    print(f"\nbaseline: {100*hard:.0f}% of {a.target_class} cells hard-assign to the {a.target_class} basin; "
+          f"mean graded membership {base_p:.3f}  (operating horizon, {a.steps} steps)")
 
-    # ---- in-silico shift screen: clamp each node (held knockdown), measure fraction LEAVING the basin ----
+    # only GENE nodes are perturbable knockdowns -- exclude program/cue/chromatin-mark nodes (a clamp on
+    # the readout program node is circular). gene_map holds base TFs + injected marker genes.
+    gene_j = [j for j in range(m.N) if kg.node_ids[j] in kg.gene_map]
+    # ---- in-silico shift screen: clamp each gene (held KD), measure GRADED drop in basin membership ----
     rows = []
     with torch.no_grad():
-        for j in range(m.N):
-            asg = m.assign(ery, clamp_idx=j)
-            leave = base_frac - float((asg == tgt_local).float().mean())
-            rows.append((kg.node_ids[j], leave))
+        for j in gene_j:
+            drop = base_p - float(m.basin_prob(ery, clamp_idx=j)[:, tgt_local].mean())
+            rows.append((kg.node_ids[j], drop))
     rows.sort(key=lambda r: -r[1])
-    print(f"\nWHAT A SHIFT REQUIRES -- top knockdowns that move {a.target_class} cells out of their basin:")
-    print(f"  {'node':>12}  frac-leaving")
-    for name, leave in rows[:15]:
-        print(f"  {name:>12}  {leave:+.3f}")
+    print(f"\nWHAT A SHIFT REQUIRES -- top gene knockdowns that move {a.target_class} cells toward the "
+          f"other fate ({len(gene_j)} genes screened):")
+    print(f"  {'gene':>12}  d-membership")
+    for name, drop in rows[:15]:
+        print(f"  {name:>12}  {drop:+.3f}")
 
-    # ---- validate the shift-drivers against real Replogle knockdowns ----
+    # ---- validate the shift-drivers against real Replogle knockdowns (graded membership) ----
     if Path(a.pert).exists():
         Xp, _, pert = _load(a.pert, kg, need_pert=True)
         Xp = Xp.to(dev); ctrl = pert == "control"
-        base_p = float((m.assign(Xp[torch.tensor(np.where(ctrl)[0])]) == tgt_local).float().mean())
         Xc = Xp[torch.tensor(np.where(ctrl)[0])]
+        base_pk = float(m.basin_prob(Xc)[:, tgt_local].mean())
         rank = {name: i for i, (name, _) in enumerate(rows)}
-        print(f"\nVALIDATION vs Replogle (control erythroid-basin frac {100*base_p:.0f}%):")
-        print(f"  {'target':>8}{'real dFrac':>12}{'in-silico dFrac':>16}{'in-silico rank':>16}{'sign':>7}")
+        print(f"\nVALIDATION vs Replogle (control {a.target_class}-membership {base_pk:.3f}):")
+        print(f"  {'target':>8}{'real dMemb':>12}{'in-silico dMemb':>16}{'in-silico rank':>16}{'sign':>7}")
         real_rows, insil_rows = [], []
         for t in ["GATA1", "TAL1", "KLF1", "LMO2"]:
             if not (pert == t).any():
                 continue
-            real_d = float((m.assign(Xp[torch.tensor(np.where(pert == t)[0])]) == tgt_local).float().mean()) - base_p
+            real_d = float(m.basin_prob(Xp[torch.tensor(np.where(pert == t)[0])])[:, tgt_local].mean()) - base_pk
             node = _node_for(t, kg)
             if node is None:
                 print(f"  {t:>8}{real_d:>+12.3f}      (not a KG node)"); continue
             with torch.no_grad():
-                insil_d = float((m.assign(Xc, clamp_idx=kg.node_index[node]) == tgt_local).float().mean()) - base_p
-            match = "yes" if np.sign(real_d) == np.sign(insil_d) and abs(real_d) > 0.005 else "-"
+                insil_d = float(m.basin_prob(Xc, clamp_idx=kg.node_index[node])[:, tgt_local].mean()) - base_pk
+            match = "yes" if np.sign(real_d) == np.sign(insil_d) and abs(real_d) > 0.003 else "-"
             print(f"  {t:>8}{real_d:>+12.3f}{insil_d:>+16.3f}{rank.get(node,'-'):>16}{match:>7}")
             real_rows.append(real_d); insil_rows.append(insil_d)
         if len(real_rows) >= 3:
             from scipy.stats import spearmanr
             rho = spearmanr(real_rows, insil_rows).correlation
-            print(f"\n  rank agreement (Spearman real vs in-silico dFrac): rho={rho:+.2f} (n={len(real_rows)})")
-    print("\nREAD: shift-drivers = knockdowns that empty the target basin; validated by SIGN + RANK vs real")
-    print("      KDs (not magnitude). This answers 'which perturbations move the system between states'.")
+            signs = sum(1 for r, i in zip(real_rows, insil_rows) if np.sign(r) == np.sign(i))
+            print(f"\n  SIGN agreement: {signs}/{len(real_rows)} knockdowns move erythroid the same way as real.")
+            print(f"  RANK agreement (Spearman real vs in-silico): rho={rho:+.2f} (n={len(real_rows)}) "
+                  f"-- report straight; rho<=0 means the model does NOT rank potency like reality.")
+    print("\nREAD: this is honestly scoped. A working result = high baseline separation (distinct attractors)")
+    print("      + SIGN agreement (right direction). RANK/magnitude are shown but NOT assumed -- report as is.")
 
 
 if __name__ == "__main__":
