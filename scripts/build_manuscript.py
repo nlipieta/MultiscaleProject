@@ -301,6 +301,31 @@ p("The encoded hypertrophy cascade (MechanicalStretch -> CaMKII/PKD -> nuclear e
   "the HDAC4/5 direction therefore remains an UNCONFIRMED, falsifiable wet-lab prediction (KN-93 "
   "CaMKII inhibition; HDAC4/5 knockdown in NRVM / hiPSC-CM), not an in-silico success.")
 
+h("3.6b Perturbation predictions validated against a REAL knockdown experiment (erythropoiesis)", 2)
+p("The hypertrophy prediction (3.6) is in-silico only (no public single-cell HDAC4/5 or CaMKII "
+  "perturbation data exists). For erythropoiesis we can validate against a held-out REAL experiment: "
+  "Replogle 2022 K562 genome-scale CRISPRi Perturb-seq. The model is trained on the erythroid Multiome "
+  "(SHARE-seq) and applied unchanged to K562; non-targeting controls read as strongly erythroid "
+  "(P(Erythropoiesis)=0.78), a nontrivial cross-dataset generalization that gates the comparison. For "
+  "each erythroid regulator the model encodes, the REAL knockdown effect (KD cells vs controls) is "
+  "compared to the model's IN-SILICO knockdown (zeroing that node on control cells):")
+table(["Regulator (real KD n)", "real dP(Ery)", "in-silico dP(Ery)", "sign"],
+      [["GATA1 (master, n=46)", "-0.205", "-0.075", "agree"],
+       ["KLF1 (n=157)", "-0.109", "-0.031", "agree"],
+       ["TAL1 (n=408)", "-0.020", "-0.007", "agree"]])
+em("All three agree in SIGN -- knockdown lowers erythroid identity -- with a biologically sensible "
+   "ordering (master GATA1 > KLF1 > TAL1). This is a genuine cross-experiment validation of framework "
+   "question Q2 (which perturbations move the state): the model, trained on primary bone marrow, "
+   "correctly predicts the DIRECTION of real CRISPRi knockdowns in a leukemia line it never saw. "
+   "HONEST scope: DIRECTION is validated, MAGNITUDE is not -- in-silico effects are ~3x smaller because "
+   "zeroing a single node does not propagate the full downstream program-collapse a real knockdown "
+   "triggers (the real KD cells' transcriptomes carry that cascade; the in-silico edit does not). "
+   "Closing that magnitude gap is the motivation for a potential-landscape / attractor-relaxation "
+   "formulation (letting a perturbation settle into the new basin rather than reading the immediate "
+   "response). Scope caveats: erythroid only; GATA1 is noisy (n=46, though the effect is largest); "
+   "LMO2 is not yet a KG node (no in-silico comparison). This is the sharpest 'predicts an experimental "
+   "outcome' result in the paper, reported as directional not quantitative.")
+
 # ---------------- 4 Discussion ----------------
 h("3.7 Architecture: intrinsic memory as transition resistance", 2)
 p("The model scopes intrinsic memory as transition RESISTANCE — the barrier a cue must overcome to "
