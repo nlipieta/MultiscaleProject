@@ -30,52 +30,7 @@ from chromatin_toggle.device import pick_device
 from chromatin_toggle.kg import DATA_DIR, load_kg
 from chromatin_toggle.oracle import QUIESCENT, all_classes
 
-
-class GRNDynamics(nn.Module):
-    def __init__(self, kg, steps=15, eta=0.3):
-        super().__init__()
-        self.N, self.steps, self.eta = kg.num_nodes, steps, eta
-        self.classes = all_classes(kg)
-        src, dst, sign = [], [], []
-        for s, rel, d, _w in kg.edges:
-            src.append(s); dst.append(d); sign.append(kg.relation_sign[rel])
-        self.register_buffer("src", torch.tensor(src, dtype=torch.long))
-        self.register_buffer("dst", torch.tensor(dst, dtype=torch.long))
-        self.register_buffer("sign", torch.tensor(sign, dtype=torch.float32))
-        self.mag = nn.Parameter(torch.full((len(src),), 0.5))     # softplus -> positive magnitude/edge
-        self.bias = nn.Parameter(torch.zeros(self.N))
-        self.in_scale = nn.Parameter(torch.tensor(1.0))
-        self.temp = nn.Parameter(torch.tensor(1.0))
-        self.q_logit = nn.Parameter(torch.zeros(1))               # Quiescent competes with programs
-        # class -> program node index (or -1 for Quiescent / absent)
-        cls_node = []
-        for c in self.classes:
-            cls_node.append(kg.node_index[c] if (c != QUIESCENT and c in kg.node_index) else -1)
-        self.register_buffer("cls_node", torch.tensor(cls_node, dtype=torch.long))
-        self.q_index = self.classes.index(QUIESCENT) if QUIESCENT in self.classes else -1
-
-    def _step(self, x):
-        m = torch.nn.functional.softplus(self.mag) * self.sign    # [E] signed weights
-        agg = x.new_zeros(x.shape)
-        agg.index_add_(1, self.dst, x[:, self.src] * m)           # incoming signed messages
-        return (1 - self.eta) * x + self.eta * torch.tanh(agg + self.bias)
-
-    def forward(self, x0, clamp_idx=None, n_steps=None):
-        B = x0.size(0); steps = n_steps if n_steps is not None else self.steps
-        x = x0 * self.in_scale                                    # initial condition
-        if clamp_idx is not None:
-            x[:, clamp_idx] = 0.0
-        for _ in range(steps):
-            x = self._step(x)
-            if clamp_idx is not None:
-                x[:, clamp_idx] = 0.0                             # KD: held off throughout
-        logits = x.new_full((B, len(self.classes)), 0.0)
-        prog = self.cls_node >= 0
-        logits[:, prog] = x[:, self.cls_node[prog]] * self.temp   # program-node steady activity
-        if self.q_index >= 0:
-            logits[:, self.q_index] = self.q_logit
-        return logits
-
+from chromatin_toggle.grn import GRNDynamics  # model lives in the package now
 
 def _load(path, kg, need_pert=False):
     df = pd.read_csv(path); classes = all_classes(kg); ci = {c: i for i, c in enumerate(classes)}
