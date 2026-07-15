@@ -54,6 +54,9 @@ def main():
     ap.add_argument("--lambda-basin", type=float, default=1.0)
     ap.add_argument("--lambda-anchor", type=float, default=1.0)
     ap.add_argument("--lambda-ce", type=float, default=0.1)
+    ap.add_argument("--balance", action="store_true",
+                    help="inverse-frequency weight the flow loss so a majority fate can't collapse the "
+                         "minority basin (report BALANCED accuracy + per-fate sensitivity)")
     ap.add_argument("--classes", nargs="+", default=None,
                     help="store only these programs as attractors + subset the data to their cells "
                          "(e.g. --classes Erythropoiesis Megakaryopoiesis for the MEP fork)")
@@ -73,7 +76,12 @@ def main():
         present = sorted(set(y.tolist()))
     stored = [classes[i] for i in present]
     proto_init = torch.stack([X[y == i].mean(0) for i in present])   # per-program mean state
-    print(f"stored program attractors: {stored}  (n={X.size(0)} cells)")
+    counts = [int((y == i).sum()) for i in present]
+    print(f"stored program attractors: {list(zip(stored, counts))}  (n={X.size(0)} cells)")
+    fate_w = None
+    if a.balance:
+        inv = torch.tensor([1.0 / max(1, c) for c in counts], dtype=torch.float32)
+        fate_w = (inv / inv.sum() * len(present)).to(dev)           # inverse-freq, mean 1
 
     torch.manual_seed(a.seed)
     m = MultistableGRN(kg, stored, proto_init=proto_init, steps=a.steps, eta=a.eta).to(dev)
@@ -87,7 +95,7 @@ def main():
         m.train(); perm = torch.randperm(n, generator=g).to(dev); tot = np.zeros(5)
         for i in range(0, n, a.batch_size):
             idx = perm[i:i+a.batch_size]; opt.zero_grad()
-            lf = m.flow_loss(Xd[idx], yd[idx]); lp = m.fp_loss(); lb = m.basin_loss()
+            lf = m.flow_loss(Xd[idx], yd[idx], fate_weight=fate_w); lp = m.fp_loss(); lb = m.basin_loss()
             la = m.anchor_loss(); lc = ce(m(Xd[idx]), yd[idx])
             loss = lf + a.lambda_fp * lp + a.lambda_basin * lb + a.lambda_anchor * la + a.lambda_ce * lc
             loss.backward(); nn.utils.clip_grad_norm_(m.parameters(), 5.0); opt.step()
@@ -143,12 +151,19 @@ def main():
         print(f"  attractor {rank}: basin {int(sel.sum())}/{len(labels)} ({100*sel.float().mean():.0f}%)  "
               f"~{stored[near]}  [spectral radius {rho[k]:.3f}]  composition {comp}")
 
-    pred = m.assign(cell_x0).cpu()
-    true_local = m.full2stored.cpu()[y[torch.tensor(idx)]]
-    acc = (pred == true_local).float().mean().item()
-    print(f"\n[basin assignment] settle -> nearest prototype vs true label: acc {acc:.3f}")
-    print("READ: >=2 attractors + small displacement + one basin per program + good assignment acc")
-    print("      => the structure-preserving multistable GRN works; proceed to shift/separatrix analysis.")
+    # honest evaluation: per-fate SENSITIVITY + BALANCED accuracy (not one-sided) on ALL cells
+    with torch.no_grad():
+        pred_all = torch.cat([m.assign(Xd[i:i+4096]) for i in range(0, n, 4096)]).cpu()
+    true_all = m.full2stored.cpu()[y]
+    acc = (pred_all == true_all).float().mean().item()
+    sens = [float((pred_all[true_all == c] == c).float().mean()) for c in range(len(present))]
+    bal = float(np.mean(sens))
+    print(f"\n[basin assignment] overall acc {acc:.3f} | BALANCED acc {bal:.3f} "
+          f"(majority baseline {max(counts)/sum(counts):.3f})")
+    for c, s in enumerate(sens):
+        print(f"    {stored[c]:>20} sensitivity {s:.3f}  (n={counts[c]})")
+    print("\nREAD: a REAL 2-attractor result needs BALANCED acc >> majority baseline AND both per-fate")
+    print("      sensitivities high. If one sensitivity ~0, the model collapsed to the other basin.")
 
 
 if __name__ == "__main__":

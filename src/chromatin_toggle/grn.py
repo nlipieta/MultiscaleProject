@@ -103,11 +103,16 @@ class MultistableGRN(GRNDynamics):
         xs = self.settle(p + eps * torch.randn_like(p))
         return ((xs - p) ** 2).mean()
 
-    def flow_loss(self, x0, y_full):
-        """Cells must settle to their program's prototype: ||settle(x) - proto[stored(y)]||^2."""
+    def flow_loss(self, x0, y_full, fate_weight=None):
+        """Cells must settle to their program's prototype: ||settle(x) - proto[stored(y)]||^2.
+        fate_weight [C]: optional per-fate weight (e.g. inverse frequency) so a majority fate does not
+        dominate and collapse the minority basin."""
         xs = self.settle(x0)
-        tgt = self.proto[self.full2stored[y_full]]
-        return ((xs - tgt) ** 2).mean()
+        loc = self.full2stored[y_full]
+        se = ((xs - self.proto[loc]) ** 2).mean(1)              # per-cell
+        if fate_weight is not None:
+            return (se * fate_weight[loc]).sum() / fate_weight[loc].sum()
+        return se.mean()
 
     @torch.no_grad()
     def assign(self, x0, clamp_idx=None, n_steps=None):
