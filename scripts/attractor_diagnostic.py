@@ -27,6 +27,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 
+from chromatin_toggle.attractors import build_A, greedy_cluster, jacobian, settle_converged
 from chromatin_toggle.device import pick_device
 from chromatin_toggle.dynamics import class_weights
 from chromatin_toggle.grn import GRNDynamics
@@ -42,52 +43,6 @@ def _load(path, kg):
             X[:, j] = pd.to_numeric(df[c], errors="coerce").fillna(0)
     y = np.array([ci[l] for l in df["label"]])
     return torch.tensor(X), y, classes
-
-
-def build_A(m):
-    """Dense signed weighted adjacency A[dst,src] = softplus(mag)*sign, matching GRNDynamics._step."""
-    N = m.N
-    with torch.no_grad():
-        A = torch.zeros(N, N, device=m.mag.device)
-        w = torch.nn.functional.softplus(m.mag) * m.sign
-        A.index_put_((m.dst, m.src), w, accumulate=True)
-        return A, m.bias.detach(), float(m.in_scale.detach()), m.eta
-
-
-def settle_converged(A, b, eta, x0, tol=1e-5, max_steps=500):
-    """Iterate x <- (1-eta)x + eta*tanh(A x + b) to a fixed point; return x*, steps used, converged mask."""
-    x = x0
-    last = None
-    for t in range(max_steps):
-        z = x @ A.T + b
-        xn = (1 - eta) * x + eta * torch.tanh(z)
-        d = (xn - x).abs().amax(dim=1)
-        x = xn
-        if last is not None and float(d.max()) < tol:
-            return x, t + 1, d < tol
-        last = d
-    return x, max_steps, (last < tol) if last is not None else torch.zeros(x.size(0), dtype=torch.bool)
-
-
-def jacobian(A, b, eta, xstar):
-    z = xstar @ A.T + b
-    g = 1.0 - torch.tanh(z) ** 2                 # sech^2, [N]
-    return (1 - eta) * torch.eye(A.size(0), device=A.device) + eta * (g[:, None] * A)
-
-
-def greedy_cluster(states, eps_rms):
-    """Cluster settled states by RMS-per-node distance; returns (labels, centroids)."""
-    N = states.size(1); cents = []; labels = torch.empty(states.size(0), dtype=torch.long)
-    for i in range(states.size(0)):
-        s = states[i]
-        if cents:
-            C = torch.stack(cents)
-            d = ((C - s) ** 2).mean(1).sqrt()    # RMS per node
-            j = int(d.argmin())
-            if float(d[j]) < eps_rms:
-                labels[i] = j; continue
-        labels[i] = len(cents); cents.append(s.clone())
-    return labels, torch.stack(cents)
 
 
 def main():

@@ -58,3 +58,52 @@ class GRNDynamics(nn.Module):
         if self.q_index >= 0:
             logits[:, self.q_index] = self.q_logit
         return logits
+
+
+class MultistableGRN(GRNDynamics):
+    """Signed-GRN trained to be MULTISTABLE: each stored program is a stable fixed-point attractor and
+    cells flow to their program's basin. Keeps the fixed literature signs + learnable magnitudes/bias
+    (the mechanism/interpretability), but adds learnable per-program prototypes and a training objective
+    the classifier objective never supplied. Attractors then become a genuine property of the flow.
+
+    stored_classes: the program labels to store as attractors (typically the classes present in the data).
+    proto_init: [C, N] initial prototype states (e.g. per-program mean cell state); defaults to zeros.
+    """
+
+    def __init__(self, kg, stored_classes, proto_init=None, steps=15, eta=0.3):
+        super().__init__(kg, steps=steps, eta=eta)
+        self.stored = list(stored_classes)
+        C = len(self.stored)
+        self.proto = nn.Parameter(proto_init.clone() if proto_init is not None
+                                  else torch.zeros(C, self.N))
+        # map full-class index -> stored position (-1 if that class is not stored)
+        full2stored = [-1] * len(self.classes)
+        for j, c in enumerate(self.stored):
+            full2stored[self.classes.index(c)] = j
+        self.register_buffer("full2stored", torch.tensor(full2stored, dtype=torch.long))
+
+    def fp_loss(self):
+        """Prototypes must be fixed points of the dynamics: ||step(p) - p||^2."""
+        return ((self._step(self.proto) - self.proto) ** 2).mean()
+
+    def basin_loss(self, eps=0.1, k=4):
+        """Each prototype must be a STABLE attractor: perturb it and require re-settling to RETURN.
+        This is what turns a fixed point into an attracting basin (local stability); without it a
+        prototype can be a saddle cells flow past -> monostable collapse. Trains stability directly
+        through the dynamics, no eigendecomposition."""
+        p = self.proto.repeat(k, 1)
+        xs = self.settle(p + eps * torch.randn_like(p))
+        return ((xs - p) ** 2).mean()
+
+    def flow_loss(self, x0, y_full):
+        """Cells must settle to their program's prototype: ||settle(x) - proto[stored(y)]||^2."""
+        xs = self.settle(x0)
+        tgt = self.proto[self.full2stored[y_full]]
+        return ((xs - tgt) ** 2).mean()
+
+    @torch.no_grad()
+    def assign(self, x0, n_steps=None):
+        """Settle then assign each cell to the nearest prototype; returns stored-position indices."""
+        xs = self.settle(x0, n_steps=n_steps)
+        d = torch.cdist(xs, self.proto)          # [B, C]
+        return d.argmin(1)
