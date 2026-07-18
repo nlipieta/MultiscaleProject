@@ -55,8 +55,8 @@ def example_priors() -> MultiscaleCircuitPriors:
         ),
         circuit_tf_tf=torch.tensor(
             [
-                [0.0, 1.0],
-                [-1.0, 0.0],
+                [0.0, -1.0],
+                [0.0, 0.0],
             ]
         ),
         tf_gene_index=torch.tensor([0, 1], dtype=torch.long),
@@ -166,7 +166,7 @@ def validate_general_architecture() -> dict[str, object]:
         circuit_tf_tf=torch.tensor(
             [
                 [0.0, 1.0],
-                [1.0, 0.0],
+                [0.0, 0.0],
             ]
         ),
     )
