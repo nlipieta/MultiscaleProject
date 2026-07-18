@@ -141,7 +141,10 @@ def verify_report() -> None:
     required = {
         "scope",
         "split",
-        "metrics",
+        "encoder_inputs",
+        "metrics_primary_seed",
+        "paired_seed_controls",
+        "control_summary",
         "trajectory_metrics",
         "auprc",
         "fixed_point_stability",
@@ -152,15 +155,29 @@ def verify_report() -> None:
     metric_names = {
         "training_mean",
         "ridge_gene_activity",
-        "prior_constrained_model",
+        "true_tf_gene_scaffold",
+        "degree_preserving_permuted_scaffold",
+        "shuffled_test_atac",
     }
-    if metric_names.difference(report["metrics"]):
-        raise KeyError("Results report is missing one or more required baselines.")
+    if metric_names.difference(report["metrics_primary_seed"]):
+        raise KeyError("Results report is missing a baseline or negative control.")
+    if report["encoder_inputs"] != ["binary ATAC peaks"]:
+        raise ValueError("Snapshot encoder input contract was violated.")
+    control_fields = {
+        "regulatory_prior_dependency_supported",
+        "atac_dependency_supported",
+    }
+    if control_fields.difference(report["control_summary"]):
+        raise KeyError("Results report is missing dependency-control outcomes.")
 
     print("\n6. Verifying result artifacts and claim boundaries...", flush=True)
     for path in EXPECTED_ARTIFACTS:
         print(f"   PASS: {path.name}", flush=True)
-    print("   PASS: mean, ridge, and prior-constrained metrics present", flush=True)
+    print(
+        "   PASS: mean/ridge baselines and prior/ATAC controls present",
+        flush=True,
+    )
+    print("   PASS: encoder contract contains ATAC only", flush=True)
     print("   PASS: unsupported trajectory/AUPRC/attractor claims marked N/A", flush=True)
 
 
