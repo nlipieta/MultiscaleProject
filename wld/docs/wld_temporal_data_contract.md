@@ -43,6 +43,15 @@ NumPy Unicode dtype such as `U64`, not an object dtype.
   "schema_version": 1,
   "alignment_mode": "distribution",
   "initial_feature_names": ["ATAC_peaks", "external_cue"],
+  "cue_names": ["external_cue"],
+  "cue_provenance": [
+    {
+      "name": "external_cue",
+      "measurement_level": "experiment",
+      "source": "prespecified treatment assignment",
+      "initial_time_only": true
+    }
+  ],
   "priors_fit_groups": ["donor_01", "donor_02"],
   "split_groups": {
     "train": ["donor_01", "donor_02"],
@@ -95,12 +104,20 @@ Optional arrays:
 | Array | Shape | When it is valid |
 |---|---:|---|
 | `initial_rna` | initial cells × genes | RNA measured at the declared initial time; its use is recorded explicitly |
+| `initial_cue_mask` | initial cells × cues | Optional binary availability mask; zeroed cues are missing, never imputed |
 | `target_atac` | target cells × peaks | Accessibility measured at the future time |
 | `target_derivative` | target cells × full state | A directly observed derivative for paired data |
 | `initial_pair_id` | initial cells | Required with paired alignment |
 | `target_pair_id` | target cells | Required with paired alignment |
 
 The full-state derivative order is signaling nodes, TFs, peaks, then genes.
+`cue_names` and `cue_provenance` must contain one ordered record per cue. Every
+cue declares whether it was measured at cell, sample, subject, or experiment
+level. A sample- or subject-level metabolite must be repeated across its cells
+and must never be presented as a per-cell measurement. When a supplemental cue
+is absent, its value and mask are both zero. The trainer applies the mask before
+the cue enters the signaling graph; it does not fill missing values from future
+RNA, cell labels, or held-out-group statistics.
 
 ## Alignment modes
 
