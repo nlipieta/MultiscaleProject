@@ -1,11 +1,17 @@
 # Waddington Latent Dynamics (WLD)
 
-WLD is an experimental, prior-constrained model for deriving a TF-aligned latent cell state from chromatin accessibility. It is a parallel prototype within `MultiscaleProject`; it does not replace the repository's signed-GRN attractor model.
+WLD is an experimental framework with two deliberately separate tracks. The
+PBMC runner evaluates ATAC-only, single-snapshot RNA state reconstruction. The
+temporal architecture defines circuit-constrained dynamics for future paired
+longitudinal or perturbation data. Snapshot metrics are never reported as
+evidence of trajectories or attractors. WLD is a parallel prototype within
+`MultiscaleProject`; it does not replace the repository's signed-GRN attractor
+model.
 
 The model represents three biological layers explicitly:
 
 1. **Epigenetic landscape:** peak-to-gene links map open chromatin to accessible gene programs.
-2. **Binding feasibility:** TF-to-gene motif or occupancy evidence limits which regulators can act at accessible regions.
+2. **Regulatory feasibility:** TF-to-gene support limits which regulators can affect each gene. A binding claim additionally requires sequence-localized motif or occupancy evidence.
 3. **Circuit interactions:** a signed, confidence-weighted TF circuit constrains the mechanistic component of the vector field.
 
 The latent dynamics are hybrid: a constrained ODE supplies the interpretable circuit dynamics, while a bounded neural residual can represent missing biology. RNA, cell labels, clusters, pseudotime, and target-state labels are excluded from the encoder because they are direct proxies for the state the model is supposed to derive.
@@ -13,8 +19,10 @@ The latent dynamics are hybrid: a constrained ODE supplies the interpretable cir
 ## Files
 
 - `wld_attractor_model_v2.py` — reusable PyTorch architecture, RK4 integration, fixed-point search, Jacobian stability diagnostics, grouped splitting, and leakage checks.
-- `run_wld_pbmc_colab.py` — end-to-end Colab runner for the public 10x PBMC multiome snapshot.
+- `run_wld_pbmc_colab.py` — deterministic ATAC-only state-reconstruction runner with mean/ridge baselines, a degree-preserving TF-gene permutation control, a held-out ATAC shuffle, and multi-seed reporting.
+- `run_wld_full_validation.py` — environment, syntax, architecture, leakage, output-contract, and claim-boundary checks.
 - `wld_next_experiments.py` — audits for the original WLD notebook, including identity and mean baselines, delta metrics, a target-PCA leakage reduction, modality shuffling, prior ablations, and seed sensitivity.
+- `docs/legacy_colab_audit.md` — fingerprints, saved outputs, and scientific interpretation of the immutable exploratory notebook.
 - `docs/attractor_state_computational_revision.md` — manuscript-ready computational framing and minimum experimental design.
 
 ## Recommended Colab run
@@ -67,6 +75,8 @@ for name in files:
 run_env = os.environ.copy()
 run_env["PYTHONPATH"] = str(packages)
 run_env["PYTHONNOUSERSITE"] = "1"
+run_env["MPLBACKEND"] = "Agg"
+run_env["WLD_EVAL_SEEDS"] = "42,123,456"
 subprocess.run(
     [sys.executable, str(work / "run_wld_full_validation.py")],
     check=True,
@@ -74,11 +84,13 @@ subprocess.run(
 )
 ```
 
-The full validation runner downloads the 10x matrix, selects genes and linked
-peaks using training cells only, compiles CollecTRI priors, executes the
-synthetic architecture and leakage tests, trains an ATAC-to-RNA state
-reconstruction model, compares it with training-mean and ridge baselines, and
-verifies the saved outputs.
+The full validation runner downloads and verifies the 10x HDF5 matrix, selects
+genes and linked peaks using training cells only, compiles deterministic
+CollecTRI regulatory support, executes architecture and leakage tests, trains
+ATAC-to-RNA state-reconstruction models across three seeds, and compares the
+true TF-gene scaffold against a degree-preserving permutation and shuffled
+held-out ATAC. The report retains failed controls rather than printing a
+success claim unconditionally.
 
 Expected outputs:
 
@@ -86,29 +98,28 @@ Expected outputs:
 - `wld_pbmc_state_model.pt`
 - `wld_pbmc_state_results.png`
 
-## Legacy original-notebook audits
+## Legacy notebook
 
-Run the original notebook cell first, upload `wld_next_experiments.py`, then execute:
-
-```python
-%run -i wld_next_experiments.py
-```
-
-These audits are retained only to diagnose the originally reported metrics.
-They do not validate temporal dynamics or attractors, because the PBMC dataset
-contains no observed transitions. The default audit runs the current-metric and
-leakage-reduced checks. Enable the slower audits one at a time before `%run`:
-
-```python
-%env WLD_RUN_MODALITY=1
-%env WLD_RUN_PRIOR=1
-%env WLD_RUN_SEEDS=1
-```
+The original Colab notebook is an immutable exploratory record, not the source
+for the corrected runner. Its encoder receives RNA, its pseudotime and pairing
+are inferred from RNA before splitting, and its binary target is defined from
+test outcomes. Its final degree-matched negative control also performs at least
+as well as the true circuit prior. Those results are retained as a negative
+finding and are not mixed with the corrected snapshot experiment.
 
 ## Claim boundary
 
-The public 10x PBMC dataset is one biological sample at one time point. It can test held-out cross-modal **state reconstruction**, but it cannot identify temporal dynamics, fixed-point stability, basin geometry, or state transitions. Accordingly, `run_wld_pbmc_colab.py` freezes the vector field and reports trajectory and attractor metrics as not applicable.
+The public 10x PBMC dataset is one biological sample at one time point. It can
+test development-only held-out cross-modal **state reconstruction**, but it
+cannot provide donor-level OOD validation or identify temporal dynamics,
+fixed-point stability, basin geometry, or state transitions. Accordingly,
+`run_wld_pbmc_colab.py` invokes only the ATAC encoder and constrained decoder;
+the temporal vector field is not trained or evaluated.
 
 An attractor claim requires donor- or experiment-grouped longitudinal, lineage-traced, metabolic-labeling, or perturbation-resolved data. Preprocessing and prior compilation must be fit on training groups only. Candidate fixed points must converge from multiple initial conditions, have small vector-field residuals, and have Jacobian eigenvalues with negative real parts on held-out groups.
 
-The previously reported final-state Pearson correlation should be read alongside the no-change baseline and delta metrics. A high final-state correlation alone can be dominated by retained cell identity and is not evidence that the model learned a transition.
+No prior-dependence claim is made unless the true TF-gene scaffold beats the
+degree-preserving permutation across every configured seed. No ATAC-dependence
+claim is made unless paired predictions deteriorate after held-out ATAC profiles
+are shuffled. Global Pearson correlation is reported with per-cell, per-gene,
+MSE, and R² metrics; it is not evidence that the model learned a transition.
