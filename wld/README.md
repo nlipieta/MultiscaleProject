@@ -19,10 +19,12 @@ The latent dynamics are hybrid: a constrained ODE supplies the interpretable cir
 
 ## Recommended Colab run
 
-Use the single cell below in a fresh Colab runtime. It creates a separate Python
-environment, so installing Scanpy cannot replace NumPy/SciPy libraries already
-loaded by the notebook kernel. This prevents the DLPack and missing-OpenBLAS
-errors caused by upgrading compiled packages in a running Colab process.
+Use the single cell below in a fresh Colab runtime. It installs the scientific
+stack into a disposable package directory and exposes that directory only to a
+separate validation subprocess. The notebook kernel never imports or replaces
+those NumPy/SciPy libraries. This prevents the DLPack and missing-OpenBLAS
+errors caused by upgrading compiled packages in a running Colab process, and
+does not depend on Colab's unavailable Debian `python3-venv` component.
 
 ```python
 import pathlib
@@ -30,28 +32,24 @@ import shutil
 import subprocess
 import sys
 import urllib.request
+import os
 
 branch = "agent/add-wld-attractor-model"
 base = f"https://raw.githubusercontent.com/nlipieta/MultiscaleProject/{branch}/wld"
 work = pathlib.Path("/content/wld_validation")
-env = pathlib.Path("/content/wld_validation_env")
+packages = pathlib.Path("/content/wld_validation_packages")
 
 # These are explicit disposable Colab paths, not Drive paths.
-for path in (work, env):
+for path in (work, packages):
     if path.exists():
         shutil.rmtree(path)
 work.mkdir(parents=True)
+packages.mkdir(parents=True)
 
 subprocess.run(
-    [sys.executable, "-m", "venv", "--system-site-packages", str(env)],
-    check=True,
-)
-python = str(env / "bin" / "python")
-subprocess.run([python, "-m", "pip", "install", "-q", "--upgrade", "pip"], check=True)
-subprocess.run(
     [
-        python, "-m", "pip", "install", "-q", "--no-cache-dir", "--upgrade",
-        "--force-reinstall", "scanpy==1.12.2", "decoupler==2.1.6",
+        sys.executable, "-m", "pip", "install", "--no-cache-dir",
+        "--target", str(packages), "scanpy==1.12.2", "decoupler==2.1.6",
         "mygene", "threadpoolctl>=3.6",
     ],
     check=True,
@@ -66,7 +64,14 @@ files = [
 for name in files:
     urllib.request.urlretrieve(f"{base}/{name}", work / name)
 
-subprocess.run([python, str(work / "run_wld_full_validation.py")], check=True)
+run_env = os.environ.copy()
+run_env["PYTHONPATH"] = str(packages)
+run_env["PYTHONNOUSERSITE"] = "1"
+subprocess.run(
+    [sys.executable, str(work / "run_wld_full_validation.py")],
+    check=True,
+    env=run_env,
+)
 ```
 
 The full validation runner downloads the 10x matrix, selects genes and linked
