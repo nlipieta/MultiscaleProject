@@ -141,7 +141,10 @@ class TemporalCohort:
     split_groups: Dict[str, Tuple[str, ...]]
     priors_fit_groups: Tuple[str, ...]
     initial_feature_names: Tuple[str, ...]
+    cue_names: Tuple[str, ...]
+    cue_provenance: Tuple[Mapping[str, object], ...]
     control_priors: Dict[str, MultiscaleCircuitPriors]
+    initial_cue_mask: Optional[Tensor] = None
     initial_rna: Optional[Tensor] = None
     target_atac: Optional[Tensor] = None
     target_derivative: Optional[Tensor] = None
@@ -207,6 +210,34 @@ class TemporalCohort:
             self.priors.num_cues,
         ):
             raise ValueError("initial_cues has incompatible dimensions.")
+        if len(self.cue_names) != self.priors.num_cues:
+            raise ValueError("cue_names must contain one unique name per cue.")
+        if len(set(self.cue_names)) != len(self.cue_names):
+            raise ValueError("cue_names must be unique.")
+        if len(self.cue_provenance) != self.priors.num_cues:
+            raise ValueError("cue_provenance must contain one record per cue.")
+        for index, record in enumerate(self.cue_provenance):
+            if str(record.get("name", "")) != self.cue_names[index]:
+                raise ValueError("cue_provenance names must match cue_names in order.")
+            if str(record.get("measurement_level", "")) not in {
+                "cell",
+                "sample",
+                "subject",
+                "experiment",
+            }:
+                raise ValueError(
+                    "Every cue must declare cell, sample, subject, or experiment "
+                    "measurement_level provenance."
+                )
+        if self.initial_cue_mask is not None:
+            if self.initial_cue_mask.shape != self.initial_cues.shape:
+                raise ValueError("initial_cue_mask must match initial_cues.")
+            if not torch.isfinite(self.initial_cue_mask).all():
+                raise ValueError("initial_cue_mask contains non-finite values.")
+            if bool(
+                ((self.initial_cue_mask != 0) & (self.initial_cue_mask != 1)).any()
+            ):
+                raise ValueError("initial_cue_mask must contain only zero or one.")
         if self.target_rna.ndim != 2 or self.target_rna.shape[1] != self.priors.num_genes:
             raise ValueError("target_rna must have shape [target_cells, genes].")
         if self.initial_transition.shape != (self.initial_atac.shape[0],):
@@ -240,6 +271,7 @@ class TemporalCohort:
             "target_rna": self.target_rna,
         }
         optional_tensors = {
+            "initial_cue_mask": self.initial_cue_mask,
             "initial_rna": self.initial_rna,
             "target_atac": self.target_atac,
             "target_derivative": self.target_derivative,
@@ -409,6 +441,31 @@ def load_temporal_cohort(root: Path) -> TemporalCohort:
             raise ValueError("Control prior paths must remain inside the dataset root.")
         control_priors[control_name] = load_priors(candidate)
 
+    priors = load_priors(prior_path)
+    cue_names = tuple(
+        map(
+            str,
+            manifest.get(
+                "cue_names",
+                [f"cue_{index}" for index in range(priors.num_cues)],
+            ),
+        )
+    )
+    cue_provenance = tuple(
+        dict(record)
+        for record in manifest.get(
+            "cue_provenance",
+            [
+                {
+                    "name": name,
+                    "measurement_level": "experiment",
+                    "source": "legacy schema-v1 manifest",
+                }
+                for name in cue_names
+            ],
+        )
+    )
+
     with np.load(observation_path, allow_pickle=False) as archive:
         required = {
             "initial_atac",
@@ -421,7 +478,7 @@ def load_temporal_cohort(root: Path) -> TemporalCohort:
         if missing:
             raise KeyError(f"Observation archive is missing: {missing}")
         cohort = TemporalCohort(
-            priors=load_priors(prior_path),
+            priors=priors,
             alignment_mode=str(manifest.get("alignment_mode", "distribution")),
             initial_atac=_tensor(archive["initial_atac"]),
             initial_cues=_tensor(archive["initial_cues"]),
@@ -435,7 +492,10 @@ def load_temporal_cohort(root: Path) -> TemporalCohort:
             },
             priors_fit_groups=tuple(map(str, manifest["priors_fit_groups"])),
             initial_feature_names=tuple(map(str, manifest["initial_feature_names"])),
+            cue_names=cue_names,
+            cue_provenance=cue_provenance,
             control_priors=control_priors,
+            initial_cue_mask=_optional_tensor(archive, "initial_cue_mask"),
             initial_rna=_optional_tensor(archive, "initial_rna"),
             target_atac=_optional_tensor(archive, "target_atac"),
             target_derivative=_optional_tensor(archive, "target_derivative"),
@@ -597,6 +657,8 @@ def _transition_loss(
         )
     atac = cohort.initial_atac[initial_indices].to(device)
     cues = cohort.initial_cues[initial_indices].to(device)
+    if cohort.initial_cue_mask is not None:
+        cues = cues * cohort.initial_cue_mask[initial_indices].to(device)
     initial_rna = (
         cohort.initial_rna[initial_indices].to(device)
         if cohort.initial_rna is not None
@@ -956,7 +1018,12 @@ def _test_attractor_diagnostics(
                 sample=False,
             )
             candidate = output["terminal_state"].mean(0)
-            cues = cohort.initial_cues[initial_indices].to(device).mean(0)
+            cue_values = cohort.initial_cues[initial_indices].to(device)
+            if cohort.initial_cue_mask is None:
+                cues = cue_values.mean(0)
+            else:
+                cue_mask = cohort.initial_cue_mask[initial_indices].to(device)
+                cues = (cue_values * cue_mask).sum(0) / cue_mask.sum(0).clamp_min(1.0)
 
         fixed_state, residual = model.refine_fixed_point(
             candidate,
@@ -1053,6 +1120,8 @@ def run_temporal_benchmark(
             name: list(groups) for name, groups in cohort.split_groups.items()
         },
         "priors_fit_groups": list(cohort.priors_fit_groups),
+        "cue_names": list(cohort.cue_names),
+        "cue_provenance": [dict(record) for record in cohort.cue_provenance],
         "device": str(device),
         "config": asdict(config),
         "conditions": {},

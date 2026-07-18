@@ -31,6 +31,8 @@ but they are not the recommended route for a temporal attractor claim.
 - `run_wld_v3_validation.py` — structural and numerical contract tests on neutral systems; deliberately not a chromatin-toggle benchmark.
 - `wld_temporal_training.py` — grouped temporal trainer with population-level alignment for destructive assays, explicit paired-lineage mode, validation-selected checkpoints, sealed test groups, and circuit controls.
 - `run_wld_temporal_smoke.py` — neutral synthetic end-to-end check of the temporal data, training, control, checkpoint, and claim-boundary contracts.
+- `build_wld_muscle_exercise_dataset.py` — group-first real-data compiler for temporal multiome matrices, tissue Hi-C links, localized motifs, signed TF circuits, signaling paths, and masked metabolic/protein cues.
+- `run_wld_dataset_builder_smoke.py` — synthetic contract test for the real-data compiler; it never downloads or substitutes for biological data.
 - `run_wld_pbmc_colab.py` — deterministic ATAC-only state-reconstruction runner with mean/ridge baselines, a degree-preserving TF-gene permutation control, a held-out ATAC shuffle, and multi-seed reporting.
 - `run_wld_full_validation.py` — environment, syntax, architecture, leakage, output-contract, and claim-boundary checks.
 - `wld_next_experiments.py` — audits for the original WLD notebook, including identity and mean baselines, delta metrics, a target-PCA leakage reduction, modality shuffling, prior ablations, and seed sensitivity.
@@ -38,6 +40,46 @@ but they are not the recommended route for a temporal attractor claim.
 - `docs/attractor_state_computational_revision.md` — manuscript-ready computational framing and minimum experimental design.
 - `docs/wld_v3_circuit_dynamics.md` — v3 data contract, training path, controls, and attractor falsification criteria.
 - `docs/wld_temporal_data_contract.md` — exact manifest/NPZ schema for grouped temporal or perturbation cohorts and the commands for real-data training.
+- `docs/wld_dataset_stack.md` — ranked public datasets and the selected GSE240061 + GSE126100 human-muscle build.
+
+## Real-data dataset-builder smoke test in Colab
+
+Run this before downloading the multi-gigabyte muscle object. It validates the
+data compiler and then loads the generated cohort through the temporal trainer.
+It uses only a synthetic fixture and makes no biological claim.
+
+```python
+import pathlib
+import subprocess
+import sys
+import urllib.request
+
+branch = "agent/add-wld-attractor-model"
+base = f"https://raw.githubusercontent.com/nlipieta/MultiscaleProject/{branch}/wld"
+work = pathlib.Path("/content/wld_dataset_builder")
+work.mkdir(parents=True, exist_ok=True)
+
+for name in (
+    "wld_circuit_dynamics_v3.py",
+    "wld_temporal_training.py",
+    "build_wld_muscle_exercise_dataset.py",
+    "run_wld_dataset_builder_smoke.py",
+):
+    urllib.request.urlretrieve(f"{base}/{name}", work / name)
+
+result = subprocess.run(
+    [sys.executable, str(work / "run_wld_dataset_builder_smoke.py")],
+    text=True,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT,
+)
+print(result.stdout)
+if result.returncode:
+    raise RuntimeError(
+        f"WLD dataset-builder check failed with exit code {result.returncode}; "
+        "the complete traceback is printed above."
+    )
+```
 
 ## WLD v3 contract check in Colab
 
@@ -163,6 +205,8 @@ files = [
     "run_wld_v3_validation.py",
     "wld_temporal_training.py",
     "run_wld_temporal_smoke.py",
+    "build_wld_muscle_exercise_dataset.py",
+    "run_wld_dataset_builder_smoke.py",
     "run_wld_full_validation.py",
 ]
 for name in files:

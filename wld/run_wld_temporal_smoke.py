@@ -140,6 +140,10 @@ def write_smoke_dataset(root: Path) -> None:
         root / "observations.npz",
         initial_atac=np.concatenate(initial_atac).astype(np.float32),
         initial_cues=np.concatenate(initial_cues).astype(np.float32),
+        initial_cue_mask=np.ones(
+            (sum(len(value) for value in initial_atac), priors.num_cues),
+            dtype=np.float32,
+        ),
         initial_transition=np.asarray(initial_transition, dtype="U64"),
         target_rna=np.concatenate(target_rna).astype(np.float32),
         target_atac=np.concatenate(target_atac).astype(np.float32),
@@ -149,6 +153,15 @@ def write_smoke_dataset(root: Path) -> None:
         "schema_version": 1,
         "alignment_mode": "distribution",
         "initial_feature_names": ["ATAC_peaks", "external_cue"],
+        "cue_names": ["external_cue"],
+        "cue_provenance": [
+            {
+                "name": "external_cue",
+                "measurement_level": "experiment",
+                "source": "synthetic software fixture",
+                "initial_time_only": True,
+            }
+        ],
         "priors_fit_groups": ["donor_train_a", "donor_train_b"],
         "split_groups": {
             "train": ["donor_train_a", "donor_train_b"],

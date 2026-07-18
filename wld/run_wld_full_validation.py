@@ -13,8 +13,9 @@ The runner performs, in order:
 3. the model's synthetic shape, RK4, and leakage smoke tests;
 4. explicit token-aware leakage-audit regression checks;
 5. WLD v3 hard-circuit structural and numerical checks;
-6. grouped unpaired temporal-training and sealed-test software checks; and
-7. the leakage-aware held-out ATAC-to-RNA PBMC reconstruction experiment.
+6. grouped unpaired temporal-training and sealed-test software checks;
+7. real-data dataset-builder and masked-cue contract checks; and
+8. the leakage-aware held-out ATAC-to-RNA PBMC reconstruction experiment.
 
 Run this file from a clean isolated environment, as shown in the README.
 """
@@ -38,6 +39,8 @@ V3_MODEL = ROOT / "wld_circuit_dynamics_v3.py"
 V3_VALIDATOR = ROOT / "run_wld_v3_validation.py"
 TEMPORAL_TRAINER = ROOT / "wld_temporal_training.py"
 TEMPORAL_SMOKE = ROOT / "run_wld_temporal_smoke.py"
+DATASET_BUILDER = ROOT / "build_wld_muscle_exercise_dataset.py"
+DATASET_BUILDER_SMOKE = ROOT / "run_wld_dataset_builder_smoke.py"
 EXPECTED_ARTIFACTS = (
     ROOT / "wld_v3_validation.json",
     ROOT / "wld_pbmc_results.json",
@@ -97,6 +100,8 @@ def compile_sources() -> None:
         V3_VALIDATOR,
         TEMPORAL_TRAINER,
         TEMPORAL_SMOKE,
+        DATASET_BUILDER,
+        DATASET_BUILDER_SMOKE,
     ):
         if not path.exists():
             raise FileNotFoundError(f"Missing repository file: {path.name}")
@@ -190,7 +195,7 @@ def verify_report() -> None:
     if v3_report.get("neutral_stability", {}).get("toggle_benchmark") is not False:
         raise ValueError("The v3 validator must remain a neutral, non-toggle audit.")
 
-    print("\n8. Verifying result artifacts and claim boundaries...", flush=True)
+    print("\n9. Verifying result artifacts and claim boundaries...", flush=True)
     for path in EXPECTED_ARTIFACTS:
         print(f"   PASS: {path.name}", flush=True)
     print(
@@ -217,8 +222,12 @@ def main() -> None:
         "6. Validating grouped temporal training and sealed test groups...",
     )
     run(
+        [sys.executable, str(DATASET_BUILDER_SMOKE)],
+        "7. Validating the real-data builder and masked supplemental cues...",
+    )
+    run(
         [sys.executable, str(PBMC_RUNNER)],
-        "7. Running held-out PBMC ATAC-to-RNA reconstruction and baselines...",
+        "8. Running held-out PBMC ATAC-to-RNA reconstruction and baselines...",
     )
     verify_report()
     print(
