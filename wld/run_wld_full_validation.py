@@ -12,8 +12,9 @@ The runner performs, in order:
 2. syntax compilation of the repository WLD scripts;
 3. the model's synthetic shape, RK4, and leakage smoke tests;
 4. explicit token-aware leakage-audit regression checks;
-5. WLD v3 hard-circuit structural and numerical checks; and
-6. the leakage-aware held-out ATAC-to-RNA PBMC reconstruction experiment.
+5. WLD v3 hard-circuit structural and numerical checks;
+6. grouped unpaired temporal-training and sealed-test software checks; and
+7. the leakage-aware held-out ATAC-to-RNA PBMC reconstruction experiment.
 
 Run this file from a clean isolated environment, as shown in the README.
 """
@@ -35,6 +36,8 @@ PBMC_RUNNER = ROOT / "run_wld_pbmc_colab.py"
 LEGACY_AUDITS = ROOT / "wld_next_experiments.py"
 V3_MODEL = ROOT / "wld_circuit_dynamics_v3.py"
 V3_VALIDATOR = ROOT / "run_wld_v3_validation.py"
+TEMPORAL_TRAINER = ROOT / "wld_temporal_training.py"
+TEMPORAL_SMOKE = ROOT / "run_wld_temporal_smoke.py"
 EXPECTED_ARTIFACTS = (
     ROOT / "wld_v3_validation.json",
     ROOT / "wld_pbmc_results.json",
@@ -86,7 +89,15 @@ def package_preflight() -> None:
 
 def compile_sources() -> None:
     print("\n2. Compiling WLD repository files...", flush=True)
-    for path in (MODEL, PBMC_RUNNER, LEGACY_AUDITS, V3_MODEL, V3_VALIDATOR):
+    for path in (
+        MODEL,
+        PBMC_RUNNER,
+        LEGACY_AUDITS,
+        V3_MODEL,
+        V3_VALIDATOR,
+        TEMPORAL_TRAINER,
+        TEMPORAL_SMOKE,
+    ):
         if not path.exists():
             raise FileNotFoundError(f"Missing repository file: {path.name}")
         py_compile.compile(str(path), doraise=True)
@@ -179,7 +190,7 @@ def verify_report() -> None:
     if v3_report.get("neutral_stability", {}).get("toggle_benchmark") is not False:
         raise ValueError("The v3 validator must remain a neutral, non-toggle audit.")
 
-    print("\n7. Verifying result artifacts and claim boundaries...", flush=True)
+    print("\n8. Verifying result artifacts and claim boundaries...", flush=True)
     for path in EXPECTED_ARTIFACTS:
         print(f"   PASS: {path.name}", flush=True)
     print(
@@ -202,8 +213,12 @@ def main() -> None:
         "5. Validating hard-constrained WLD v3 circuit dynamics...",
     )
     run(
+        [sys.executable, str(TEMPORAL_SMOKE)],
+        "6. Validating grouped temporal training and sealed test groups...",
+    )
+    run(
         [sys.executable, str(PBMC_RUNNER)],
-        "6. Running held-out PBMC ATAC-to-RNA reconstruction and baselines...",
+        "7. Running held-out PBMC ATAC-to-RNA reconstruction and baselines...",
     )
     verify_report()
     print(
