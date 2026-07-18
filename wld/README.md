@@ -19,21 +19,61 @@ The latent dynamics are hybrid: a constrained ODE supplies the interpretable cir
 
 ## Recommended Colab run
 
-Upload `wld_attractor_model_v2.py` and `run_wld_pbmc_colab.py`, then run:
+Use the single cell below in a fresh Colab runtime. It creates a separate Python
+environment, so installing Scanpy cannot replace NumPy/SciPy libraries already
+loaded by the notebook kernel. This prevents the DLPack and missing-OpenBLAS
+errors caused by upgrading compiled packages in a running Colab process.
 
 ```python
-!pip -q install scanpy decoupler mygene
-
-import glob
-import os
+import pathlib
+import shutil
 import subprocess
 import sys
+import urllib.request
 
-runner = max(glob.glob("run_wld_pbmc_colab*.py"), key=os.path.getmtime)
-subprocess.run([sys.executable, runner], check=True)
+branch = "agent/add-wld-attractor-model"
+base = f"https://raw.githubusercontent.com/nlipieta/MultiscaleProject/{branch}/wld"
+work = pathlib.Path("/content/wld_validation")
+env = pathlib.Path("/content/wld_validation_env")
+
+# These are explicit disposable Colab paths, not Drive paths.
+for path in (work, env):
+    if path.exists():
+        shutil.rmtree(path)
+work.mkdir(parents=True)
+
+subprocess.run(
+    [sys.executable, "-m", "venv", "--system-site-packages", str(env)],
+    check=True,
+)
+python = str(env / "bin" / "python")
+subprocess.run([python, "-m", "pip", "install", "-q", "--upgrade", "pip"], check=True)
+subprocess.run(
+    [
+        python, "-m", "pip", "install", "-q", "--no-cache-dir", "--upgrade",
+        "--force-reinstall", "scanpy==1.12.2", "decoupler==2.1.6",
+        "mygene", "threadpoolctl>=3.6",
+    ],
+    check=True,
+)
+
+files = [
+    "wld_attractor_model_v2.py",
+    "run_wld_pbmc_colab.py",
+    "wld_next_experiments.py",
+    "run_wld_full_validation.py",
+]
+for name in files:
+    urllib.request.urlretrieve(f"{base}/{name}", work / name)
+
+subprocess.run([python, str(work / "run_wld_full_validation.py")], check=True)
 ```
 
-The runner tolerates Colab's renamed uploads such as `wld_attractor_model_v2 (2).py`. It downloads the 10x matrix, selects genes and linked peaks using training cells only, compiles CollecTRI priors, trains an ATAC-to-RNA state reconstruction model, and compares it with training-mean and ridge baselines.
+The full validation runner downloads the 10x matrix, selects genes and linked
+peaks using training cells only, compiles CollecTRI priors, executes the
+synthetic architecture and leakage tests, trains an ATAC-to-RNA state
+reconstruction model, compares it with training-mean and ridge baselines, and
+verifies the saved outputs.
 
 Expected outputs:
 
@@ -41,7 +81,7 @@ Expected outputs:
 - `wld_pbmc_state_model.pt`
 - `wld_pbmc_state_results.png`
 
-## Audit the original WLD notebook
+## Legacy original-notebook audits
 
 Run the original notebook cell first, upload `wld_next_experiments.py`, then execute:
 
@@ -49,7 +89,10 @@ Run the original notebook cell first, upload `wld_next_experiments.py`, then exe
 %run -i wld_next_experiments.py
 ```
 
-The default audit runs the current-metric and leakage-reduced checks. Enable the slower audits one at a time before `%run`:
+These audits are retained only to diagnose the originally reported metrics.
+They do not validate temporal dynamics or attractors, because the PBMC dataset
+contains no observed transitions. The default audit runs the current-metric and
+leakage-reduced checks. Enable the slower audits one at a time before `%run`:
 
 ```python
 %env WLD_RUN_MODALITY=1
