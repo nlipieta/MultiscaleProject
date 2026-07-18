@@ -47,6 +47,11 @@ thresholds and coefficients govern regulatory occupancy, and positive decay
 rates make production and degradation explicit. The only trainable node-level
 terms are basal production, decay, and the chromatin timescale.
 
+Prior compilation rejects internally inconsistent edges: each TF-to-gene edge
+must have localized peak evidence, each TF-to-peak effect must have localized
+binding evidence, and every TF-to-TF circuit edge must agree in presence and
+sign with regulation of the target TF's own gene.
+
 Cell-specific TF-to-gene regulation requires the intersection of three pieces
 of evidence:
 
@@ -66,7 +71,7 @@ logic of [CellBox](https://www.sciencedirect.com/science/article/pii/S2405471220
 
 | Model component | Required evidence | Examples | Failure mode if absent |
 |---|---|---|---|
-| Initial chromatin | measured peak-level ATAC | paired scATAC/multiome | landscape is not observed |
+| Initial chromatin | measured peak-level ATAC normalized to [0, 1] | paired scATAC/multiome | landscape is not observed |
 | TF binding feasibility | localized motif or occupancy | motif scan, ChIP/CUT&Tag | openness is mistaken for binding |
 | Enhancer-to-gene link | defensible cis-regulatory link | co-accessibility, ABC, validated promoter link | peaks are mapped to arbitrary genes |
 | Core circuit | signed, confidence-weighted TF relations | CollecTRI plus experiment-specific evidence | circuit sign/topology is not identifiable |
@@ -94,6 +99,10 @@ real time-zero measurement in a future-state prediction experiment.
    velocity penalty only to plateaus defined by the experimental design.
 5. Select hyperparameters using held-out training groups. Freeze the complete
    analysis before evaluating the test donor/replicate/experiment.
+
+Interventions use non-negative activity or edge scales: zero represents an
+inhibition/knockout and values above one represent increased activity. Negative
+scales are rejected because they would reverse a validated edge sign.
 
 ## Required comparisons
 
