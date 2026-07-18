@@ -227,6 +227,47 @@ class MultiscaleCircuitPriors:
         if bool((self.peak_tf_motif < 0).any()):
             raise ValueError("peak_tf_motif must be non-negative.")
 
+        localized_support = torch.einsum(
+            "pt,pg->tg", self.peak_tf_motif.float(), self.peak_to_gene.float()
+        ) > 0
+        dead_tf_gene = (self.tf_gene_support != 0) & ~localized_support
+        if bool(dead_tf_gene.any()):
+            raise ValueError(
+                "Every TF-gene edge must have localized motif/occupancy and "
+                "peak-to-gene support."
+            )
+
+        circuit_edges = torch.nonzero(self.circuit_tf_tf != 0, as_tuple=False)
+        if circuit_edges.numel():
+            circuit_sources = circuit_edges[:, 0]
+            circuit_targets = circuit_edges[:, 1]
+            target_genes = self.tf_gene_index[circuit_targets].long()
+            target_gene_support = self.tf_gene_support[
+                circuit_sources, target_genes
+            ]
+            if bool((target_gene_support == 0).any()):
+                raise ValueError(
+                    "Every TF-circuit edge must regulate the target TF gene."
+                )
+            circuit_sign = torch.sign(
+                self.circuit_tf_tf[circuit_sources, circuit_targets]
+            )
+            if bool((circuit_sign != torch.sign(target_gene_support)).any()):
+                raise ValueError(
+                    "Circuit-edge signs must match TF-to-target-TF-gene signs."
+                )
+
+        peak_effect_edges = torch.nonzero(
+            self.tf_peak_effect != 0, as_tuple=False
+        )
+        if peak_effect_edges.numel():
+            effect_tfs = peak_effect_edges[:, 0]
+            effect_peaks = peak_effect_edges[:, 1]
+            if bool((self.peak_tf_motif[effect_peaks, effect_tfs] <= 0).any()):
+                raise ValueError(
+                    "Every TF-to-peak effect must have localized binding evidence."
+                )
+
     @property
     def num_peaks(self) -> int:
         return int(self.peak_to_gene.shape[0])
@@ -406,6 +447,8 @@ def _validated_edge_scale(
     reference: Tensor,
 ) -> Tensor:
     value = torch.as_tensor(value, dtype=reference.dtype, device=reference.device)
+    if not torch.isfinite(value).all() or bool((value < 0).any()):
+        raise ValueError("edge scales must be finite and non-negative.")
     if value.ndim == 1:
         if value.shape[0] != edge_count:
             raise ValueError("edge scale has the wrong number of edges.")
@@ -534,6 +577,8 @@ class MultiscaleCircuitVectorField(nn.Module):
         signal, tf, accessibility, rna = self.split_state(state)
         if cues.ndim != 2 or cues.shape != (state.shape[0], self.num_cues):
             raise ValueError("cues must have shape [batch, num_cues].")
+        if not torch.isfinite(cues).all() or bool((cues < 0).any()):
+            raise ValueError("cues must be finite, non-negative magnitudes.")
         intervention = intervention or CircuitIntervention()
         rates = self.positive_rates()
 
@@ -550,6 +595,10 @@ class MultiscaleCircuitVectorField(nn.Module):
                 scale = scale.unsqueeze(0)
             if scale.shape not in ((1, self.num_tfs), (state.shape[0], self.num_tfs)):
                 raise ValueError("tf_activity_scale has the wrong shape.")
+            if not torch.isfinite(scale).all() or bool((scale < 0).any()):
+                raise ValueError(
+                    "tf_activity_scale must be finite and non-negative."
+                )
             tf_effective = tf_effective * scale
 
         cue_drive = self.cue_to_signal(cues)
@@ -680,7 +729,13 @@ class CircuitDynamicsModel(nn.Module):
             raise ValueError("atac must have shape [batch, num_peaks].")
         if cues.ndim != 2 or cues.shape != (atac.shape[0], self.num_cues):
             raise ValueError("cues must have shape [batch, num_cues].")
-        accessibility = atac.clamp(0.0, 1.0)
+        if not torch.isfinite(atac).all() or bool(
+            ((atac < 0) | (atac > 1)).any()
+        ):
+            raise ValueError("atac must be finite and normalized to [0, 1].")
+        if not torch.isfinite(cues).all() or bool((cues < 0).any()):
+            raise ValueError("cues must be finite, non-negative magnitudes.")
+        accessibility = atac
         cue_drive = self.field.cue_to_signal(cues)
         signal = F.softplus(self.initial_signal_bias + cue_drive)
         motif_activity = accessibility @ self.motif_activity_map
@@ -692,8 +747,10 @@ class CircuitDynamicsModel(nn.Module):
         if initial_rna is not None:
             if initial_rna.shape != (atac.shape[0], self.num_genes):
                 raise ValueError("initial_rna has the wrong shape.")
-            if bool((initial_rna < 0).any()):
-                raise ValueError("initial_rna must be non-negative.")
+            if not torch.isfinite(initial_rna).all() or bool(
+                (initial_rna < 0).any()
+            ):
+                raise ValueError("initial_rna must be finite and non-negative.")
             rna = initial_rna
         else:
             zero_rna = atac.new_zeros((atac.shape[0], self.num_genes))
@@ -910,6 +967,8 @@ def temporal_circuit_objective(
     """
     if target_rna.shape != output["rna_t"].shape:
         raise ValueError("target_rna has the wrong shape.")
+    if not torch.isfinite(target_rna).all() or bool((target_rna < 0).any()):
+        raise ValueError("target_rna must be finite and non-negative.")
     rna_loss = F.mse_loss(
         torch.log1p(output["rna_t"].clamp_min(0.0)),
         torch.log1p(target_rna.clamp_min(0.0)),
@@ -920,6 +979,12 @@ def temporal_circuit_objective(
     if target_accessibility is not None:
         if target_accessibility.shape != output["accessibility_t"].shape:
             raise ValueError("target_accessibility has the wrong shape.")
+        if not torch.isfinite(target_accessibility).all() or bool(
+            ((target_accessibility < 0) | (target_accessibility > 1)).any()
+        ):
+            raise ValueError(
+                "target_accessibility must be finite and normalized to [0, 1]."
+            )
         accessibility_loss = F.binary_cross_entropy(
             output["accessibility_t"].clamp(1e-6, 1.0 - 1e-6),
             target_accessibility.clamp(0.0, 1.0),
@@ -929,6 +994,8 @@ def temporal_circuit_objective(
     if observed_derivative is not None:
         if observed_derivative.shape != output["terminal_velocity"].shape:
             raise ValueError("observed_derivative has the wrong shape.")
+        if not torch.isfinite(observed_derivative).all():
+            raise ValueError("observed_derivative must be finite.")
         derivative_loss = F.mse_loss(
             output["terminal_velocity"], observed_derivative
         )
