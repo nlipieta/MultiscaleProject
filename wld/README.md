@@ -59,10 +59,18 @@ work.mkdir(parents=True, exist_ok=True)
 for name in ("wld_circuit_dynamics_v3.py", "run_wld_v3_validation.py"):
     urllib.request.urlretrieve(f"{base}/{name}", work / name)
 
-subprocess.run(
+result = subprocess.run(
     [sys.executable, str(work / "run_wld_v3_validation.py")],
-    check=True,
+    text=True,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT,
 )
+print(result.stdout)
+if result.returncode:
+    raise RuntimeError(
+        f"WLD v3 contract check failed with exit code {result.returncode}; "
+        "the complete inner traceback is printed above."
+    )
 print(json.loads((work / "wld_v3_validation.json").read_text()))
 ```
 
