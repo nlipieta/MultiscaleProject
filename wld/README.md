@@ -29,12 +29,15 @@ but they are not the recommended route for a temporal attractor claim.
 - `wld_attractor_model_v2.py` — reusable PyTorch architecture, RK4 integration, fixed-point search, Jacobian stability diagnostics, grouped splitting, and leakage checks.
 - `wld_circuit_dynamics_v3.py` — recommended hard-sparse signaling/TF/chromatin/RNA vector field with enhancer gates, interventions, and attractor diagnostics; no neural bypass.
 - `run_wld_v3_validation.py` — structural and numerical contract tests on neutral systems; deliberately not a chromatin-toggle benchmark.
+- `wld_temporal_training.py` — grouped temporal trainer with population-level alignment for destructive assays, explicit paired-lineage mode, validation-selected checkpoints, sealed test groups, and circuit controls.
+- `run_wld_temporal_smoke.py` — neutral synthetic end-to-end check of the temporal data, training, control, checkpoint, and claim-boundary contracts.
 - `run_wld_pbmc_colab.py` — deterministic ATAC-only state-reconstruction runner with mean/ridge baselines, a degree-preserving TF-gene permutation control, a held-out ATAC shuffle, and multi-seed reporting.
 - `run_wld_full_validation.py` — environment, syntax, architecture, leakage, output-contract, and claim-boundary checks.
 - `wld_next_experiments.py` — audits for the original WLD notebook, including identity and mean baselines, delta metrics, a target-PCA leakage reduction, modality shuffling, prior ablations, and seed sensitivity.
 - `docs/legacy_colab_audit.md` — fingerprints, saved outputs, and scientific interpretation of the immutable exploratory notebook.
 - `docs/attractor_state_computational_revision.md` — manuscript-ready computational framing and minimum experimental design.
 - `docs/wld_v3_circuit_dynamics.md` — v3 data contract, training path, controls, and attractor falsification criteria.
+- `docs/wld_temporal_data_contract.md` — exact manifest/NPZ schema for grouped temporal or perturbation cohorts and the commands for real-data training.
 
 ## WLD v3 contract check in Colab
 
@@ -72,6 +75,46 @@ if result.returncode:
         "the complete inner traceback is printed above."
     )
 print(json.loads((work / "wld_v3_validation.json").read_text()))
+```
+
+## Temporal trainer smoke test in Colab
+
+This cell exercises the next layer: an unpaired destructive single-cell time
+course, group-sealed checkpoint selection, held-out test evaluation, and a
+no-circuit control. The generated cohort is deliberately small and neutral. A
+PASS means that the temporal software contract works; it is not a biological
+attractor result.
+
+```python
+import pathlib
+import subprocess
+import sys
+import urllib.request
+
+branch = "agent/add-wld-attractor-model"
+base = f"https://raw.githubusercontent.com/nlipieta/MultiscaleProject/{branch}/wld"
+work = pathlib.Path("/content/wld_temporal_smoke")
+work.mkdir(parents=True, exist_ok=True)
+
+for name in (
+    "wld_circuit_dynamics_v3.py",
+    "wld_temporal_training.py",
+    "run_wld_temporal_smoke.py",
+):
+    urllib.request.urlretrieve(f"{base}/{name}", work / name)
+
+result = subprocess.run(
+    [sys.executable, str(work / "run_wld_temporal_smoke.py")],
+    text=True,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT,
+)
+print(result.stdout)
+if result.returncode:
+    raise RuntimeError(
+        f"WLD temporal smoke test failed with exit code {result.returncode}; "
+        "the complete inner traceback is printed above."
+    )
 ```
 
 ## Full repository validation in Colab
@@ -118,6 +161,8 @@ files = [
     "wld_next_experiments.py",
     "wld_circuit_dynamics_v3.py",
     "run_wld_v3_validation.py",
+    "wld_temporal_training.py",
+    "run_wld_temporal_smoke.py",
     "run_wld_full_validation.py",
 ]
 for name in files:
