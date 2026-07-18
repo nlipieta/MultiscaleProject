@@ -11,8 +11,9 @@ The runner performs, in order:
 1. compiled-package and BLAS preflight checks in the current interpreter;
 2. syntax compilation of the repository WLD scripts;
 3. the model's synthetic shape, RK4, and leakage smoke tests;
-4. explicit token-aware leakage-audit regression checks; and
-5. the leakage-aware held-out ATAC-to-RNA PBMC reconstruction experiment.
+4. explicit token-aware leakage-audit regression checks;
+5. WLD v3 hard-circuit structural and numerical checks; and
+6. the leakage-aware held-out ATAC-to-RNA PBMC reconstruction experiment.
 
 Run this file from a clean isolated environment, as shown in the README.
 """
@@ -32,7 +33,10 @@ ROOT = Path(__file__).resolve().parent
 MODEL = ROOT / "wld_attractor_model_v2.py"
 PBMC_RUNNER = ROOT / "run_wld_pbmc_colab.py"
 LEGACY_AUDITS = ROOT / "wld_next_experiments.py"
+V3_MODEL = ROOT / "wld_circuit_dynamics_v3.py"
+V3_VALIDATOR = ROOT / "run_wld_v3_validation.py"
 EXPECTED_ARTIFACTS = (
+    ROOT / "wld_v3_validation.json",
     ROOT / "wld_pbmc_results.json",
     ROOT / "wld_pbmc_state_model.pt",
     ROOT / "wld_pbmc_state_results.png",
@@ -82,7 +86,7 @@ def package_preflight() -> None:
 
 def compile_sources() -> None:
     print("\n2. Compiling WLD repository files...", flush=True)
-    for path in (MODEL, PBMC_RUNNER, LEGACY_AUDITS):
+    for path in (MODEL, PBMC_RUNNER, LEGACY_AUDITS, V3_MODEL, V3_VALIDATOR):
         if not path.exists():
             raise FileNotFoundError(f"Missing repository file: {path.name}")
         py_compile.compile(str(path), doraise=True)
@@ -134,9 +138,9 @@ def leakage_regression() -> None:
 def verify_report() -> None:
     missing = [path.name for path in EXPECTED_ARTIFACTS if not path.exists()]
     if missing:
-        raise FileNotFoundError("PBMC run did not create: " + ", ".join(missing))
+        raise FileNotFoundError("Validation did not create: " + ", ".join(missing))
 
-    with EXPECTED_ARTIFACTS[0].open(encoding="utf-8") as handle:
+    with (ROOT / "wld_pbmc_results.json").open(encoding="utf-8") as handle:
         report = json.load(handle)
     required = {
         "scope",
@@ -170,7 +174,12 @@ def verify_report() -> None:
     if control_fields.difference(report["control_summary"]):
         raise KeyError("Results report is missing dependency-control outcomes.")
 
-    print("\n6. Verifying result artifacts and claim boundaries...", flush=True)
+    with (ROOT / "wld_v3_validation.json").open(encoding="utf-8") as handle:
+        v3_report = json.load(handle)
+    if v3_report.get("neutral_stability", {}).get("toggle_benchmark") is not False:
+        raise ValueError("The v3 validator must remain a neutral, non-toggle audit.")
+
+    print("\n7. Verifying result artifacts and claim boundaries...", flush=True)
     for path in EXPECTED_ARTIFACTS:
         print(f"   PASS: {path.name}", flush=True)
     print(
@@ -179,6 +188,7 @@ def verify_report() -> None:
     )
     print("   PASS: encoder contract contains ATAC only", flush=True)
     print("   PASS: unsupported trajectory/AUPRC/attractor claims marked N/A", flush=True)
+    print("   PASS: v3 diagnostics are structural/numerical, not biological claims", flush=True)
 
 
 def main() -> None:
@@ -188,8 +198,12 @@ def main() -> None:
     run([sys.executable, str(MODEL)], "3. Running synthetic architecture/RK4 smoke tests...")
     leakage_regression()
     run(
+        [sys.executable, str(V3_VALIDATOR)],
+        "5. Validating hard-constrained WLD v3 circuit dynamics...",
+    )
+    run(
         [sys.executable, str(PBMC_RUNNER)],
-        "5. Running held-out PBMC ATAC-to-RNA reconstruction and baselines...",
+        "6. Running held-out PBMC ATAC-to-RNA reconstruction and baselines...",
     )
     verify_report()
     print(
