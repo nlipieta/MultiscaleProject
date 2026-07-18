@@ -20,6 +20,7 @@ inference but not learned temporal dynamics.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Dict, Optional, Sequence, Tuple
 
@@ -356,19 +357,38 @@ def leakage_audit(
     overlap = set(train_groups).intersection(test_groups)
     if overlap:
         raise ValueError(f"Train/test group overlap: {sorted(overlap)}")
-    forbidden = {
+    forbidden_tokens = {
         "rna",
-        "cell_type",
+        "scrna",
+        "transcriptome",
+        "transcriptomic",
+        "celltype",
         "cluster",
         "pseudotime",
-        "dpt_pseudotime",
+    }
+    forbidden_phrases = {
+        "cell_type",
+        "gene_expression",
+        "expression_profile",
         "target_state",
         "future_state",
     }
-    normalized = {str(x).strip().lower() for x in encoder_feature_names}
-    bad = sorted(
-        name for name in normalized if any(proxy in name for proxy in forbidden)
-    )
+    normalized = {
+        re.sub(r"[^a-z0-9]+", "_", str(value).strip().lower()).strip("_")
+        for value in encoder_feature_names
+    }
+
+    def is_direct_proxy(name: str) -> bool:
+        tokens = set(name.split("_"))
+        return bool(tokens.intersection(forbidden_tokens)) or any(
+            phrase == name
+            or name.startswith(phrase + "_")
+            or name.endswith("_" + phrase)
+            or ("_" + phrase + "_") in name
+            for phrase in forbidden_phrases
+        )
+
+    bad = sorted(name for name in normalized if is_direct_proxy(name))
     if bad:
         raise ValueError(f"Direct state proxies found in encoder inputs: {bad}")
 
@@ -387,6 +407,13 @@ def _synthetic_smoke_test() -> None:
     assert output["rna_t_pred"].shape == (batch, genes)
     assert output["latent_path"].shape == (batch, 9, tfs)
     assert torch.isfinite(output["rna_t_pred"]).all()
+    leakage_audit(["donor_1"], ["donor_2"], ["ATAC_peaks", "external_cue"])
+    try:
+        leakage_audit(["donor_1"], ["donor_2"], ["RNA_counts"])
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("RNA proxy was not rejected by leakage_audit.")
     print("Synthetic smoke test passed.")
 
 
