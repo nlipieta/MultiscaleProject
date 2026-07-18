@@ -8,6 +8,7 @@ before it is trained on real temporal or perturbation-resolved observations.
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import torch
@@ -49,7 +50,7 @@ def example_priors() -> MultiscaleCircuitPriors:
         tf_gene_support=torch.tensor(
             [
                 [1.0, -0.8, 0.0],
-                [0.0, 0.9, 1.0],
+                [-0.7, 0.9, 1.0],
             ]
         ),
         circuit_tf_tf=torch.tensor(
@@ -75,7 +76,7 @@ def example_priors() -> MultiscaleCircuitPriors:
         tf_peak_effect=torch.tensor(
             [
                 [0.0, 0.0, 0.8, 0.0],
-                [-0.7, 0.0, 0.0, 0.6],
+                [0.0, -0.7, 0.0, 0.6],
             ]
         ),
     )
@@ -160,6 +161,21 @@ def validate_general_architecture() -> dict[str, object]:
     torch.manual_seed(42)
     priors = example_priors()
     priors.validate()
+    inconsistent = replace(
+        priors,
+        circuit_tf_tf=torch.tensor(
+            [
+                [0.0, 1.0],
+                [1.0, 0.0],
+            ]
+        ),
+    )
+    try:
+        inconsistent.validate()
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("An inconsistent circuit/target-gene sign was accepted.")
     model = CircuitDynamicsModel(priors)
     contract = architecture_contract(model)
     if contract["neural_bypass_modules"]:
@@ -239,6 +255,20 @@ def validate_general_architecture() -> dict[str, object]:
     )
     if intervention_effect <= 1e-7:
         raise AssertionError("A complete TF activity intervention had no RNA effect.")
+    try:
+        model(
+            atac,
+            cues,
+            horizon=0.25,
+            steps=2,
+            intervention=CircuitIntervention(
+                circuit_edge_scale=-torch.ones(model.field.tf_circuit.num_edges)
+            ),
+        )
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("A sign-flipping negative edge scale was accepted.")
 
     rates = model.field.positive_rates()
     if any(not bool((value > 0).all()) for value in rates.values()):
