@@ -4,8 +4,9 @@ This module implements the computational claims that can be supported by the
 Attractor State manuscript:
 
 1. ATAC accessibility estimates which regulatory regions are open.
-2. Motif/occupancy priors constrain which transcription factors can bind at
-   gene-linked open regions.
+2. A TF-gene support matrix constrains which regulators can affect each gene.
+   It supports a binding claim only when built from localized motif/occupancy
+   evidence; curated regulatory networks must be labelled as such.
 3. A validated TF circuit constrains the mechanistic part of the latent vector
    field.
 4. A neural residual captures dynamics not represented by the prior graph.
@@ -41,8 +42,10 @@ class PriorMatrices:
         [num_peaks, num_genes] genomic/regulatory links. Values may be binary
         or confidence weighted.
     motif_tf_gene:
-        [num_tfs, num_genes] motif or occupancy support at regions linked to
-        each gene. This is the protein-DNA binding feasibility layer.
+        [num_tfs, num_genes] TF-gene support mask. The field name is retained
+        for API compatibility. It may contain localized motif/occupancy
+        evidence or a clearly labelled curated regulatory-support proxy; only
+        the former supports a protein-DNA binding claim.
     circuit_tf_tf:
         [num_tfs, num_tfs] validated directed TF interactions. Positive and
         negative entries encode activating and repressing edges; zero denotes
@@ -164,6 +167,9 @@ class PriorConstrainedAttractorModel(nn.Module):
         p2g = priors.peak_to_gene.float()
         p2g = p2g / p2g.sum(dim=0, keepdim=True).clamp_min(1.0)
         self.register_buffer("peak_to_gene", p2g)
+        # This buffer is a generic TF-gene support mask despite its legacy API
+        # name. The data compiler determines whether it represents localized
+        # binding evidence or merely curated regulatory support.
         self.register_buffer("motif_tf_gene", (priors.motif_tf_gene > 0).float())
 
         encoder_dim = num_genes + num_tfs + cue_dim
