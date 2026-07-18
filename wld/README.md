@@ -8,24 +8,65 @@ evidence of trajectories or attractors. WLD is a parallel prototype within
 `MultiscaleProject`; it does not replace the repository's signed-GRN attractor
 model.
 
-The model represents three biological layers explicitly:
+The recommended v3 temporal model represents four biological layers explicitly:
 
-1. **Epigenetic landscape:** peak-to-gene links map open chromatin to accessible gene programs.
-2. **Regulatory feasibility:** TF-to-gene support limits which regulators can affect each gene. A binding claim additionally requires sequence-localized motif or occupancy evidence.
-3. **Circuit interactions:** a signed, confidence-weighted TF circuit constrains the mechanistic component of the vector field.
+1. **Tissue and extracellular cues:** measured inputs enter a signed signaling/PPI graph.
+2. **Epigenetic landscape:** peak-level ATAC defines which localized regulatory elements are open.
+3. **Binding feasibility:** TF motif or occupancy evidence is intersected with enhancer-to-gene links.
+4. **Circuit interactions:** signed TF-to-TF and TF-to-gene relations are the vector field topology.
 
-The latent dynamics are hybrid: a constrained ODE supplies the interpretable circuit dynamics, while a bounded neural residual can represent missing biology. RNA, cell labels, clusters, pseudotime, and target-state labels are excluded from the encoder because they are direct proxies for the state the model is supposed to derive.
+In v3 the circuit is not handed to a general latent network. Trainable interaction
+parameters exist only on supplied edges, edge signs are fixed, and explicit Hill
+production, degradation, and slow chromatin kinetics determine the vector field.
+There is no neural residual that can bypass the circuit. RNA targets, cell labels,
+clusters, pseudotime, and target-state labels are excluded from initialization
+because they are direct proxies for the state the model is supposed to derive.
+The earlier v2 hybrid dynamics are retained for reproducibility and smoke tests,
+but they are not the recommended route for a temporal attractor claim.
 
 ## Files
 
 - `wld_attractor_model_v2.py` — reusable PyTorch architecture, RK4 integration, fixed-point search, Jacobian stability diagnostics, grouped splitting, and leakage checks.
+- `wld_circuit_dynamics_v3.py` — recommended hard-sparse signaling/TF/chromatin/RNA vector field with enhancer gates, interventions, and attractor diagnostics; no neural bypass.
+- `run_wld_v3_validation.py` — structural and numerical contract tests on neutral systems; deliberately not a chromatin-toggle benchmark.
 - `run_wld_pbmc_colab.py` — deterministic ATAC-only state-reconstruction runner with mean/ridge baselines, a degree-preserving TF-gene permutation control, a held-out ATAC shuffle, and multi-seed reporting.
 - `run_wld_full_validation.py` — environment, syntax, architecture, leakage, output-contract, and claim-boundary checks.
 - `wld_next_experiments.py` — audits for the original WLD notebook, including identity and mean baselines, delta metrics, a target-PCA leakage reduction, modality shuffling, prior ablations, and seed sensitivity.
 - `docs/legacy_colab_audit.md` — fingerprints, saved outputs, and scientific interpretation of the immutable exploratory notebook.
 - `docs/attractor_state_computational_revision.md` — manuscript-ready computational framing and minimum experimental design.
+- `docs/wld_v3_circuit_dynamics.md` — v3 data contract, training path, controls, and attractor falsification criteria.
 
-## Recommended Colab run
+## WLD v3 contract check in Colab
+
+Run this small cell first. It uses Colab's existing PyTorch installation and
+does not install or replace NumPy, SciPy, Scanpy, or any compiled package. It
+checks the hard circuit topology, enhancer gate, intervention path, leakage
+contract, signed negative control, and attractor-diagnostic plumbing. It does
+not download PBMC data or make a biological attractor claim.
+
+```python
+import json
+import pathlib
+import subprocess
+import sys
+import urllib.request
+
+branch = "agent/add-wld-attractor-model"
+base = f"https://raw.githubusercontent.com/nlipieta/MultiscaleProject/{branch}/wld"
+work = pathlib.Path("/content/wld_v3_contract")
+work.mkdir(parents=True, exist_ok=True)
+
+for name in ("wld_circuit_dynamics_v3.py", "run_wld_v3_validation.py"):
+    urllib.request.urlretrieve(f"{base}/{name}", work / name)
+
+subprocess.run(
+    [sys.executable, str(work / "run_wld_v3_validation.py")],
+    check=True,
+)
+print(json.loads((work / "wld_v3_validation.json").read_text()))
+```
+
+## Full repository validation in Colab
 
 Use the single cell below in a fresh Colab runtime. It installs the scientific
 stack into a disposable package directory and exposes that directory only to a
@@ -67,6 +108,8 @@ files = [
     "wld_attractor_model_v2.py",
     "run_wld_pbmc_colab.py",
     "wld_next_experiments.py",
+    "wld_circuit_dynamics_v3.py",
+    "run_wld_v3_validation.py",
     "run_wld_full_validation.py",
 ]
 for name in files:
@@ -94,6 +137,7 @@ success claim unconditionally.
 
 Expected outputs:
 
+- `wld_v3_validation.json`
 - `wld_pbmc_results.json`
 - `wld_pbmc_state_model.pt`
 - `wld_pbmc_state_results.png`
@@ -117,6 +161,11 @@ fixed-point stability, basin geometry, or state transitions. Accordingly,
 the temporal vector field is not trained or evaluated.
 
 An attractor claim requires donor- or experiment-grouped longitudinal, lineage-traced, metabolic-labeling, or perturbation-resolved data. Preprocessing and prior compilation must be fit on training groups only. Candidate fixed points must converge from multiple initial conditions, have small vector-field residuals, and have Jacobian eigenvalues with negative real parts on held-out groups.
+
+The included v3 validator uses a neutral stable feed-forward system only to
+check fixed-point, Jacobian, and basin-analysis plumbing. A chromatin toggle is
+a downstream engineering application and is intentionally not used as evidence
+that WLD learned endogenous cell-state dynamics.
 
 No prior-dependence claim is made unless the true TF-gene scaffold beats the
 degree-preserving permutation across every configured seed. No ATAC-dependence
