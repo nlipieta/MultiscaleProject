@@ -237,7 +237,11 @@ def gene_tss_from_mygene(genes: Sequence[str]) -> Dict[str, Tuple[str, int]]:
     records = mg.querymany(
         list(genes),
         scopes="symbol",
-        fields="symbol,genomic_pos_hg38",
+        # MyGene's current GRCh38 field is ``genomic_pos``.  The older
+        # assembly is exposed separately as ``genomic_pos_hg19``; there is no
+        # current ``genomic_pos_hg38`` response field.  Requesting that
+        # nonexistent name silently produced zero usable coordinates.
+        fields="symbol,genomic_pos",
         species="human",
         as_dataframe=False,
         verbose=False,
@@ -248,7 +252,7 @@ def gene_tss_from_mygene(genes: Sequence[str]) -> Dict[str, Tuple[str, int]]:
         query = str(record.get("query", ""))
         symbol = str(record.get("symbol", query))
         key = query if query in requested else symbol
-        positions = record.get("genomic_pos_hg38")
+        positions = record.get("genomic_pos")
         if not positions:
             continue
         if isinstance(positions, dict):
