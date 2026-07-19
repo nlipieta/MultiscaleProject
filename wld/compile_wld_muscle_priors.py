@@ -45,7 +45,13 @@ JASPAR_RELEASE = "2024"
 COORDINATE_SYSTEM = "GRCh38/hg38, BED-style 0-based half-open intervals"
 EXERCISE_ENTRY_SIGNALS = ("PRKAA1", "CAMK2D", "MAPK14")
 SAFE_GENE = re.compile(r"^[A-Za-z0-9.-]+$")
-PEAK_PATTERN = re.compile(r"^(chr(?:[0-9]+|X|Y|M|MT))[:-](\d+)[-:](\d+)$", re.I)
+PEAK_PATTERN = re.compile(r"^(.+?)[:-](\d+)[-:](\d+)$")
+CANONICAL_CHROMOSOMES = {
+    *(f"chr{index}" for index in range(1, 23)),
+    "chrX",
+    "chrY",
+    "chrM",
+}
 
 
 @dataclass(frozen=True)
@@ -153,6 +159,16 @@ def read_peaks(path: Path) -> List[Peak]:
     if len(identifiers) != len(set(identifiers)):
         raise ValueError("ATAC peak identifiers must be unique.")
     return peaks
+
+
+def is_canonical_peak(peak: Peak) -> bool:
+    """Return whether a peak belongs to a primary human chromosome.
+
+    Alternate and unplaced GRCh38 contigs remain represented in ``peaks`` so
+    their original Matrix Market row indices and the ATAC matrix dimensions
+    stay intact.  They are excluded only from contact and motif localization.
+    """
+    return peak.chrom in CANONICAL_CHROMOSOMES
 
 
 def parse_gtf_attributes(value: str) -> Dict[str, str]:
@@ -745,6 +761,8 @@ def build(args: argparse.Namespace) -> Dict[str, object]:
     print("1. Reading exported features and frozen subject split...", flush=True)
     genes = first_column(paths["genes"])
     peaks = read_peaks(paths["peaks"])
+    canonical_peaks = [peak for peak in peaks if is_canonical_peak(peak)]
+    excluded_contig_peaks = len(peaks) - len(canonical_peaks)
     barcodes = first_column(paths["barcodes"])
     split = read_split(paths["split"])
     training_columns, selection_report = training_initial_columns(
@@ -754,7 +772,18 @@ def build(args: argparse.Namespace) -> Dict[str, object]:
     print("2. Annotating GRCh38 promoter-capture Hi-C contacts...", flush=True)
     tss = read_protein_coding_tss(paths["gencode_gtf"], genes)
     contact_links, contact_report = compile_contacts(
-        paths["pchic"], tss, PeakIndex(peaks)
+        paths["pchic"], tss, PeakIndex(canonical_peaks)
+    )
+    contact_report.update(
+        {
+            "atac_peaks_total": len(peaks),
+            "canonical_chromosome_peaks": len(canonical_peaks),
+            "alternate_or_unplaced_contig_peaks_excluded": excluded_contig_peaks,
+            "contig_policy": (
+                "Noncanonical peaks retain their original ATAC matrix row indices "
+                "but are excluded from contact and motif localization."
+            ),
+        }
     )
 
     print("3. Ranking only contact-linked peaks on training/pre ATAC...", flush=True)
