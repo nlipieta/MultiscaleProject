@@ -47,17 +47,17 @@ def main() -> None:
         write_gz(modern / "peaks.bed.gz", "chr1\t100\t200\nchr2\t300\t400\n")
         write_gz(
             modern / "rna_meta.tsv.gz",
-            "rna_barcode\tshared_cell\tdonor\tcell_type\n"
-            "row_1\tr1\tcell_a\td1\tT\n"
-            "row_2\tr2\tcell_b\td1\tB\n"
-            "row_3\tr3\tcell_c\td2\tT\n",
+            "donor\tcell_type\n"
+            "cell_a\td1\tT\n"
+            "cell_b\td1\tB\n"
+            "cell_c\td2\tT\n",
         )
         write_gz(
             modern / "atac_meta.tsv.gz",
-            "atac_barcode\tshared_cell\tdonor\tcluster\n"
-            "a3\tcell_c\td2\t2\n"
-            "a1\tcell_a\td1\t0\n"
-            "a2\tcell_b\td1\t1\n",
+            "\tdonor\tcluster\n"
+            "cell_c\td2\t2\n"
+            "cell_a\td1\t0\n"
+            "cell_b\td1\t1\n",
         )
         modern_files = {
             "rna_matrix": modern / "rna.mtx.gz",
@@ -69,17 +69,41 @@ def main() -> None:
         }
         repaired_header, repaired_rows = read_metadata_table(modern / "rna_meta.tsv.gz")
         assert repaired_header[0] == "__row_id__"
-        assert repaired_header[1:] == ["rna_barcode", "shared_cell", "donor", "cell_type"]
-        assert repaired_rows[0] == ["row_1", "r1", "cell_a", "d1", "T"]
+        assert repaired_header[1:] == ["donor", "cell_type"]
+        assert repaired_rows[0] == ["cell_a", "d1", "T"]
         print("PASS: unnamed submitted row-ID columns are preserved without shifting metadata")
 
         blocks, evidence, context = ingest_shareseq_metadata_pair(modern_files)
         assert blocks["rna"].barcodes == blocks["atac"].barcodes == ["cell_a", "cell_b", "cell_c"]
-        assert evidence["left_column"] == evidence["right_column"] == "shared_cell"
+        assert evidence["left_column"] == evidence["right_column"] == "__row_id__"
         assert evidence["expression_or_label_matching_used"] is False
         assert evidence["result"] == "exact_after_deposited_identifier_alignment"
         assert "cell_type" in context["rna_metadata_fields"]
-        print("PASS: deposited SHARE-seq identifiers align RNA/ATAC without expression matching")
+        print("PASS: deposited SHARE-seq row names align RNA/ATAC without entering the encoder")
+
+        # If neither modality contains a unique deposited observation ID, the
+        # adapter must retain two unpaired populations rather than fabricating
+        # cell pairs from expression, labels, embeddings, or row position.
+        write_gz(
+            modern / "rna_meta.tsv.gz",
+            "donor\tcell_type\n"
+            "d1\tT\n"
+            "d1\tB\n"
+            "d2\tT\n",
+        )
+        write_gz(
+            modern / "atac_meta.tsv.gz",
+            "donor\tcluster\n"
+            "d2\t2\n"
+            "d1\t0\n"
+            "d1\t1\n",
+        )
+        unpaired_blocks, unpaired_evidence, _ = ingest_shareseq_metadata_pair(modern_files)
+        assert unpaired_evidence["result"] == "unpaired_population"
+        assert unpaired_evidence["expression_or_label_matching_used"] is False
+        assert unpaired_evidence["synthetic_cell_pairing_used"] is False
+        assert set(unpaired_blocks["rna"].barcodes).isdisjoint(unpaired_blocks["atac"].barcodes)
+        print("PASS: missing identifiers produce unpaired populations, never fabricated cell pairs")
 
         # Legacy fixture: the ATAC metadata explicitly translates ATAC to RNA
         # barcodes.  The cell-type column is present but cannot drive pairing.
@@ -173,7 +197,8 @@ def main() -> None:
             "sealed_test_evaluated": False,
             "checks": [
                 "metadata_identifier_pairing",
-                "unnamed_metadata_row_id",
+                "deposited_unnamed_row_id_pairing",
+                "unpaired_population_fallback",
                 "legacy_barcode_crosswalk",
                 "context_outside_encoder",
                 "species_build_isolation",

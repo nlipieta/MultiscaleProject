@@ -105,9 +105,13 @@ def read_metadata_table(path: Path) -> Tuple[List[str], List[List[str]]]:
             f"expected {len(header)}, observed {dict(sorted(bad_widths.items()))}"
         )
 
-    # Blank submitted header fields remain preserved but cannot accidentally
-    # become identifier candidates.
-    header = [value or f"__unnamed_{index}__" for index, value in enumerate(header)]
+    # A blank first heading is the other common representation of submitted
+    # row names.  It may be used only as deposited alignment evidence; metadata
+    # fields are never appended to encoder tensors.
+    header = [
+        value or ("__row_id__" if index == 0 else f"__unnamed_{index}__")
+        for index, value in enumerate(header)
+    ]
     if not rows:
         raise ValueError(f"Metadata has no observations: {path}")
     return header, rows
@@ -126,7 +130,8 @@ def _candidate_columns(
         )
     candidates = {}
     for index, name in enumerate(header):
-        if _name_priority(name) <= 0:
+        deposited_row_id = name == "__row_id__"
+        if not deposited_row_id and _name_priority(name) <= 0:
             continue
         values = _column(header, rows, index)
         nonempty = [value for value in values if value]
@@ -144,10 +149,10 @@ def _candidate_columns(
             numeric == list(range(len(numeric)))
             or numeric == list(range(1, len(numeric) + 1))
         )
-        if uniqueness >= 0.90 and not sequential:
+        # ModalityBlock requires unique observation identifiers.  Never repair
+        # duplicates with labels, embeddings, expression, or row order.
+        if uniqueness == 1.0 and not sequential:
             candidates[name] = values
-    if not candidates:
-        raise ValueError("Metadata has no near-unique observation identifier column")
     return candidates
 
 
@@ -165,6 +170,18 @@ def _name_priority(name: str) -> int:
     return score
 
 
+def _pairing_priority(name: str) -> int:
+    # Deposited row names are legitimate alignment evidence, but named barcode
+    # or cell-ID fields win when both are available.
+    return 1 if name == "__row_id__" else _name_priority(name)
+
+
+def _unpaired_observation_ids(prefix: str, cells: int) -> List[str]:
+    """Create disjoint bookkeeping IDs without asserting biological pairing."""
+
+    return [f"__{prefix}_unpaired_{index:09d}" for index in range(cells)]
+
+
 def _best_shared_metadata_key(
     left_header: Sequence[str],
     left_rows: Sequence[Sequence[str]],
@@ -175,6 +192,22 @@ def _best_shared_metadata_key(
 ) -> Tuple[List[str], List[str], Dict[str, object]]:
     left = _candidate_columns(left_header, left_rows, left_cells)
     right = _candidate_columns(right_header, right_rows, right_cells)
+    if not left or not right:
+        evidence = {
+            "method": "no_shared_deposited_identifier",
+            "left_candidate_fields": sorted(left),
+            "right_candidate_fields": sorted(right),
+            "intersection": 0,
+            "overlap_fraction": 0.0,
+            "expression_or_label_matching_used": False,
+            "synthetic_cell_pairing_used": False,
+        }
+        return (
+            _unpaired_observation_ids("rna", left_cells),
+            _unpaired_observation_ids("atac", right_cells),
+            evidence,
+        )
+
     best = None
     for left_name, left_values in left.items():
         left_set = set(left_values)
@@ -182,7 +215,11 @@ def _best_shared_metadata_key(
             right_set = set(right_values)
             overlap = len(left_set.intersection(right_set))
             fraction = overlap / max(1, min(len(left_set), len(right_set)))
-            score = (fraction, overlap, _name_priority(left_name) + _name_priority(right_name))
+            score = (
+                fraction,
+                overlap,
+                _pairing_priority(left_name) + _pairing_priority(right_name),
+            )
             if best is None or score > best[0]:
                 best = (score, left_name, left_values, right_name, right_values)
     assert best is not None
@@ -194,7 +231,15 @@ def _best_shared_metadata_key(
         "intersection": int(score[1]),
         "overlap_fraction": float(score[0]),
         "expression_or_label_matching_used": False,
+        "synthetic_cell_pairing_used": False,
     }
+    if score[0] < 0.80:
+        evidence["method"] = "insufficient_shared_deposited_identifier_overlap"
+        return (
+            _unpaired_observation_ids("rna", left_cells),
+            _unpaired_observation_ids("atac", right_cells),
+            evidence,
+        )
     return left_values, right_values, evidence
 
 
