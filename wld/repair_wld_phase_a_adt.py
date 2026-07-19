@@ -116,9 +116,22 @@ def main() -> None:
             raise FileNotFoundError(f"Required Phase A artifact is missing: {path}")
 
     current = verify_bundle(bundle_root)
+    harmonized_current = verify_bundle(harmonized_root)
+    report_current = json.loads(report_path.read_text())
     protein_shape = current["modalities"]["protein"]["shape"]
+    harmonized_shape = harmonized_current["modalities"]["protein"]["shape"]
     atlas = json.loads((atlas_root / "atlas_manifest.json").read_text())
-    if protein_shape[0] > 1000 and protein_shape[1] < 5000 and atlas["proteins"] < 5000:
+    fully_repaired = (
+        protein_shape[0] > 1000
+        and protein_shape[1] < 5000
+        and harmonized_shape[0] > 1000
+        and harmonized_shape[1] < 5000
+        and 0 < int(atlas["proteins"]) < 5000
+        and REPAIR_ID in report_current.get("repairs", [])
+        and report_current.get("model_trained") is False
+        and report_current.get("sealed_test_downloaded") is False
+    )
+    if fully_repaired:
         print("PASS: GSE158013 ADT orientation was already repaired")
         return
 
