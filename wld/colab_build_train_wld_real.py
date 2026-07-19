@@ -1,13 +1,15 @@
-"""Build and train the real-data WLD temporal benchmark in Google Colab.
+"""Build the corrected real-data WLD temporal development run in Colab.
 
 This runner begins from the already exported GSE240061 matrices and the
 already compiled GSE240061/GSE126100 biological scaffold.  It pins the model,
 cohort builder, and temporal trainer to one reviewed repository commit, checks
 the exact successful prior manifest, constructs a leakage-safe unpaired
-pre-to-post cohort, and compares the hard circuit against a no-circuit control.
+pre-to-post cohort, and compares the validated circuit against both no-circuit
+and signed degree-preserving rewired-topology controls.
 
-The 3.5-hour endpoint is a transient response.  This run tests held-out
-temporal prediction; it does not label that endpoint as an attractor.
+This stage uses validation subject I only.  It deliberately does not evaluate
+test subjects J/L.  The 3.5-hour endpoint is a transient response and is not
+labelled as an attractor.
 """
 
 from __future__ import annotations
@@ -28,21 +30,21 @@ ROOT = Path("/content/wld_real_data")
 EXPORT = ROOT / "gse240061_export"
 PRIORS = ROOT / "gse240061_priors"
 COHORT = ROOT / "gse240061_temporal_cohort"
-RESULTS = ROOT / "gse240061_temporal_results_seed42"
-CODE = ROOT / "temporal_code"
+RESULTS = ROOT / "gse240061_temporal_development_v2_seed42"
+CODE = ROOT / "temporal_code_v2"
 
-DEPENDENCY_COMMIT = "d62ce237192d01cfdd3e8042c58d692a734f707f"
+DEPENDENCY_COMMIT = "4fff0489d77f9dc4b39e2c8a167db03ea6d275bb"
 EXPECTED_COMPILER_COMMIT = "16a2656857e0e5003d9ea31b382b65cf03efec31"
 REPOSITORY = "nlipieta/MultiscaleProject"
 CODE_HASHES = {
     "build_wld_muscle_exercise_dataset.py": (
-        "197a6b4d4776f3778c9687b4c3384e053c83da63bcccd0933df95750bb3f1b6a"
+        "424e4cf0b1fac7d2bf5e2085c034a81e95e9dd915e79fd51b24737e6134ca38c"
     ),
     "wld_circuit_dynamics_v3.py": (
         "2ffcd9d0a60551dd06db2646c60747ba0680e47150fd5f91bf42b7d8eadfe068"
     ),
     "wld_temporal_training.py": (
-        "6ea338e0a5989a935f6e781e14e471999b1a526993b54eb2e14022e38991e277"
+        "f6c6ad2a8790826620d0055fd680eeff8e84c3e96bc8422c00bcf4d6c9a17582"
     ),
 }
 EXPECTED_SPLIT = {
@@ -144,7 +146,7 @@ def run_logged(command: Sequence[object], log_path: Path) -> None:
             log.flush()
         return_code = process.wait()
     if return_code:
-        partial = RESULTS / "wld_temporal_results.partial.json"
+        partial = RESULTS / "wld_temporal_development.partial.json"
         partial_note = f" Partial results: {partial}" if partial.exists() else ""
         raise RuntimeError(
             f"Command failed with exit code {return_code}. Full log: {log_path}."
@@ -194,6 +196,64 @@ def validate_prior_manifest() -> dict:
     return manifest
 
 
+def install_rewired_control() -> dict:
+    """Create a signed degree-preserving circuit null inside the cohort."""
+    import numpy as np
+    import torch
+
+    if str(CODE) not in sys.path:
+        sys.path.insert(0, str(CODE))
+    from wld_circuit_dynamics_v3 import degree_preserving_signed_permutation
+
+    prior_path = COHORT / "priors.npz"
+    with np.load(prior_path, allow_pickle=False) as archive:
+        values = {name: archive[name].copy() for name in archive.files}
+    original = torch.as_tensor(values["circuit_tf_tf"])
+    rewired = degree_preserving_signed_permutation(original, seed=314159)
+    if torch.equal(original, rewired):
+        raise RuntimeError("The rewired circuit is identical to the biological circuit.")
+    for sign in (1, -1):
+        before = (torch.sign(original) == sign).to(torch.int64)
+        after = (torch.sign(rewired) == sign).to(torch.int64)
+        if not torch.equal(before.sum(0), after.sum(0)):
+            raise RuntimeError("Rewired control changed signed target degree.")
+        if not torch.equal(before.sum(1), after.sum(1)):
+            raise RuntimeError("Rewired control changed signed source degree.")
+    values["circuit_tf_tf"] = rewired.cpu().numpy()
+    control_path = COHORT / "priors_control_rewired_circuit.npz"
+    temporary = COHORT / "priors_control_rewired_circuit.tmp.npz"
+    np.savez_compressed(temporary, **values)
+    temporary.replace(control_path)
+
+    manifest_path = COHORT / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["control_prior_archives"] = {
+        "rewired_circuit": control_path.name,
+    }
+    manifest["negative_controls"] = {
+        "rewired_circuit": {
+            "method": "positive and negative TF edges permuted separately",
+            "signed_in_degree_preserved": True,
+            "signed_out_degree_preserved": True,
+            "edge_count": int(torch.count_nonzero(original)),
+            "seed": 314159,
+            "archive": control_path.name,
+            "sha256": sha256(control_path),
+        }
+    }
+    temporary_manifest = manifest_path.with_suffix(".json.tmp")
+    temporary_manifest.write_text(
+        json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+    )
+    temporary_manifest.replace(manifest_path)
+    print(
+        "PASS: signed degree-preserving rewired circuit control "
+        f"({int(torch.count_nonzero(original))} edges)",
+        flush=True,
+    )
+    return manifest["negative_controls"]["rewired_circuit"]
+
+
 def validate_cohort() -> tuple[dict, dict]:
     manifest_path = COHORT / "manifest.json"
     report_path = COHORT / "build_report.json"
@@ -235,6 +295,23 @@ def validate_cohort() -> tuple[dict, dict]:
         raise RuntimeError(f"Unexpected cue registry: {manifest.get('cue_names')}")
     if manifest.get("alignment_mode") != "distribution":
         raise RuntimeError("Destructive single-cell endpoints must use distribution alignment.")
+    if manifest.get("rna_representation") != "cp10k_library_size_10000":
+        raise RuntimeError(
+            "RNA targets must be stored as CP10K so log1p is applied exactly once."
+        )
+    if manifest.get("control_prior_archives") != {
+        "rewired_circuit": "priors_control_rewired_circuit.npz"
+    }:
+        raise RuntimeError("Signed rewired-circuit control is missing from the cohort.")
+    negative_control = manifest.get("negative_controls", {}).get(
+        "rewired_circuit", {}
+    )
+    if not (
+        negative_control.get("signed_in_degree_preserved")
+        and negative_control.get("signed_out_degree_preserved")
+        and negative_control.get("edge_count") == report["edge_counts"]["circuit_tf_tf"]
+    ):
+        raise RuntimeError(f"Invalid rewired-circuit audit: {negative_control}")
     expected_limits = {"genes": 400, "peaks": 1000, "tfs": 64}
     for key, maximum in expected_limits.items():
         observed = int(report.get(key, 0))
@@ -242,7 +319,7 @@ def validate_cohort() -> tuple[dict, dict]:
             raise RuntimeError(f"Invalid selected {key} count: {observed}")
     if int(report.get("initial_cells", 0)) < 100 or int(report.get("target_cells", 0)) < 100:
         raise RuntimeError("Too few cells survived temporal cohort construction.")
-    print("PASS: cohort leakage and feature-input audit", flush=True)
+    print("PASS: cohort leakage, RNA-scale, and feature-input audit", flush=True)
     print(
         "   dimensions: "
         f"{report['initial_cells']} initial cells, {report['target_cells']} target cells, "
@@ -264,7 +341,7 @@ def finite_metric(value: object) -> str:
 
 def print_results(results: Mapping[str, object]) -> None:
     print("\n" + "=" * 72, flush=True)
-    print("HELD-OUT TEMPORAL BENCHMARK SUMMARY", flush=True)
+    print("VALIDATION-ONLY TEMPORAL DEVELOPMENT SUMMARY", flush=True)
     print("=" * 72, flush=True)
     conditions = results.get("conditions", {})
     for condition, record in conditions.items():
@@ -274,37 +351,30 @@ def print_results(results: Mapping[str, object]) -> None:
             f"validation loss {finite_metric(training['best_validation_loss'])}",
             flush=True,
         )
-        for group, metrics in record["test"]["by_group"].items():
+        for group, metrics in record["validation"]["by_group"].items():
             print(
-                f"  test subject {group}: "
+                f"  validation subject {group}: "
                 f"RNA SWD={finite_metric(metrics.get('log_rna_swd'))}, "
                 f"RNA mean MSE={finite_metric(metrics.get('log_rna_mean_mse'))}, "
                 f"RNA mean Pearson={finite_metric(metrics.get('log_rna_mean_pearson'))}, "
                 f"ATAC SWD={finite_metric(metrics.get('atac_swd'))}",
                 flush=True,
             )
-        diagnostics = record["test"].get("attractor_diagnostics", {})
-        print(
-            "  attractor diagnostics: "
-            f"{diagnostics.get('status', 'N/A')} — "
-            f"{diagnostics.get('reason', 'endpoint was not declared terminal')}",
-            flush=True,
-        )
-
-    comparison = results.get("control_comparison", {})
+    comparison = results.get("validation_control_comparison", {})
     print("\nCircuit advantage (positive means true circuit has lower RNA SWD):", flush=True)
     for condition, by_group in comparison.get("by_condition_and_group", {}).items():
         for group, value in by_group.items():
             print(f"  versus {condition}, subject {group}: {finite_metric(value)}", flush=True)
     print(
-        "\nINTERPRETATION BOUNDARY: this is subject-held-out 3.5-hour transient "
-        "prediction. It does not by itself demonstrate a stable attractor.",
+        "\nTEST STATUS: J/L were not evaluated in this run. These are validation-only "
+        "development results from subject I. The 3.5-hour endpoint is transient and "
+        "does not demonstrate a stable attractor.",
         flush=True,
     )
 
 
 def main() -> None:
-    print("WLD REAL-DATA TEMPORAL BUILD + TRAIN", flush=True)
+    print("WLD CORRECTED VALIDATION-ONLY TEMPORAL DEVELOPMENT", flush=True)
     print(f"Python: {platform.python_version()}", flush=True)
     try:
         import numpy
@@ -397,6 +467,7 @@ def main() -> None:
         flush=True,
     )
     run_logged(build_command, ROOT / "wld_temporal_cohort_build.log")
+    rewired_control = install_rewired_control()
     cohort_manifest, cohort_report = validate_cohort()
 
     validate_command = [
@@ -409,47 +480,59 @@ def main() -> None:
     ]
     run_logged(validate_command, ROOT / "wld_temporal_cohort_validation.log")
 
-    benchmark_command = [
+    development_command = [
         sys.executable,
         "-u",
         downloaded["wld_temporal_training.py"],
-        "benchmark",
+        "develop",
         "--data",
         COHORT,
         "--output",
         RESULTS,
         "--epochs",
-        "100",
+        "300",
         "--steps",
         "12",
         "--patience",
-        "8",
+        "12",
+        "--seed",
+        "42",
         "--conditions",
-        "true_circuit,no_circuit",
+        "true_circuit,no_circuit,rewired_circuit",
         "--device",
         device,
     ]
     print(
-        "\nTraining the hard biological circuit and the no-circuit control. "
-        "Validation subject I selects checkpoints; test subjects J/L remain sealed "
-        "until model selection is complete.",
+        "\nTraining the biological circuit, no-circuit control, and signed "
+        "degree-preserving rewired control. Validation subject I selects "
+        "checkpoints; test subjects J/L are not evaluated in this run.",
         flush=True,
     )
-    run_logged(benchmark_command, ROOT / "wld_temporal_benchmark.log")
+    run_logged(development_command, ROOT / "wld_temporal_development_v2.log")
 
-    results_path = RESULTS / "wld_temporal_results.json"
+    results_path = RESULTS / "wld_temporal_development.json"
     require_files(
         [
             results_path,
             RESULTS / "wld_temporal_true_circuit.pt",
             RESULTS / "wld_temporal_no_circuit.pt",
+            RESULTS / "wld_temporal_rewired_circuit.pt",
         ],
-        "temporal benchmark",
+        "temporal development",
     )
     results = json.loads(results_path.read_text(encoding="utf-8"))
-    assert_split(results["split_groups"], "Temporal benchmark")
-    if set(results.get("conditions", {})) != {"true_circuit", "no_circuit"}:
-        raise RuntimeError("Both true-circuit and no-circuit results are required.")
+    assert_split(results["split_groups"], "Temporal development")
+    expected_conditions = {"true_circuit", "no_circuit", "rewired_circuit"}
+    if set(results.get("conditions", {})) != expected_conditions:
+        raise RuntimeError(f"Required development conditions are missing: {results.get('conditions')}")
+    if results.get("test_groups_evaluated") is not False:
+        raise RuntimeError("Validation-only development unexpectedly evaluated test groups.")
+    for condition, record in results["conditions"].items():
+        if "test" in record:
+            raise RuntimeError(f"Condition {condition!r} contains forbidden test metrics.")
+        initialization = record["training"].get("rna_baseline_initialization", {})
+        if initialization.get("test_groups_used") is not False:
+            raise RuntimeError(f"Condition {condition!r} has an unsafe RNA baseline.")
 
     provenance = {
         "created_utc": datetime.now(timezone.utc).isoformat(),
@@ -460,19 +543,25 @@ def main() -> None:
         "prior_manifest_sha256": sha256(PRIORS / "prior_manifest.json"),
         "cohort_manifest_sha256": sha256(COHORT / "manifest.json"),
         "cohort_build_report": cohort_report,
+        "rewired_control": rewired_control,
         "device": device,
-        "benchmark_config": {
+        "development_config": {
             "seed": 42,
-            "epochs": 100,
+            "epochs": 300,
             "integration_steps": 12,
-            "patience": 8,
-            "conditions": ["true_circuit", "no_circuit"],
+            "patience": 12,
+            "conditions": [
+                "true_circuit",
+                "no_circuit",
+                "rewired_circuit",
+            ],
+            "test_groups_evaluated": False,
         },
         "claim_boundary": cohort_manifest["dataset"]["scope"],
         "logs": {
             "build": str(ROOT / "wld_temporal_cohort_build.log"),
             "validation": str(ROOT / "wld_temporal_cohort_validation.log"),
-            "benchmark": str(ROOT / "wld_temporal_benchmark.log"),
+            "development": str(ROOT / "wld_temporal_development_v2.log"),
         },
     }
     (RESULTS / "temporal_run_manifest.json").write_text(
@@ -482,7 +571,8 @@ def main() -> None:
     print("\nCOMPLETE", flush=True)
     print(f"Results: {results_path}", flush=True)
     print(f"Provenance: {RESULTS / 'temporal_run_manifest.json'}", flush=True)
-    print(f"Benchmark log: {ROOT / 'wld_temporal_benchmark.log'}", flush=True)
+    print(f"Development log: {ROOT / 'wld_temporal_development_v2.log'}", flush=True)
+    print("Test subjects J/L remain unopened by this corrected run.", flush=True)
 
 
 if __name__ == "__main__":
