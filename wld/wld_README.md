@@ -50,12 +50,33 @@ but they are not the recommended route for a temporal attractor claim.
 - `wld_phase_b_snapshot_pretraining.py` — exact-barcode, whole-study cross-modal representation pretraining without fabricated temporal kinetics.
 - `run_wld_phase_b_colab.py` — restart-safe real Phase B runner with Drive checkpoints and an unopened sealed test.
 - `run_wld_phase_b_smoke.py` — synthetic prior, pairing, missing-modality, resume, and claim-boundary tests.
+- `wld_corpus_expansion.py` — strict SHARE-seq adapters that accept only deposited barcode relations and retain experimental context outside encoder tensors.
+- `run_wld_corpus_expansion.py` — restart-safe expansion into content-addressed human-GRCh38 and mouse-mm10 atlas snapshots.
+- `run_wld_corpus_expansion_colab.py` — Colab entrypoint for the core and extended real-data expansion tiers.
+- `run_wld_corpus_expansion_smoke.py` — synthetic pairing, context, species/build isolation, and sealed-study exclusion tests.
 - `docs/legacy_colab_audit.md` — fingerprints, saved outputs, and scientific interpretation of the immutable exploratory notebook.
 - `docs/attractor_state_computational_revision.md` — manuscript-ready computational framing and minimum experimental design.
 - `docs/wld_v3_circuit_dynamics.md` — v3 data contract, training path, controls, and attractor falsification criteria.
 - `docs/wld_temporal_data_contract.md` — exact manifest/NPZ schema for grouped temporal or perturbation cohorts and the commands for real-data training.
 - `docs/wld_dataset_stack.md` — ranked public datasets and the selected GSE240061 + GSE126100 human-muscle build.
 - `wld_phase_b_contract.md` — Phase B evidence, variability, leakage, restart, and claim boundaries.
+- `wld_corpus_expansion_contract.md` — corpus scope, non-frozen context, pairing evidence, staged sources, and non-claims.
+
+## Foundation-corpus expansion
+
+After Phase B, the expansion layer adds human bone-marrow SHARE-seq, human
+CD8-exhaustion SHARE-seq, and mouse brain/skin/lung SHARE-seq without replacing
+the completed checkpoint. Donor, tissue, time, treatment, age, sex, condition,
+sample, and batch remain observation-level context; they are not converted into
+global constants. The v4 ODE can use fold-local context to modulate only
+supported circuit gains, production, decay, thresholds, and chromatin
+timescales. State labels, clusters, pseudotime, identifiers, and embeddings
+remain forbidden encoder inputs.
+
+Human and mouse data have separate atlases. `GSE217215` remains staged until its
+mixed H5AD/TAR barcode schema is proven, and hg19 `GSE207308` remains separate
+until audited liftover. The expansion registry never downloads sealed
+`GSE183273` or `GSE214546`.
 
 ## Real-data dataset-builder smoke test in Colab
 

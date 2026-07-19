@@ -1,0 +1,13 @@
+{
+  "scope": "synthetic corpus-expansion contract only",
+  "real_data_downloaded": false,
+  "model_trained": false,
+  "sealed_test_evaluated": false,
+  "checks": [
+    "metadata_identifier_pairing",
+    "legacy_barcode_crosswalk",
+    "context_outside_encoder",
+    "species_build_isolation",
+    "sealed_registry_exclusion"
+  ]
+}
