@@ -14,6 +14,7 @@ from scipy.io import mmwrite
 from wld_corpus_expansion import (
     ingest_shareseq_legacy_pair,
     ingest_shareseq_metadata_pair,
+    read_metadata_table,
     write_context_manifest,
 )
 from wld_foundation_data import build_training_atlas, save_bundle, verify_bundle
@@ -47,9 +48,9 @@ def main() -> None:
         write_gz(
             modern / "rna_meta.tsv.gz",
             "rna_barcode\tshared_cell\tdonor\tcell_type\n"
-            "r1\tcell_a\td1\tT\n"
-            "r2\tcell_b\td1\tB\n"
-            "r3\tcell_c\td2\tT\n",
+            "row_1\tr1\tcell_a\td1\tT\n"
+            "row_2\tr2\tcell_b\td1\tB\n"
+            "row_3\tr3\tcell_c\td2\tT\n",
         )
         write_gz(
             modern / "atac_meta.tsv.gz",
@@ -66,6 +67,12 @@ def main() -> None:
             "atac_features": modern / "peaks.bed.gz",
             "atac_metadata": modern / "atac_meta.tsv.gz",
         }
+        repaired_header, repaired_rows = read_metadata_table(modern / "rna_meta.tsv.gz")
+        assert repaired_header[0] == "__row_id__"
+        assert repaired_header[1:] == ["rna_barcode", "shared_cell", "donor", "cell_type"]
+        assert repaired_rows[0] == ["row_1", "r1", "cell_a", "d1", "T"]
+        print("PASS: unnamed submitted row-ID columns are preserved without shifting metadata")
+
         blocks, evidence, context = ingest_shareseq_metadata_pair(modern_files)
         assert blocks["rna"].barcodes == blocks["atac"].barcodes == ["cell_a", "cell_b", "cell_c"]
         assert evidence["expression_or_label_matching_used"] is False
@@ -165,6 +172,7 @@ def main() -> None:
             "sealed_test_evaluated": False,
             "checks": [
                 "metadata_identifier_pairing",
+                "unnamed_metadata_row_id",
                 "legacy_barcode_crosswalk",
                 "context_outside_encoder",
                 "species_build_isolation",

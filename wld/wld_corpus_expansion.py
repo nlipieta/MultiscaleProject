@@ -12,6 +12,8 @@ import csv
 import gzip
 import json
 import re
+from collections import Counter
+from itertools import chain
 from pathlib import Path
 from typing import Dict, List, Mapping, Optional, Sequence, Tuple
 
@@ -49,24 +51,63 @@ def _split(line: str, delimiter: Optional[str]) -> List[str]:
 
 
 def read_metadata_table(path: Path) -> Tuple[List[str], List[List[str]]]:
-    """Read submitted metadata without assigning any column to the encoder."""
+    """Read submitted metadata without assigning any column to the encoder.
+
+    Some GEO tables were written with row names enabled.  In those files the
+    header has one fewer field than every observation because the row-name
+    column is deliberately unnamed.  Preserve that field under an internal
+    name instead of dropping it or shifting the biological columns.
+    """
 
     with _open_text(path) as handle:
         first = handle.readline()
+        while first and (not first.strip() or first.lstrip().startswith("#")):
+            first = handle.readline()
         if not first:
             raise ValueError(f"Empty metadata table: {path}")
         delimiter = _delimiter(first)
-        header = _split(first, delimiter)
-        rows = []
-        for line in handle:
-            if not line.strip():
-                continue
-            row = _split(line, delimiter)
-            if len(row) != len(header):
-                raise ValueError(
-                    f"Metadata width changed in {path}: expected {len(header)}, observed {len(row)}"
-                )
-            rows.append(row)
+
+        if delimiter:
+            reader = csv.reader(chain((first,), handle), delimiter=delimiter)
+            parsed = [
+                [_clean(value) for value in row]
+                for row in reader
+                if row and any(_clean(value) for value in row)
+            ]
+        else:
+            parsed = [_split(first, None)]
+            parsed.extend(_split(line, None) for line in handle if line.strip())
+
+    if len(parsed) < 2:
+        raise ValueError(f"Metadata has no observations: {path}")
+
+    header = parsed[0]
+    rows = parsed[1:]
+    observed_widths = Counter(len(row) for row in rows)
+    modal_width, modal_count = observed_widths.most_common(1)[0]
+
+    if len(header) + 1 == modal_width:
+        # R write.table(row.names=TRUE) and several submitted GEO tables use
+        # an unnamed first column.  This name is intentionally ineligible as
+        # a biological pairing key (see _name_priority).
+        header = ["__row_id__", *header]
+    elif len(header) != modal_width:
+        raise ValueError(
+            f"Metadata header width differs from observations in {path}: "
+            f"header={len(header)}, modal_observation={modal_width} "
+            f"({modal_count}/{len(rows)} rows)"
+        )
+
+    bad_widths = Counter(len(row) for row in rows if len(row) != len(header))
+    if bad_widths:
+        raise ValueError(
+            f"Metadata observation widths are inconsistent in {path}: "
+            f"expected {len(header)}, observed {dict(sorted(bad_widths.items()))}"
+        )
+
+    # Blank submitted header fields remain preserved but cannot accidentally
+    # become identifier candidates.
+    header = [value or f"__unnamed_{index}__" for index, value in enumerate(header)]
     if not rows:
         raise ValueError(f"Metadata has no observations: {path}")
     return header, rows

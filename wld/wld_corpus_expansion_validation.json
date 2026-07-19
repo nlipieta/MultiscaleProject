@@ -5,6 +5,7 @@
   "sealed_test_evaluated": false,
   "checks": [
     "metadata_identifier_pairing",
+    "unnamed_metadata_row_id",
     "legacy_barcode_crosswalk",
     "context_outside_encoder",
     "species_build_isolation",
