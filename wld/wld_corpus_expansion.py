@@ -88,8 +88,8 @@ def read_metadata_table(path: Path) -> Tuple[List[str], List[List[str]]]:
 
     if len(header) + 1 == modal_width:
         # R write.table(row.names=TRUE) and several submitted GEO tables use
-        # an unnamed first column.  This name is intentionally ineligible as
-        # a biological pairing key (see _name_priority).
+        # an unnamed first column.  It is eligible only as deposited alignment
+        # evidence and is never appended to encoder tensors.
         header = ["__row_id__", *header]
     elif len(header) != modal_width:
         raise ValueError(
