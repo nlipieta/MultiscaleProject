@@ -1247,11 +1247,7 @@ def run_temporal_development(
     data_root: Path,
     output_root: Path,
     config: TemporalTrainingConfig,
-    conditions: Sequence[str] = (
-        "true_circuit",
-        "no_circuit",
-        "rewired_circuit",
-    ),
+    conditions: Sequence[str] = ("true_circuit", "no_circuit"),
     device_name: Optional[str] = None,
 ) -> Dict[str, object]:
     """Select checkpoints on validation groups without evaluating test groups."""
@@ -1537,7 +1533,7 @@ def main() -> None:
     develop_parser.add_argument(
         "--conditions",
         type=_parse_conditions,
-        default=("true_circuit", "no_circuit", "rewired_circuit"),
+        default=("true_circuit", "no_circuit"),
     )
     develop_parser.add_argument("--device", default=None)
 
