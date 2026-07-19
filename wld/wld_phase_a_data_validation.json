@@ -1,0 +1,15 @@
+{
+  "scope": "synthetic Phase A data-contract validation only",
+  "real_data_downloaded": false,
+  "biological_model_trained": false,
+  "sealed_test_evaluated": false,
+  "checks": [
+    "tenx_h5",
+    "tenx_mtx",
+    "bundle",
+    "training_atlas",
+    "atlas_projection",
+    "species_isolation",
+    "metadata_leakage"
+  ]
+}
