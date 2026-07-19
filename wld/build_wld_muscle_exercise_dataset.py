@@ -154,11 +154,18 @@ def _normalize_nonnegative(matrix: np.ndarray) -> np.ndarray:
     return matrix
 
 
-def _log_normalize(matrix: sparse.csr_matrix, scale: float = 1e4) -> sparse.csr_matrix:
+def _library_normalize(
+    matrix: sparse.csr_matrix, scale: float = 1e4
+) -> sparse.csr_matrix:
     result = matrix.astype(np.float32, copy=True)
     totals = np.asarray(result.sum(axis=1)).ravel()
     factors = np.divide(scale, totals, out=np.zeros_like(totals), where=totals > 0)
     result = sparse.diags(factors) @ result
+    return result.tocsr()
+
+
+def _log_normalize(matrix: sparse.csr_matrix, scale: float = 1e4) -> sparse.csr_matrix:
+    result = _library_normalize(matrix, scale)
     result.data = np.log1p(result.data)
     return result.tocsr()
 
@@ -631,7 +638,13 @@ def build(args: argparse.Namespace) -> Dict[str, object]:
     train_target = np.concatenate(
         [np.asarray(by_group_time[(group, args.target_time)], dtype=int) for group in split["train"]]
     )
-    rna_logged = _log_normalize(rna)
+    # Select genes in standard log1p(CP10K) space, but store CP10K targets.
+    # The temporal objective applies log1p exactly once.  Storing the already
+    # logged matrix here previously caused an accidental second log1p in the
+    # trainer and compressed the biological dynamic range.
+    rna_cp10k = _library_normalize(rna)
+    rna_logged = rna_cp10k.copy()
+    rna_logged.data = np.log1p(rna_logged.data)
     gene_variance = _sparse_variance(rna_logged[train_target])
     train_binary_atac = atac[train_initial].astype(bool).astype(np.float32)
     peak_prevalence = np.asarray(train_binary_atac.mean(axis=0)).ravel()
@@ -689,11 +702,11 @@ def build(args: argparse.Namespace) -> Dict[str, object]:
         initial_cues.append(repeated_cues)
         initial_cue_mask.append(repeated_masks)
         initial_transition.extend([transition_id] * len(initial_index))
-        target_rna.append(rna_logged[target_index][:, gene_indices].toarray().astype(np.float32))
+        target_rna.append(rna_cp10k[target_index][:, gene_indices].toarray().astype(np.float32))
         target_atac.append(atac[target_index][:, peak_indices].astype(bool).astype(np.float32).toarray())
         target_transition.extend([transition_id] * len(target_index))
         if args.include_initial_rna:
-            initial_rna.append(rna_logged[initial_index][:, gene_indices].toarray().astype(np.float32))
+            initial_rna.append(rna_cp10k[initial_index][:, gene_indices].toarray().astype(np.float32))
         transitions.append(
             {
                 "transition_id": transition_id,
@@ -725,6 +738,7 @@ def build(args: argparse.Namespace) -> Dict[str, object]:
     manifest = {
         "schema_version": SCHEMA_VERSION,
         "alignment_mode": "distribution",
+        "rna_representation": "cp10k_library_size_10000",
         "initial_feature_names": ["ATAC_peaks"]
         + [f"measured_cue:{name}" for name in registry["cues"]]
         + (["time_zero_RNA"] if args.include_initial_rna else []),
@@ -741,7 +755,10 @@ def build(args: argparse.Namespace) -> Dict[str, object]:
         },
         "feature_selection": {
             "fit_groups": split["train"],
-            "rna": "log-normalized variance on training-group target cells only",
+            "rna": (
+                "feature ranking uses log1p(CP10K) on training-group target cells; "
+                "stored RNA targets are CP10K so the trainer applies log1p once"
+            ),
             "atac": "binary accessibility variance on training-group initial cells only",
             "regulatory_intersection": "open peak x localized TF motif x peak-gene contact x signed TF-gene support",
         },
