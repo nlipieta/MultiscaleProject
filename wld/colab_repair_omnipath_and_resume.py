@@ -290,8 +290,8 @@ source_manifest = {
 
 
 print("\n4. Resuming the existing biological-prior compiler...", flush=True)
-RUNNER_COMMIT = "7259bca3248bf84ab147bb69a48a5bc23c9c6987"
-RUNNER_SHA256 = "7ff102501a8b4389b7c50d09aacc654b8f5e76a5bf686500905f6d22d1ca2140"
+RUNNER_COMMIT = "ed8e7b09dcb1cdd0e5c895150badeada8b012f28"
+RUNNER_SHA256 = "3a43e8b8588a4ee0a6518a69e10148f20817e7ffa12b348ba45c0653b3955dd9"
 RUNNER_URL = (
     "https://raw.githubusercontent.com/nlipieta/MultiscaleProject/"
     f"{RUNNER_COMMIT}/wld/colab_compile_wld_real_priors.py"
