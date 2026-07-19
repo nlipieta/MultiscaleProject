@@ -144,6 +144,14 @@ COMPILER_URL = (
     f"https://raw.githubusercontent.com/nlipieta/MultiscaleProject/{COMMIT}/"
     "wld/compile_wld_muscle_priors.py"
 )
+if COMPILER.exists():
+    cached_hash = hashlib.sha256(COMPILER.read_bytes()).hexdigest()
+    if cached_hash != COMPILER_SHA256:
+        print(
+            "Replacing stale cached prior compiler "
+            f"({cached_hash[:12]} != {COMPILER_SHA256[:12]})"
+        )
+        COMPILER.unlink()
 download(COMPILER_URL, COMPILER, 30_000)
 actual_hash = hashlib.sha256(COMPILER.read_bytes()).hexdigest()
 if actual_hash != COMPILER_SHA256:
