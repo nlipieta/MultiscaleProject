@@ -290,7 +290,8 @@ source_manifest = {
 
 
 print("\n4. Resuming the existing biological-prior compiler...", flush=True)
-RUNNER_COMMIT = "48fea05eca5984193db2ad7aaa4a0e5149c699a2"
+RUNNER_COMMIT = "7259bca3248bf84ab147bb69a48a5bc23c9c6987"
+RUNNER_SHA256 = "7ff102501a8b4389b7c50d09aacc654b8f5e76a5bf686500905f6d22d1ca2140"
 RUNNER_URL = (
     "https://raw.githubusercontent.com/nlipieta/MultiscaleProject/"
     f"{RUNNER_COMMIT}/wld/colab_compile_wld_real_priors.py"
@@ -308,6 +309,13 @@ run(
         RUNNER_URL,
     ]
 )
+actual_runner_hash = sha256(RUNNER)
+if actual_runner_hash != RUNNER_SHA256:
+    raise RuntimeError(
+        f"Colab runner hash mismatch: expected {RUNNER_SHA256}, "
+        f"got {actual_runner_hash}"
+    )
+print("PASS: corrected Colab runner hash verified", flush=True)
 
 environment = os.environ.copy()
 environment["PYTHONUNBUFFERED"] = "1"
