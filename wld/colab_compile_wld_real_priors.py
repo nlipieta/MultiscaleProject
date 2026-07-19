@@ -137,8 +137,8 @@ print(f"Reference FASTA: {FASTA.stat().st_size / 1e9:.2f} GB")
 
 
 print("\n4. Downloading the pinned, tested WLD prior compiler...")
-COMMIT = "984422457a7d534c7b910e09e977f412ddec22ec"
-COMPILER_SHA256 = "1a29dfe503be4218ff5605e6bd6b4e970ca4f038da3d08cc260478d68d8e6f9b"
+COMMIT = "16a2656857e0e5003d9ea31b382b65cf03efec31"
+COMPILER_SHA256 = "878fc75dcfdbd29fda4a37d2679069e018ced4808c4571601ea76696ed6bc0af"
 COMPILER = SOURCES / "compile_wld_muscle_priors.py"
 COMPILER_URL = (
     f"https://raw.githubusercontent.com/nlipieta/MultiscaleProject/{COMMIT}/"
