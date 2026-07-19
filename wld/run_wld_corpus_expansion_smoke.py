@@ -75,6 +75,7 @@ def main() -> None:
 
         blocks, evidence, context = ingest_shareseq_metadata_pair(modern_files)
         assert blocks["rna"].barcodes == blocks["atac"].barcodes == ["cell_a", "cell_b", "cell_c"]
+        assert evidence["left_column"] == evidence["right_column"] == "shared_cell"
         assert evidence["expression_or_label_matching_used"] is False
         assert evidence["result"] == "exact_after_deposited_identifier_alignment"
         assert "cell_type" in context["rna_metadata_fields"]

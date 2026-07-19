@@ -152,6 +152,8 @@ def _candidate_columns(
 
 
 def _name_priority(name: str) -> int:
+    if name.startswith("__"):
+        return 0
     token = re.sub(r"[^a-z0-9]+", "_", name.lower())
     score = 0
     for word, points in (("barcode", 12), ("rna", 5), ("atac", 5), ("cell", 4), ("id", 1)):
