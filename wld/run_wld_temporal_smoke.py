@@ -19,8 +19,9 @@ import torch
 from wld_circuit_dynamics_v3 import CircuitDynamicsModel, MultiscaleCircuitPriors
 from wld_temporal_training import (
     TemporalTrainingConfig,
+    finalize_temporal_development,
     load_temporal_cohort,
-    run_temporal_benchmark,
+    run_temporal_development,
     save_priors,
 )
 
@@ -152,6 +153,7 @@ def write_smoke_dataset(root: Path) -> None:
     manifest = {
         "schema_version": 1,
         "alignment_mode": "distribution",
+        "rna_representation": "nonnegative_abundance",
         "initial_feature_names": ["ATAC_peaks", "external_cue"],
         "cue_names": ["external_cue"],
         "cue_provenance": [
@@ -206,11 +208,29 @@ def run_smoke(output_root: Optional[Path] = None) -> Dict[str, object]:
         basin_steps=8,
         seed=17,
     )
-    result = run_temporal_benchmark(
+    development = run_temporal_development(
         data_root,
         result_root,
         config,
         conditions=("true_circuit", "no_circuit"),
+        device_name="cpu",
+    )
+    if development["test_groups_evaluated"]:
+        raise AssertionError("Development stage opened held-out test groups.")
+    if not (result_root / "wld_temporal_development.json").exists():
+        raise FileNotFoundError("Validation-only development report was not written.")
+    for condition in ("true_circuit", "no_circuit"):
+        if "test" in development["conditions"][condition]:
+            raise AssertionError("Development report contains test metrics.")
+        baseline = development["conditions"][condition]["training"].get(
+            "rna_baseline_initialization", {}
+        )
+        if baseline.get("test_groups_used") is not False:
+            raise AssertionError("RNA baseline initialization was not train-only.")
+
+    result = finalize_temporal_development(
+        data_root,
+        result_root,
         device_name="cpu",
     )
     for condition in ("true_circuit", "no_circuit"):
@@ -229,15 +249,17 @@ def run_smoke(output_root: Optional[Path] = None) -> Dict[str, object]:
             raise FileNotFoundError(checkpoint)
     if result["control_comparison"]["unconditional_success_claim"]:
         raise AssertionError("Control comparison made an unconditional claim.")
-    if not (result_root / "wld_temporal_results.json").exists():
-        raise FileNotFoundError("Temporal result report was not written.")
+    if not (result_root / "wld_temporal_final_results.json").exists():
+        raise FileNotFoundError("Locked final result report was not written.")
 
     print("PASS: temporal cohort schema and biological-group split", flush=True)
     print("PASS: unpaired distributional training without fabricated cell pairs", flush=True)
-    print("PASS: validation-selected checkpoint and sealed held-out test groups", flush=True)
+    print("PASS: validation-only development keeps held-out test groups sealed", flush=True)
+    print("PASS: explicit configuration lock precedes final test evaluation", flush=True)
+    print("PASS: training-only basal RNA initialization", flush=True)
     print("PASS: true-circuit and no-circuit conditions retained without forced claim", flush=True)
     print("PASS: terminal fixed-point, Jacobian, and basin diagnostics without forced claim", flush=True)
-    print("PASS: checkpoints and wld_temporal_results.json", flush=True)
+    print("PASS: checkpoints and staged temporal result reports", flush=True)
     if temporary:
         shutil.rmtree(root)
     return result
