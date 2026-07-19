@@ -54,6 +54,9 @@ but they are not the recommended route for a temporal attractor claim.
 - `run_wld_corpus_expansion.py` — restart-safe expansion into content-addressed human-GRCh38 and mouse-mm10 atlas snapshots.
 - `run_wld_corpus_expansion_colab.py` — Colab entrypoint for the core and extended real-data expansion tiers.
 - `run_wld_corpus_expansion_smoke.py` — synthetic pairing, context, species/build isolation, and sealed-study exclusion tests.
+- `wld_corpus_snapshot_pretraining.py` — continues the human Phase B checkpoint on the expanded corpus with exact-pair or unpaired-population objectives and explicit snapshot/kinetic identifiability guards.
+- `run_wld_corpus_pretraining_colab.py` — restart-safe Drive-backed entrypoint for the expanded-corpus representation stage.
+- `run_wld_corpus_pretraining_smoke.py` — synthetic proof of atlas projection, pairing-aware losses, whole-study validation, species isolation, parameter-scope isolation, and restart locks.
 - `docs/legacy_colab_audit.md` — fingerprints, saved outputs, and scientific interpretation of the immutable exploratory notebook.
 - `docs/attractor_state_computational_revision.md` — manuscript-ready computational framing and minimum experimental design.
 - `docs/wld_v3_circuit_dynamics.md` — v3 data contract, training path, controls, and attractor falsification criteria.
@@ -61,6 +64,7 @@ but they are not the recommended route for a temporal attractor claim.
 - `docs/wld_dataset_stack.md` — ranked public datasets and the selected GSE240061 + GSE126100 human-muscle build.
 - `wld_phase_b_contract.md` — Phase B evidence, variability, leakage, restart, and claim boundaries.
 - `wld_corpus_expansion_contract.md` — corpus scope, non-frozen context, pairing evidence, staged sources, and non-claims.
+- `wld_corpus_pretraining_contract.md` — exact-versus-unpaired objectives, context variability, snapshot identifiability, species boundaries, and non-claims.
 
 ## Foundation-corpus expansion
 
