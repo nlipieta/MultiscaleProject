@@ -1131,7 +1131,12 @@ def run_temporal_benchmark(
             "held-out interventions in the biological system."
         ),
     }
+    partial_path = output_root / "wld_temporal_results.partial.json"
     for condition in conditions:
+        print(
+            f"Training temporal condition {condition!r} on {device}...",
+            flush=True,
+        )
         model, training = train_temporal_model(
             cohort, config, condition, device
         )
@@ -1152,6 +1157,12 @@ def run_temporal_benchmark(
             "test": evaluate_test_groups(model, cohort, config, device),
             "checkpoint": checkpoint_path.name,
         }
+        _atomic_json(partial_path, results)
+        print(
+            f"Completed {condition!r}: best epoch {training['best_epoch']}, "
+            f"validation loss {training['best_validation_loss']:.6g}",
+            flush=True,
+        )
 
     if "true_circuit" in results["conditions"]:
         true_groups = results["conditions"]["true_circuit"]["test"]["by_group"]
@@ -1177,6 +1188,7 @@ def run_temporal_benchmark(
         }
 
     _atomic_json(output_root / "wld_temporal_results.json", results)
+    partial_path.unlink(missing_ok=True)
     return results
 
 
