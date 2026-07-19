@@ -170,12 +170,18 @@ def main() -> None:
         with np.load(paths["output"] / "observations.npz", allow_pickle=False) as observations:
             has_masked_cue = bool((observations["initial_cue_mask"] == 0).any())
             has_initial_rna = "initial_rna" in observations.files
+            target_totals = observations["target_rna"].sum(axis=1)
         if manifest["split_groups"]["test"] != ["ex4", "rest2"]:
             raise AssertionError("The prespecified subject-level split changed.")
         if has_initial_rna:
             raise AssertionError("Initial RNA was included in the core build.")
         if not has_masked_cue:
             raise AssertionError("Missing metabolic values were not retained as a mask.")
+        if manifest.get("rna_representation") != "cp10k_library_size_10000":
+            raise AssertionError("Stored RNA representation is not explicit CP10K.")
+        positive_totals = target_totals[target_totals > 0]
+        if not np.allclose(positive_totals, 1e4, rtol=1e-4, atol=1e-2):
+            raise AssertionError("RNA targets were not stored on the CP10K scale.")
         if report["edge_counts"]["circuit_tf_tf"] == 0:
             raise AssertionError("The compiled hard circuit is empty.")
         if "cell_type" in " ".join(manifest["initial_feature_names"]).lower():
@@ -186,6 +192,7 @@ def main() -> None:
                 raise AssertionError("Temporal loader dropped the cue mask.")
         print("PASS: subject split precedes feature and prior selection")
         print("PASS: ATAC and future RNA/ATAC are unpaired population observations")
+        print("PASS: RNA targets are CP10K and receive log1p only in the trainer")
         print("PASS: motif x contact x signed-regulation intersection compiled")
         print("PASS: cue-to-signal-to-TF paths compiled without neural bypass")
         print("PASS: missing metabolic observations are masked, never imputed")
