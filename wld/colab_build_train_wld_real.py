@@ -5,7 +5,7 @@ already compiled GSE240061/GSE126100 biological scaffold.  It pins the model,
 cohort builder, and temporal trainer to one reviewed repository commit, checks
 the exact successful prior manifest, constructs a leakage-safe unpaired
 pre-to-post cohort, and compares the validated circuit against both no-circuit
-and signed degree-preserving rewired-topology controls.
+and fixed-topology sign-shuffled controls.
 
 This stage uses validation subject I only.  It deliberately does not evaluate
 test subjects J/L.  The 3.5-hour endpoint is a transient response and is not
@@ -33,7 +33,7 @@ COHORT = ROOT / "gse240061_temporal_cohort"
 RESULTS = ROOT / "gse240061_temporal_development_v2_seed42"
 CODE = ROOT / "temporal_code_v2"
 
-DEPENDENCY_COMMIT = "4fff0489d77f9dc4b39e2c8a167db03ea6d275bb"
+DEPENDENCY_COMMIT = "13673a8490c57eca0284ac62c527d8c2fb37cab5"
 EXPECTED_COMPILER_COMMIT = "16a2656857e0e5003d9ea31b382b65cf03efec31"
 REPOSITORY = "nlipieta/MultiscaleProject"
 CODE_HASHES = {
@@ -44,7 +44,7 @@ CODE_HASHES = {
         "2ffcd9d0a60551dd06db2646c60747ba0680e47150fd5f91bf42b7d8eadfe068"
     ),
     "wld_temporal_training.py": (
-        "f6c6ad2a8790826620d0055fd680eeff8e84c3e96bc8422c00bcf4d6c9a17582"
+        "44b76cca948b3da27df7ce1934428047c83fd55e60b8ea1db8ed89851d9d50c4"
     ),
 }
 EXPECTED_SPLIT = {
@@ -196,46 +196,78 @@ def validate_prior_manifest() -> dict:
     return manifest
 
 
-def install_rewired_control() -> dict:
-    """Create a signed degree-preserving circuit null inside the cohort."""
-    import numpy as np
-    import torch
+def install_sign_shuffled_control() -> dict:
+    """Create a sign null on the same localized, supported circuit topology.
 
-    if str(CODE) not in sys.path:
-        sys.path.insert(0, str(CODE))
-    from wld_circuit_dynamics_v3 import degree_preserving_signed_permutation
+    Arbitrary edge rewiring is not admissible here: every TF-circuit edge must
+    retain motif/contact/TF-gene support for its target TF gene.  Keeping the
+    exact topology and shuffling signs tests the validated interaction signs
+    without introducing unsupported or permanently gated-off edges.
+    """
+    import numpy as np
 
     prior_path = COHORT / "priors.npz"
     with np.load(prior_path, allow_pickle=False) as archive:
         values = {name: archive[name].copy() for name in archive.files}
-    original = torch.as_tensor(values["circuit_tf_tf"])
-    rewired = degree_preserving_signed_permutation(original, seed=314159)
-    if torch.equal(original, rewired):
-        raise RuntimeError("The rewired circuit is identical to the biological circuit.")
+    original = values["circuit_tf_tf"]
+    coordinates = np.argwhere(original != 0)
+    if len(coordinates) < 2:
+        raise RuntimeError("Circuit has too few edges for a sign-shuffled control.")
+    signs = np.sign(original[coordinates[:, 0], coordinates[:, 1]])
+    rng = np.random.default_rng(314159)
+    shuffled_signs = signs.copy()
+    for _ in range(100):
+        shuffled_signs = rng.permutation(signs)
+        if not np.array_equal(shuffled_signs, signs):
+            break
+    if np.array_equal(shuffled_signs, signs):
+        raise RuntimeError("Could not change circuit signs under the fixed sign counts.")
+
+    shuffled = np.zeros_like(original)
+    magnitudes = np.abs(original[coordinates[:, 0], coordinates[:, 1]])
+    shuffled[coordinates[:, 0], coordinates[:, 1]] = magnitudes * shuffled_signs
+    values["circuit_tf_tf"] = shuffled
+
+    # Circuit signs and TF-to-target-TF-gene signs are one mechanistic claim and
+    # must remain internally consistent for the hard gate to be meaningful.
+    tf_gene_support = values["tf_gene_support"]
+    tf_gene_index = values["tf_gene_index"].astype(int)
+    for (source, target_tf), sign in zip(coordinates, shuffled_signs):
+        target_gene = tf_gene_index[target_tf]
+        support = tf_gene_support[source, target_gene]
+        if support == 0:
+            raise RuntimeError("Original circuit edge lacks required TF-gene support.")
+        tf_gene_support[source, target_gene] = abs(support) * sign
+    values["tf_gene_support"] = tf_gene_support
+
+    if not np.array_equal(original != 0, shuffled != 0):
+        raise RuntimeError("Sign control changed circuit topology.")
     for sign in (1, -1):
-        before = (torch.sign(original) == sign).to(torch.int64)
-        after = (torch.sign(rewired) == sign).to(torch.int64)
-        if not torch.equal(before.sum(0), after.sum(0)):
-            raise RuntimeError("Rewired control changed signed target degree.")
-        if not torch.equal(before.sum(1), after.sum(1)):
-            raise RuntimeError("Rewired control changed signed source degree.")
-    values["circuit_tf_tf"] = rewired.cpu().numpy()
-    control_path = COHORT / "priors_control_rewired_circuit.npz"
-    temporary = COHORT / "priors_control_rewired_circuit.tmp.npz"
+        if int(np.sum(np.sign(original) == sign)) != int(
+            np.sum(np.sign(shuffled) == sign)
+        ):
+            raise RuntimeError("Sign control changed the global signed edge count.")
+
+    control_path = COHORT / "priors_control_sign_shuffled_circuit.npz"
+    temporary = COHORT / "priors_control_sign_shuffled_circuit.tmp.npz"
     np.savez_compressed(temporary, **values)
     temporary.replace(control_path)
 
     manifest_path = COHORT / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest["control_prior_archives"] = {
-        "rewired_circuit": control_path.name,
+        "sign_shuffled_circuit": control_path.name,
     }
     manifest["negative_controls"] = {
-        "rewired_circuit": {
-            "method": "positive and negative TF edges permuted separately",
-            "signed_in_degree_preserved": True,
-            "signed_out_degree_preserved": True,
-            "edge_count": int(torch.count_nonzero(original)),
+        "sign_shuffled_circuit": {
+            "method": (
+                "interaction signs permuted across the fixed localized TF-circuit "
+                "topology with matching TF-gene signs"
+            ),
+            "topology_preserved": True,
+            "global_positive_negative_counts_preserved": True,
+            "changed_edge_signs": int(np.sum(signs != shuffled_signs)),
+            "edge_count": int(len(coordinates)),
             "seed": 314159,
             "archive": control_path.name,
             "sha256": sha256(control_path),
@@ -247,11 +279,11 @@ def install_rewired_control() -> dict:
     )
     temporary_manifest.replace(manifest_path)
     print(
-        "PASS: signed degree-preserving rewired circuit control "
-        f"({int(torch.count_nonzero(original))} edges)",
+        "PASS: fixed-topology sign-shuffled circuit control "
+        f"({len(coordinates)} edges; {int(np.sum(signs != shuffled_signs))} signs changed)",
         flush=True,
     )
-    return manifest["negative_controls"]["rewired_circuit"]
+    return manifest["negative_controls"]["sign_shuffled_circuit"]
 
 
 def validate_cohort() -> tuple[dict, dict]:
@@ -300,18 +332,19 @@ def validate_cohort() -> tuple[dict, dict]:
             "RNA targets must be stored as CP10K so log1p is applied exactly once."
         )
     if manifest.get("control_prior_archives") != {
-        "rewired_circuit": "priors_control_rewired_circuit.npz"
+        "sign_shuffled_circuit": "priors_control_sign_shuffled_circuit.npz"
     }:
-        raise RuntimeError("Signed rewired-circuit control is missing from the cohort.")
+        raise RuntimeError("Sign-shuffled circuit control is missing from the cohort.")
     negative_control = manifest.get("negative_controls", {}).get(
-        "rewired_circuit", {}
+        "sign_shuffled_circuit", {}
     )
     if not (
-        negative_control.get("signed_in_degree_preserved")
-        and negative_control.get("signed_out_degree_preserved")
+        negative_control.get("topology_preserved")
+        and negative_control.get("global_positive_negative_counts_preserved")
+        and negative_control.get("changed_edge_signs", 0) > 0
         and negative_control.get("edge_count") == report["edge_counts"]["circuit_tf_tf"]
     ):
-        raise RuntimeError(f"Invalid rewired-circuit audit: {negative_control}")
+        raise RuntimeError(f"Invalid sign-shuffled-circuit audit: {negative_control}")
     expected_limits = {"genes": 400, "peaks": 1000, "tfs": 64}
     for key, maximum in expected_limits.items():
         observed = int(report.get(key, 0))
@@ -467,7 +500,7 @@ def main() -> None:
         flush=True,
     )
     run_logged(build_command, ROOT / "wld_temporal_cohort_build.log")
-    rewired_control = install_rewired_control()
+    sign_shuffled_control = install_sign_shuffled_control()
     cohort_manifest, cohort_report = validate_cohort()
 
     validate_command = [
@@ -498,13 +531,13 @@ def main() -> None:
         "--seed",
         "42",
         "--conditions",
-        "true_circuit,no_circuit,rewired_circuit",
+        "true_circuit,no_circuit,sign_shuffled_circuit",
         "--device",
         device,
     ]
     print(
-        "\nTraining the biological circuit, no-circuit control, and signed "
-        "degree-preserving rewired control. Validation subject I selects "
+        "\nTraining the biological circuit, no-circuit control, and fixed-topology "
+        "sign-shuffled control. Validation subject I selects "
         "checkpoints; test subjects J/L are not evaluated in this run.",
         flush=True,
     )
@@ -516,13 +549,13 @@ def main() -> None:
             results_path,
             RESULTS / "wld_temporal_true_circuit.pt",
             RESULTS / "wld_temporal_no_circuit.pt",
-            RESULTS / "wld_temporal_rewired_circuit.pt",
+            RESULTS / "wld_temporal_sign_shuffled_circuit.pt",
         ],
         "temporal development",
     )
     results = json.loads(results_path.read_text(encoding="utf-8"))
     assert_split(results["split_groups"], "Temporal development")
-    expected_conditions = {"true_circuit", "no_circuit", "rewired_circuit"}
+    expected_conditions = {"true_circuit", "no_circuit", "sign_shuffled_circuit"}
     if set(results.get("conditions", {})) != expected_conditions:
         raise RuntimeError(f"Required development conditions are missing: {results.get('conditions')}")
     if results.get("test_groups_evaluated") is not False:
@@ -543,7 +576,7 @@ def main() -> None:
         "prior_manifest_sha256": sha256(PRIORS / "prior_manifest.json"),
         "cohort_manifest_sha256": sha256(COHORT / "manifest.json"),
         "cohort_build_report": cohort_report,
-        "rewired_control": rewired_control,
+        "sign_shuffled_control": sign_shuffled_control,
         "device": device,
         "development_config": {
             "seed": 42,
@@ -553,7 +586,7 @@ def main() -> None:
             "conditions": [
                 "true_circuit",
                 "no_circuit",
-                "rewired_circuit",
+                "sign_shuffled_circuit",
             ],
             "test_groups_evaluated": False,
         },
