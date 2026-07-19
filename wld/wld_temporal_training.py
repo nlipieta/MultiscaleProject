@@ -132,6 +132,7 @@ class TemporalTrainingConfig:
 class TemporalCohort:
     priors: MultiscaleCircuitPriors
     alignment_mode: str
+    rna_representation: str
     initial_atac: Tensor
     initial_cues: Tensor
     initial_transition: np.ndarray
@@ -203,6 +204,15 @@ class TemporalCohort:
                 )
         if self.alignment_mode not in {"distribution", "paired"}:
             raise ValueError("alignment_mode must be 'distribution' or 'paired'.")
+        if self.rna_representation not in {
+            "nonnegative_abundance",
+            "cp10k_library_size_10000",
+            "log1p_cp10k_library_size_10000",
+        }:
+            raise ValueError(
+                "rna_representation must explicitly describe a supported "
+                "non-negative abundance or log1p(CP10K) scale."
+            )
         if self.initial_atac.ndim != 2 or self.initial_atac.shape[1] != self.priors.num_peaks:
             raise ValueError("initial_atac must have shape [initial_cells, peaks].")
         if self.initial_cues.shape != (
@@ -480,6 +490,9 @@ def load_temporal_cohort(root: Path) -> TemporalCohort:
         cohort = TemporalCohort(
             priors=priors,
             alignment_mode=str(manifest.get("alignment_mode", "distribution")),
+            rna_representation=str(
+                manifest.get("rna_representation", "nonnegative_abundance")
+            ),
             initial_atac=_tensor(archive["initial_atac"]),
             initial_cues=_tensor(archive["initial_cues"]),
             initial_transition=np.asarray(archive["initial_transition"]).astype(str),
@@ -562,9 +575,14 @@ def distribution_objective(
     target_atac: Optional[Tensor],
     terminal: bool,
     config: TemporalTrainingConfig,
+    target_already_log1p: bool = False,
 ) -> Dict[str, Tensor]:
     predicted_rna = torch.log1p(output["rna_t"].clamp_min(0.0))
-    observed_rna = torch.log1p(target_rna.clamp_min(0.0))
+    observed_rna = (
+        target_rna.clamp_min(0.0)
+        if target_already_log1p
+        else torch.log1p(target_rna.clamp_min(0.0))
+    )
     rna_swd = sliced_wasserstein(
         predicted_rna,
         observed_rna,
@@ -721,6 +739,10 @@ def _transition_loss(
             target_atac,
             spec.terminal,
             config,
+            target_already_log1p=(
+                cohort.rna_representation
+                == "log1p_cp10k_library_size_10000"
+            ),
         )
     return losses["total"], losses, output
 
@@ -770,6 +792,79 @@ def _mean_split_loss(
     return float(np.mean(values))
 
 
+def _target_abundance(cohort: TemporalCohort, values: Tensor) -> Tensor:
+    """Return RNA on the non-negative abundance scale used by the ODE state."""
+    if cohort.rna_representation == "log1p_cp10k_library_size_10000":
+        return torch.expm1(values).clamp_min(0.0)
+    return values
+
+
+def _inverse_softplus_tensor(values: Tensor) -> Tensor:
+    values = values.clamp_min(1e-6)
+    return torch.where(values > 20.0, values, torch.log(torch.expm1(values)))
+
+
+def initialize_rna_baseline_from_training(
+    model: CircuitDynamicsModel,
+    cohort: TemporalCohort,
+    device: torch.device,
+    max_initial_cells: int = 1024,
+) -> Dict[str, object]:
+    """Anchor basal transcription to training groups without test leakage.
+
+    A gene-specific static intercept is a nuisance baseline, not a neural
+    dynamics bypass.  Initializing it from training-group RNA prevents the ODE
+    from spending most of a short run reconstructing the conserved mean
+    transcriptome before it can learn circuit-mediated deviations.
+    """
+    train_target_indices = np.concatenate(
+        [cohort.target_indices(tid) for tid in cohort.transition_ids("train")]
+    )
+    train_initial_indices = np.concatenate(
+        [cohort.initial_indices(tid) for tid in cohort.transition_ids("train")]
+    )
+    sampling_seed = 1729
+    train_initial_indices = _sample_indices(
+        train_initial_indices,
+        max_initial_cells,
+        sampling_seed,
+    )
+    target = cohort.target_rna[train_target_indices].to(device)
+    target_mean = _target_abundance(cohort, target).mean(0)
+    atac = cohort.initial_atac[train_initial_indices].to(device)
+
+    with torch.no_grad():
+        motif_activity = atac @ model.motif_activity_map
+        tf = F.softplus(
+            model.initial_tf_bias
+            + F.softplus(model.initial_tf_scale_raw) * motif_activity
+        )
+        tf_gene_gate = model.field.accessibility_gate(atac)
+        if model.field.tf_to_gene.num_edges:
+            rna_edge_gate = tf_gene_gate[
+                :,
+                model.field.tf_to_gene.source_index,
+                model.field.tf_to_gene.target_index,
+            ]
+        else:
+            rna_edge_gate = atac.new_zeros((atac.shape[0], 0))
+        mean_rna_drive = model.field.tf_to_gene(tf, rna_edge_gate).mean(0)
+        decay = model.field.positive_rates()["rna_decay"]
+        required_production = (target_mean * decay).clamp_min(1e-5)
+        baseline = _inverse_softplus_tensor(required_production) - mean_rna_drive
+        model.field.rna_basal.copy_(baseline)
+
+    return {
+        "method": "training-group mean RNA equilibrium corrected for initial TF drive",
+        "fit_groups": list(cohort.split_groups["train"]),
+        "target_cells": int(len(train_target_indices)),
+        "initial_cells_for_drive": int(len(train_initial_indices)),
+        "sampling_seed": sampling_seed,
+        "rna_representation": cohort.rna_representation,
+        "test_groups_used": False,
+    }
+
+
 def train_temporal_model(
     cohort: TemporalCohort,
     config: TemporalTrainingConfig,
@@ -783,6 +878,9 @@ def train_temporal_model(
     model = CircuitDynamicsModel(
         _condition_priors(cohort.priors, condition, cohort.control_priors)
     ).to(device)
+    baseline_initialization = initialize_rna_baseline_from_training(
+        model, cohort, device
+    )
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=config.learning_rate,
@@ -841,6 +939,7 @@ def train_temporal_model(
         "best_epoch": best_epoch,
         "best_validation_loss": best_validation,
         "history": history,
+        "rna_baseline_initialization": baseline_initialization,
         "test_groups_used_during_selection": False,
     }
 
@@ -854,6 +953,12 @@ def _pearson(left: Tensor, right: Tensor) -> Optional[float]:
     if float(denominator) <= 1e-12:
         return None
     return float(torch.dot(left, right) / denominator)
+
+
+def _rna_log_expression(cohort: TemporalCohort, values: Tensor) -> Tensor:
+    if cohort.rna_representation == "log1p_cp10k_library_size_10000":
+        return values.clamp_min(0.0)
+    return torch.log1p(values.clamp_min(0.0))
 
 
 def _transition_metrics(
@@ -877,7 +982,7 @@ def _transition_metrics(
         target_indices = cohort.target_indices(transition_id)
         target_rna = cohort.target_rna[target_indices].to(device)
         predicted_log = torch.log1p(output["rna_t"].clamp_min(0.0))
-        target_log = torch.log1p(target_rna)
+        target_log = _rna_log_expression(cohort, target_rna)
         metrics: Dict[str, Optional[float]] = {
             "log_rna_swd": float(
                 sliced_wasserstein(
@@ -902,7 +1007,9 @@ def _transition_metrics(
             paired_targets = _paired_target_indices(
                 cohort, transition_id, cohort.initial_indices(transition_id)
             )
-            paired_log = torch.log1p(cohort.target_rna[paired_targets].to(device))
+            paired_log = _rna_log_expression(
+                cohort, cohort.target_rna[paired_targets].to(device)
+            )
             metrics["paired_log_rna_mse"] = float(
                 F.mse_loss(predicted_log, paired_log).cpu()
             )
@@ -921,16 +1028,17 @@ def _transition_metrics(
     return metrics
 
 
-def evaluate_test_groups(
+def evaluate_split_groups(
     model: CircuitDynamicsModel,
     cohort: TemporalCohort,
     config: TemporalTrainingConfig,
     device: torch.device,
+    split: str,
 ) -> Dict[str, object]:
     model.eval()
     by_transition = {}
     grouped: Dict[str, List[Mapping[str, Optional[float]]]] = {}
-    for transition_id in cohort.transition_ids("test"):
+    for transition_id in cohort.transition_ids(split):
         metrics = _transition_metrics(
             model, cohort, transition_id, config, device
         )
@@ -950,15 +1058,16 @@ def evaluate_test_groups(
     train_target_indices = np.concatenate(
         [cohort.target_indices(tid) for tid in cohort.transition_ids("train")]
     )
-    training_mean = torch.log1p(cohort.target_rna[train_target_indices]).mean(0)
+    training_mean = _rna_log_expression(
+        cohort, cohort.target_rna[train_target_indices]
+    ).mean(0)
     baseline = {}
-    for transition_id in cohort.transition_ids("test"):
-        target_mean = torch.log1p(
-            cohort.target_rna[cohort.target_indices(transition_id)]
-        ).mean(0)
-        target_log = torch.log1p(
-            cohort.target_rna[cohort.target_indices(transition_id)]
+    for transition_id in cohort.transition_ids(split):
+        target_log = _rna_log_expression(
+            cohort,
+            cohort.target_rna[cohort.target_indices(transition_id)],
         )
+        target_mean = target_log.mean(0)
         constant_prediction = training_mean.unsqueeze(0).expand_as(target_log)
         baseline[transition_id] = {
             "log_rna_swd": float(
@@ -974,14 +1083,29 @@ def evaluate_test_groups(
             "log_rna_mean_pearson": _pearson(training_mean, target_mean),
         }
     return {
-        "test_evaluated_once_after_model_selection": True,
+        "evaluated_split": split,
         "by_transition": by_transition,
         "by_group": by_group,
         "training_mean_baseline": baseline,
-        "attractor_diagnostics": _test_attractor_diagnostics(
-            model, cohort, config, device
-        ),
     }
+
+
+def evaluate_test_groups(
+    model: CircuitDynamicsModel,
+    cohort: TemporalCohort,
+    config: TemporalTrainingConfig,
+    device: torch.device,
+) -> Dict[str, object]:
+    result = evaluate_split_groups(model, cohort, config, device, "test")
+    result.update(
+        {
+            "test_evaluated_once_after_model_selection": True,
+            "attractor_diagnostics": _test_attractor_diagnostics(
+                model, cohort, config, device
+            ),
+        }
+    )
+    return result
 
 
 def _test_attractor_diagnostics(
@@ -1090,6 +1214,188 @@ def _atomic_json(path: Path, value: object) -> None:
     temporary.replace(path)
 
 
+def _condition_swd_comparison(
+    conditions: Mapping[str, Mapping[str, object]],
+    evaluation_key: str,
+) -> Dict[str, object]:
+    if "true_circuit" not in conditions:
+        return {}
+    true_groups = conditions["true_circuit"][evaluation_key]["by_group"]
+    comparison: Dict[str, Dict[str, Optional[float]]] = {}
+    for condition, condition_result in conditions.items():
+        if condition == "true_circuit":
+            continue
+        control_groups = condition_result[evaluation_key]["by_group"]
+        comparison[condition] = {}
+        for group in sorted(set(true_groups).intersection(control_groups)):
+            true_value = true_groups[group].get("log_rna_swd")
+            control_value = control_groups[group].get("log_rna_swd")
+            comparison[condition][group] = (
+                float(control_value - true_value)
+                if true_value is not None and control_value is not None
+                else None
+            )
+    return {
+        "metric": "control log-RNA SWD minus true-circuit log-RNA SWD",
+        "positive_favors_true_circuit": True,
+        "by_condition_and_group": comparison,
+        "unconditional_success_claim": False,
+    }
+
+
+def run_temporal_development(
+    data_root: Path,
+    output_root: Path,
+    config: TemporalTrainingConfig,
+    conditions: Sequence[str] = (
+        "true_circuit",
+        "no_circuit",
+        "rewired_circuit",
+    ),
+    device_name: Optional[str] = None,
+) -> Dict[str, object]:
+    """Select checkpoints on validation groups without evaluating test groups."""
+    cohort = load_temporal_cohort(data_root)
+    config.validate()
+    if len(set(conditions)) != len(conditions):
+        raise ValueError("Development conditions must be unique.")
+    unsafe_conditions = [
+        condition for condition in conditions if SAFE_CONDITION.fullmatch(condition) is None
+    ]
+    if unsafe_conditions:
+        raise ValueError(f"Unsafe development condition names: {unsafe_conditions}")
+    output_root = Path(output_root)
+    output_root.mkdir(parents=True, exist_ok=True)
+    device = torch.device(
+        device_name
+        if device_name is not None
+        else ("cuda" if torch.cuda.is_available() else "cpu")
+    )
+    results: Dict[str, object] = {
+        "schema_version": SCHEMA_VERSION,
+        "stage": "validation_only_development",
+        "alignment_mode": cohort.alignment_mode,
+        "rna_representation": cohort.rna_representation,
+        "split_groups": {
+            name: list(groups) for name, groups in cohort.split_groups.items()
+        },
+        "priors_fit_groups": list(cohort.priors_fit_groups),
+        "cue_names": list(cohort.cue_names),
+        "device": str(device),
+        "config": asdict(config),
+        "conditions": {},
+        "test_groups_evaluated": False,
+        "claim_boundary": (
+            "Checkpoint selection and comparisons use validation groups only. "
+            "No test metric or attractor claim is produced at this stage."
+        ),
+    }
+    partial_path = output_root / "wld_temporal_development.partial.json"
+    for condition in conditions:
+        print(
+            f"Training validation-only condition {condition!r} on {device}...",
+            flush=True,
+        )
+        model, training = train_temporal_model(
+            cohort, config, condition, device
+        )
+        checkpoint_path = output_root / f"wld_temporal_{condition}.pt"
+        torch.save(
+            {
+                "condition": condition,
+                "model_state": {
+                    key: value.detach().cpu()
+                    for key, value in model.state_dict().items()
+                },
+                "config": asdict(config),
+                "rna_representation": cohort.rna_representation,
+                "test_groups_evaluated": False,
+            },
+            checkpoint_path,
+        )
+        results["conditions"][condition] = {
+            "training": training,
+            "validation": evaluate_split_groups(
+                model, cohort, config, device, "validation"
+            ),
+            "checkpoint": checkpoint_path.name,
+        }
+        _atomic_json(partial_path, results)
+        print(
+            f"Completed {condition!r}: best epoch {training['best_epoch']}, "
+            f"validation loss {training['best_validation_loss']:.6g}",
+            flush=True,
+        )
+
+    results["validation_control_comparison"] = _condition_swd_comparison(
+        results["conditions"], "validation"
+    )
+    _atomic_json(output_root / "wld_temporal_development.json", results)
+    partial_path.unlink(missing_ok=True)
+    return results
+
+
+def finalize_temporal_development(
+    data_root: Path,
+    output_root: Path,
+    device_name: Optional[str] = None,
+) -> Dict[str, object]:
+    """Evaluate validation-selected checkpoints once after configuration lock."""
+    cohort = load_temporal_cohort(data_root)
+    output_root = Path(output_root)
+    development_path = output_root / "wld_temporal_development.json"
+    if not development_path.exists():
+        raise FileNotFoundError(development_path)
+    development = json.loads(development_path.read_text(encoding="utf-8"))
+    if development.get("test_groups_evaluated") is not False:
+        raise ValueError("Development report does not certify sealed test groups.")
+    device = torch.device(
+        device_name
+        if device_name is not None
+        else ("cuda" if torch.cuda.is_available() else "cpu")
+    )
+    results: Dict[str, object] = {
+        "schema_version": SCHEMA_VERSION,
+        "stage": "locked_final_evaluation",
+        "config_locked_before_test": True,
+        "split_groups": development["split_groups"],
+        "rna_representation": cohort.rna_representation,
+        "device": str(device),
+        "conditions": {},
+        "claim_boundary": (
+            "Held-out temporal prediction is evaluated after configuration lock. "
+            "Transient endpoints are not automatically attractors."
+        ),
+    }
+    for condition, record in development["conditions"].items():
+        checkpoint_path = output_root / str(record["checkpoint"])
+        checkpoint = torch.load(
+            checkpoint_path,
+            map_location=device,
+            weights_only=True,
+        )
+        if checkpoint.get("condition") != condition:
+            raise ValueError(f"Checkpoint condition mismatch for {condition!r}.")
+        if checkpoint.get("test_groups_evaluated") is not False:
+            raise ValueError(f"Checkpoint {checkpoint_path} is not test-sealed.")
+        config = TemporalTrainingConfig(**checkpoint["config"])
+        model = CircuitDynamicsModel(
+            _condition_priors(cohort.priors, condition, cohort.control_priors)
+        ).to(device)
+        model.load_state_dict(checkpoint["model_state"])
+        results["conditions"][condition] = {
+            "training": record["training"],
+            "validation": record["validation"],
+            "test": evaluate_test_groups(model, cohort, config, device),
+            "checkpoint": checkpoint_path.name,
+        }
+    results["control_comparison"] = _condition_swd_comparison(
+        results["conditions"], "test"
+    )
+    _atomic_json(output_root / "wld_temporal_final_results.json", results)
+    return results
+
+
 def run_temporal_benchmark(
     data_root: Path,
     output_root: Path,
@@ -1116,6 +1422,7 @@ def run_temporal_benchmark(
     results = {
         "schema_version": SCHEMA_VERSION,
         "alignment_mode": cohort.alignment_mode,
+        "rna_representation": cohort.rna_representation,
         "split_groups": {
             name: list(groups) for name, groups in cohort.split_groups.items()
         },
@@ -1216,8 +1523,34 @@ def main() -> None:
     benchmark_parser.add_argument("--epochs", type=int, default=100)
     benchmark_parser.add_argument("--steps", type=int, default=12)
     benchmark_parser.add_argument("--patience", type=int, default=8)
+    benchmark_parser.add_argument("--seed", type=int, default=42)
     benchmark_parser.add_argument("--conditions", type=_parse_conditions, default=("true_circuit", "no_circuit"))
     benchmark_parser.add_argument("--device", default=None)
+
+    develop_parser = subparsers.add_parser("develop")
+    develop_parser.add_argument("--data", type=Path, required=True)
+    develop_parser.add_argument("--output", type=Path, required=True)
+    develop_parser.add_argument("--epochs", type=int, default=300)
+    develop_parser.add_argument("--steps", type=int, default=12)
+    develop_parser.add_argument("--patience", type=int, default=12)
+    develop_parser.add_argument("--seed", type=int, default=42)
+    develop_parser.add_argument(
+        "--conditions",
+        type=_parse_conditions,
+        default=("true_circuit", "no_circuit", "rewired_circuit"),
+    )
+    develop_parser.add_argument("--device", default=None)
+
+    finalize_parser = subparsers.add_parser("finalize")
+    finalize_parser.add_argument("--data", type=Path, required=True)
+    finalize_parser.add_argument("--output", type=Path, required=True)
+    finalize_parser.add_argument("--device", default=None)
+    finalize_parser.add_argument(
+        "--confirm-config-locked",
+        action="store_true",
+        required=True,
+        help="Required acknowledgement that no further tuning will use test results.",
+    )
     args = parser.parse_args()
 
     if args.command == "validate":
@@ -1227,7 +1560,9 @@ def main() -> None:
                 {
                     "status": "PASS",
                     "alignment_mode": cohort.alignment_mode,
+                    "rna_representation": cohort.rna_representation,
                     "transitions": len(cohort.transitions),
+                    "custom_controls": sorted(cohort.control_priors),
                     "split_groups": {
                         key: list(value) for key, value in cohort.split_groups.items()
                     },
@@ -1237,18 +1572,37 @@ def main() -> None:
         )
         return
 
+    if args.command == "finalize":
+        result = finalize_temporal_development(
+            args.data,
+            args.output,
+            device_name=args.device,
+        )
+        print(json.dumps(result, indent=2))
+        return
+
     config = TemporalTrainingConfig(
         epochs=args.epochs,
         integration_steps=args.steps,
         patience=args.patience,
+        seed=args.seed,
     )
-    result = run_temporal_benchmark(
-        args.data,
-        args.output,
-        config,
-        conditions=args.conditions,
-        device_name=args.device,
-    )
+    if args.command == "develop":
+        result = run_temporal_development(
+            args.data,
+            args.output,
+            config,
+            conditions=args.conditions,
+            device_name=args.device,
+        )
+    else:
+        result = run_temporal_benchmark(
+            args.data,
+            args.output,
+            config,
+            conditions=args.conditions,
+            device_name=args.device,
+        )
     print(json.dumps(result, indent=2))
 
 
