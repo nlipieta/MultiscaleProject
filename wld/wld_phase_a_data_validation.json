@@ -6,6 +6,7 @@
   "checks": [
     "tenx_h5",
     "tenx_mtx",
+    "adt_orientation",
     "bundle",
     "training_atlas",
     "atlas_projection",

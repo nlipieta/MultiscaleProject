@@ -19,6 +19,7 @@ from wld_foundation_data import (
     project_bundle_to_atlas,
     read_10x_h5,
     read_10x_mtx,
+    read_adt_csv,
     save_bundle,
 )
 
@@ -80,6 +81,20 @@ def main() -> None:
         assert set(mtx_blocks) == {"rna", "atac"}
         print("PASS: combined 10x Matrix Market modality split")
 
+        adt_path = root / "adt.csv.gz"
+        with gzip.open(adt_path, "wt", newline="") as handle:
+            handle.write("barcode,CD3,CD4\n")
+            handle.write("sample_AAACCCCCGGGGTTTT-1,4,2\n")
+            handle.write("sample_TTTTGGGGCCCCAAAA-1,1,7\n")
+            handle.write("unfiltered_AAAAAAAAAAAAAAAA-1,9,9\n")
+        adt = read_adt_csv(
+            adt_path,
+            ["AAACCCCCGGGGTTTT-1", "TTTTGGGGCCCCAAAA-1"],
+        )
+        assert adt.matrix.shape == (2, 2)
+        assert adt.barcodes == ["AAACCCCCGGGGTTTT-1", "TTTTGGGGCCCCAAAA-1"]
+        print("PASS: prefixed ADT barcodes filtered and oriented as cells x proteins")
+
         cohort_a = {"cohort_id": "train_a", "study_id": "study_a", "species": "Homo sapiens", "genome_build": "GRCh38", "adapter": "fixture", "donor_scope": "a"}
         cohort_b = {"cohort_id": "train_b", "study_id": "study_b", "species": "Homo sapiens", "genome_build": "GRCh38", "adapter": "fixture", "donor_scope": "b"}
         bundle_a = root / "bundle_a"
@@ -118,7 +133,7 @@ def main() -> None:
             "real_data_downloaded": False,
             "biological_model_trained": False,
             "sealed_test_evaluated": False,
-            "checks": ["tenx_h5", "tenx_mtx", "bundle", "training_atlas", "atlas_projection", "species_isolation", "metadata_leakage"],
+            "checks": ["tenx_h5", "tenx_mtx", "adt_orientation", "bundle", "training_atlas", "atlas_projection", "species_isolation", "metadata_leakage"],
         }
         Path(__file__).with_name("wld_phase_a_data_validation.json").write_text(json.dumps(report, indent=2) + "\n")
         print("PASS: wrote wld_phase_a_data_validation.json")

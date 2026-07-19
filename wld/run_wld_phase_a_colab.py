@@ -8,6 +8,7 @@ import runpy
 import subprocess
 import sys
 from pathlib import Path
+import json
 
 
 def main() -> None:
@@ -27,6 +28,28 @@ def main() -> None:
     if args.smoke_only:
         print("COMPLETE: smoke-only data contract")
         return
+    existing_report = args.root / "phase_a_ingestion_report.json"
+    if existing_report.is_file():
+        existing = json.loads(existing_report.read_text())
+        protein = (
+            existing.get("harmonized_cohorts", {})
+            .get("GSE158013_GSM5123951_TEA", {})
+            .get("modalities", {})
+            .get("protein", {})
+        )
+        shape = protein.get("shape", [])
+        if len(shape) == 2 and (shape[0] < 1000 or shape[1] >= 5000):
+            print(f"Detected legacy transposed ADT shape {shape}; applying repair first.", flush=True)
+            repair = subprocess.run(
+                [
+                    sys.executable, "-u",
+                    str(Path(__file__).with_name("repair_wld_phase_a_adt.py")),
+                    "--root", str(args.root),
+                    "--sources", str(args.sources),
+                ]
+            )
+            if repair.returncode:
+                raise RuntimeError(f"ADT repair failed with exit code {repair.returncode}")
     command = [
         sys.executable, "-u", str(Path(__file__).with_name("run_wld_phase_a_ingestion.py")),
         "--root", str(args.root), "--sources", str(args.sources),

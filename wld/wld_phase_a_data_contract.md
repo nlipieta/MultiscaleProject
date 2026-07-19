@@ -53,3 +53,13 @@ wld_phase_a/
 The harmonized bundles are inputs to cross-modal snapshot pretraining. A
 separate prior-compilation phase must intersect the human/mouse feature atlases
 with motif, contact and signed circuit evidence before WLD v4 can be trained.
+
+## GSE158013 ADT repair
+
+The first real ingestion report exposed a cells/features orientation error in
+the external ADT CSV: sample-prefixed barcodes had zero exact overlap with the
+filtered 10x barcodes, so a heuristic interpreted 47 antibodies as cells and
+720,873 unfiltered droplets as proteins. `repair_wld_phase_a_adt.py` streams the
+table, normalizes the embedded 10x barcode, retains filtered H5 cells, and
+rebuilds only the protein bundle and human protein atlas. Replaced artifacts
+are moved under `quarantine/gse158013_adt_orientation_v2`; they are not deleted.

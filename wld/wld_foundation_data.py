@@ -203,21 +203,64 @@ def read_single_mtx(matrix_path: Path, barcode_path: Path, feature_path: Path, m
 
 
 def read_adt_csv(path: Path, expected_barcodes: Sequence[str]) -> ModalityBlock:
-    expected = set(expected_barcodes)
+    expected_lookup = {_barcode_key(value): value for value in expected_barcodes}
+    if len(expected_lookup) != len(expected_barcodes):
+        raise ValueError("Expected 10x barcodes are not unique after normalization")
     with open_text(path) as handle:
-        rows = list(csv.reader(handle))
-    if len(rows) < 2 or len(rows[0]) < 2:
-        raise ValueError("ADT CSV is empty or malformed")
-    header_overlap = sum(value in expected for value in rows[0][1:])
-    first_column_overlap = sum(row[0] in expected for row in rows[1:] if row)
-    if header_overlap >= first_column_overlap:
-        barcodes = rows[0][1:]
-        names = [row[0] for row in rows[1:]]
-        values = np.asarray([[float(value or 0) for value in row[1:]] for row in rows[1:]], dtype=np.float32).T
-    else:
-        barcodes = [row[0] for row in rows[1:]]
-        names = rows[0][1:]
-        values = np.asarray([[float(value or 0) for value in row[1:]] for row in rows[1:]], dtype=np.float32)
+        reader = csv.reader(handle)
+        try:
+            header = next(reader)
+        except StopIteration as error:
+            raise ValueError("ADT CSV is empty") from error
+        if len(header) < 2:
+            raise ValueError("ADT CSV is malformed")
+
+        # ADT count tables are commonly cells x antibodies (tens of columns),
+        # but some tools export antibodies x cells.  Barcode overlap alone is
+        # insufficient because sample prefixes are often prepended.  Infer the
+        # orientation from the panel width, then require actual normalized
+        # barcode matches before accepting the table.
+        if len(header) - 1 <= 5000:
+            names = header[1:]
+            matched: Dict[str, np.ndarray] = {}
+            for row in reader:
+                if not row:
+                    continue
+                key = _barcode_key(row[0])
+                if key not in expected_lookup:
+                    continue
+                if len(row) != len(header):
+                    raise ValueError("ADT row width does not match its header")
+                if key in matched:
+                    raise ValueError(f"Duplicate ADT barcode after normalization: {key}")
+                matched[key] = np.asarray([float(value or 0) for value in row[1:]], dtype=np.float32)
+            keys = [_barcode_key(value) for value in expected_barcodes if _barcode_key(value) in matched]
+            barcodes = [expected_lookup[key] for key in keys]
+            values = np.stack([matched[key] for key in keys]) if keys else np.empty((0, len(names)), dtype=np.float32)
+        else:
+            source_barcodes = header[1:]
+            selected_columns = []
+            selected_keys = []
+            for column, barcode in enumerate(source_barcodes, start=1):
+                key = _barcode_key(barcode)
+                if key in expected_lookup:
+                    selected_columns.append(column)
+                    selected_keys.append(key)
+            names = []
+            feature_rows = []
+            for row in reader:
+                if not row:
+                    continue
+                names.append(row[0])
+                feature_rows.append([float(row[column] or 0) for column in selected_columns])
+            barcodes = [expected_lookup[key] for key in selected_keys]
+            values = np.asarray(feature_rows, dtype=np.float32).T
+    if not barcodes:
+        raise ValueError("No ADT barcodes matched the filtered RNA/ATAC cells")
+    if len(names) > 5000:
+        raise ValueError(
+            f"Implausible ADT feature count ({len(names)}); orientation is unresolved"
+        )
     features = [
         {"feature_id": name, "feature_name": name, "modality": "protein", "source_index": str(index)}
         for index, name in enumerate(names)
@@ -225,6 +268,14 @@ def read_adt_csv(path: Path, expected_barcodes: Sequence[str]) -> ModalityBlock:
     block = ModalityBlock(sparse.csr_matrix(values), barcodes, features)
     block.validate()
     return block
+
+
+def _barcode_key(value: str) -> str:
+    value = str(value).strip().strip('"').strip("'")
+    matches = re.findall(r"[ACGTN]{12,}(?:-\d+)?", value.upper())
+    if matches:
+        return re.sub(r"-\d+$", "", matches[-1])
+    return value
 
 
 def pairing_report(blocks: Mapping[str, ModalityBlock]) -> Dict[str, object]:
@@ -442,43 +493,11 @@ def project_bundle_to_atlas(bundle_root: Path, atlas_root: Path, output_root: Pa
         raise ValueError("Bundle species does not match the atlas")
     if source_manifest["genome_build"] != atlas_manifest["genome_build"]:
         raise ValueError("Explicit liftover is required before atlas projection")
-    vocabularies = {
-        "rna": _read_vocab(atlas_root / "shared_genes.tsv.gz"),
-        "atac": _read_vocab(atlas_root / "shared_peak_bins.tsv.gz"),
-        "protein": _read_vocab(atlas_root / "shared_proteins.tsv.gz"),
-        "metabolic": _read_vocab(atlas_root / "shared_metabolites.tsv.gz"),
-    }
     projected: Dict[str, ModalityBlock] = {}
-    peak_bin_size = int(atlas_manifest["peak_bin_size"])
     for modality in source_manifest["modalities"]:
-        vocabulary = vocabularies.get(modality, [])
-        if not vocabulary:
-            continue
-        source_root = bundle_root / "modalities" / modality
-        matrix = sparse.load_npz(source_root / "counts.csr.npz").tocsr()
-        source_features = read_bundle_features(source_root / "features.tsv.gz")
-        if modality == "atac":
-            names = []
-            for value in source_features:
-                parsed = parse_peak(value["feature_name"])
-                if parsed is None:
-                    names.append("")
-                    continue
-                chrom, start, end = parsed
-                center = (start + end) // 2
-                begin = (center // peak_bin_size) * peak_bin_size
-                names.append(f"{chrom}:{begin}-{begin + peak_bin_size}")
-        else:
-            names = [value["feature_name"] for value in source_features]
-        mapping = _projection_matrix(names, vocabulary)
-        values = (matrix @ mapping).tocsr()
-        features = [
-            {"feature_id": name, "feature_name": name, "modality": modality, "source_index": str(index)}
-            for index, name in enumerate(vocabulary)
-        ]
-        block = ModalityBlock(values, read_barcodes(source_root / "barcodes.tsv.gz"), features)
-        block.validate()
-        projected[modality] = block
+        block = project_modality_to_atlas(bundle_root, atlas_root, modality)
+        if block is not None:
+            projected[modality] = block
     if not projected:
         raise RuntimeError("No bundle modalities overlap the shared atlas")
     cohort = {
@@ -502,6 +521,54 @@ def project_bundle_to_atlas(bundle_root: Path, atlas_root: Path, output_root: Pa
     return save_bundle(output_root, cohort, projected, lock)
 
 
+def project_modality_to_atlas(
+    bundle_root: Path, atlas_root: Path, modality: str
+) -> Optional[ModalityBlock]:
+    source_manifest = verify_bundle(bundle_root)
+    atlas_manifest = json.loads((atlas_root / "atlas_manifest.json").read_text())
+    if source_manifest["species"] != atlas_manifest["species"]:
+        raise ValueError("Bundle species does not match the atlas")
+    if source_manifest["genome_build"] != atlas_manifest["genome_build"]:
+        raise ValueError("Explicit liftover is required before atlas projection")
+    vocabularies = {
+        "rna": _read_vocab(atlas_root / "shared_genes.tsv.gz"),
+        "atac": _read_vocab(atlas_root / "shared_peak_bins.tsv.gz"),
+        "protein": _read_vocab(atlas_root / "shared_proteins.tsv.gz"),
+        "metabolic": _read_vocab(atlas_root / "shared_metabolites.tsv.gz"),
+    }
+    if modality not in source_manifest["modalities"]:
+        return None
+    vocabulary = vocabularies.get(modality, [])
+    if not vocabulary:
+        return None
+    peak_bin_size = int(atlas_manifest["peak_bin_size"])
+    source_root = bundle_root / "modalities" / modality
+    matrix = sparse.load_npz(source_root / "counts.csr.npz").tocsr()
+    source_features = read_bundle_features(source_root / "features.tsv.gz")
+    if modality == "atac":
+        names = []
+        for value in source_features:
+            parsed = parse_peak(value["feature_name"])
+            if parsed is None:
+                names.append("")
+                continue
+            chrom, start, end = parsed
+            center = (start + end) // 2
+            begin = (center // peak_bin_size) * peak_bin_size
+            names.append(f"{chrom}:{begin}-{begin + peak_bin_size}")
+    else:
+        names = [value["feature_name"] for value in source_features]
+    mapping = _projection_matrix(names, vocabulary)
+    values = (matrix @ mapping).tocsr()
+    features = [
+        {"feature_id": name, "feature_name": name, "modality": modality, "source_index": str(index)}
+        for index, name in enumerate(vocabulary)
+    ]
+    block = ModalityBlock(values, read_barcodes(source_root / "barcodes.tsv.gz"), features)
+    block.validate()
+    return block
+
+
 def parse_peak(value: str) -> Optional[Tuple[str, int, int]]:
     match = re.match(r"^([^:_-]+(?:\.[0-9]+)?)[_:-](\d+)[_-](\d+)$", value)
     if not match:
@@ -516,5 +583,5 @@ __all__ = [
     "ModalityBlock", "audit_encoder_metadata", "atomic_json", "build_training_atlas",
     "download_locked", "pairing_report", "parse_features", "parse_peak", "read_10x_h5",
     "read_10x_mtx", "read_adt_csv", "read_single_mtx", "save_bundle", "sha256_file",
-    "project_bundle_to_atlas", "verify_bundle",
+    "project_bundle_to_atlas", "project_modality_to_atlas", "verify_bundle",
 ]
