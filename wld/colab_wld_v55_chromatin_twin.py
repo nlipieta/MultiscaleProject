@@ -9,6 +9,7 @@ import json
 import os
 import py_compile
 import shutil
+import ssl
 import subprocess
 import sys
 import time
@@ -93,7 +94,14 @@ def atomic_json(path, value):
     temporary.replace(path)
 
 
-def fetch_bytes(url, *, attempts=6, timeout=180, user_agent="WLD-v5.5-Colab/1.0"):
+def fetch_bytes(
+    url,
+    *,
+    attempts=6,
+    timeout=180,
+    user_agent="WLD-v5.5-Colab/1.0",
+    ssl_context=None,
+):
     last_error = None
     for attempt in range(attempts):
         try:
@@ -105,7 +113,10 @@ def fetch_bytes(url, *, attempts=6, timeout=180, user_agent="WLD-v5.5-Colab/1.0"
                     "Accept": "*/*",
                 },
             )
-            with urllib.request.urlopen(request, timeout=timeout) as response:
+            open_kwargs = {"timeout": timeout}
+            if ssl_context is not None:
+                open_kwargs["context"] = ssl_context
+            with urllib.request.urlopen(request, **open_kwargs) as response:
                 return response.read()
         except Exception as error:
             last_error = error
@@ -114,6 +125,65 @@ def fetch_bytes(url, *, attempts=6, timeout=180, user_agent="WLD-v5.5-Colab/1.0"
                 print(f"   retry {attempt + 1}/{attempts - 1} after {error}")
                 time.sleep(delay)
     raise RuntimeError(f"Download failed after {attempts} attempts: {url}") from last_error
+
+
+def is_certificate_verification_failure(error):
+    """Recognize the wrapped urllib/SSL failure emitted by Colab."""
+    pending = [error]
+    seen = set()
+    while pending:
+        current = pending.pop()
+        if current is None or id(current) in seen:
+            continue
+        seen.add(id(current))
+        if isinstance(current, ssl.SSLCertVerificationError):
+            return True
+        if "CERTIFICATE_VERIFY_FAILED" in str(current):
+            return True
+        pending.extend(
+            [
+                getattr(current, "reason", None),
+                getattr(current, "__cause__", None),
+                getattr(current, "__context__", None),
+            ]
+        )
+    return False
+
+
+def fetch_corum_bytes(url, *, attempts=6, timeout=180):
+    """Fetch CORUM with an exact-content-locked fallback for its broken TLS chain.
+
+    The fallback is deliberately restricted to the hard-coded official table URL.
+    It is never used for mutable release metadata. Transport authentication may be
+    relaxed only after Colab reports a certificate-verification failure; the
+    caller must still validate the table's frozen byte count and SHA-256 before
+    writing it.
+    """
+    if url != CORUM_DOWNLOAD_URL:
+        raise ValueError(f"Unapproved URL for CORUM TLS fallback: {url}")
+    try:
+        return fetch_bytes(url, attempts=2, timeout=timeout), "verified_tls"
+    except RuntimeError as error:
+        if not is_certificate_verification_failure(error):
+            raise
+
+    print(
+        "   WARNING: CORUM's server did not provide a certificate chain that "
+        "Colab can verify. Retrying only this pinned CORUM URL; the downloaded "
+        "biological table must still match its frozen byte count and SHA-256."
+    )
+    unverified_context = ssl.create_default_context()
+    unverified_context.check_hostname = False
+    unverified_context.verify_mode = ssl.CERT_NONE
+    return (
+        fetch_bytes(
+            url,
+            attempts=attempts,
+            timeout=timeout,
+            ssl_context=unverified_context,
+        ),
+        "exact_content_lock_after_corum_tls_chain_failure",
+    )
 
 
 def download_verified_source(name, expected_hash):
@@ -169,13 +239,31 @@ def ensure_corum_v53():
         print("   PASS cached: CORUM human complexes release 5.3")
         return
 
-    release = json.loads(fetch_bytes(CORUM_RELEASE_URL, timeout=90).decode("utf-8"))
-    if str(release.get("version")) != CORUM_RELEASE:
-        raise RuntimeError(
-            "CORUM's current release is no longer 5.3. The launcher refuses to "
-            "silently substitute a different biological prior."
+    try:
+        release_bytes = fetch_bytes(CORUM_RELEASE_URL, attempts=2, timeout=90)
+    except RuntimeError as error:
+        if not is_certificate_verification_failure(error):
+            raise
+        release = None
+        release_transport = "unavailable_after_certificate_verification_failure"
+        print(
+            "   WARNING: verified CORUM release metadata is unavailable because "
+            "of the server's certificate chain. It will not be trusted through "
+            "the fallback; the exact table content lock remains mandatory."
         )
-    data = fetch_bytes(CORUM_DOWNLOAD_URL, attempts=8, timeout=300)
+    else:
+        release = json.loads(release_bytes.decode("utf-8"))
+        release_transport = "verified_tls"
+        if str(release.get("version")) != CORUM_RELEASE:
+            raise RuntimeError(
+                "CORUM's current release is no longer 5.3. The launcher refuses "
+                "to silently substitute a different biological prior."
+            )
+    data, download_transport = fetch_corum_bytes(
+        CORUM_DOWNLOAD_URL,
+        attempts=8,
+        timeout=300,
+    )
     observed = sha256_bytes(data)
     if observed != CORUM_SHA256 or len(data) != CORUM_EXPECTED_BYTES:
         raise RuntimeError(
@@ -191,7 +279,9 @@ def ensure_corum_v53():
             "schema_version": "wld-v5.5-frozen-corum-source",
             "release": CORUM_RELEASE,
             "release_metadata": release,
+            "release_metadata_transport": release_transport,
             "download_url": CORUM_DOWNLOAD_URL,
+            "download_transport": download_transport,
             "downloaded_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
             "bytes": len(data),
             "sha256": observed,
