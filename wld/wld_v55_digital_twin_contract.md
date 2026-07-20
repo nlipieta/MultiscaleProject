@@ -99,6 +99,10 @@ direction and magnitude.
   cell trajectories by nearest neighbors, optimal transport or pseudotime.
 - Report persistence, TF-only, complex-only, both-routes-zero, frozen branch
   removal, and degree/support-preserving membership or sign shuffles.
+- Retrain every shuffled condition on the identical true-topology-supported
+  training roster and select checkpoints on every identical selection target;
+  a target disconnected by a shuffle remains scored by its actual,
+  persistence-like prediction rather than disappearing from the control.
 - Use identical evaluation cells and random projections for each frozen
   comparison. No minimum route effect is forced.
 

@@ -22,7 +22,11 @@ from wld_chromatin_modules_v55 import (
     load_complex_module_atlas,
     load_v53_sparse_full_bundle,
 )
-from wld_chromatin_twin_training_v55 import split_validation_targets
+from wld_chromatin_twin_training_v55 import (
+    _base_supported_target_roster,
+    _checkpoint_selection_summary,
+    split_validation_targets,
+)
 
 from wld_chromatin_twin_v55 import (
     BranchOverrides,
@@ -564,10 +568,29 @@ def data_contract_smoke() -> dict:
         or set(blocks["selection"]) & set(blocks["audit"])
         or set(blocks["calibration"]) & set(blocks["audit"])
     )
+
+    # A retrained shuffle may disconnect a base-supported target downstream.
+    # It must still see the identical train roster, and that target's actual
+    # persistence-like prediction must remain in checkpoint selection.
+    fixed_roster = _base_supported_target_roster(
+        ("A", "B", "C"), ("A", "B", "C"), (True, True, False)
+    )
+    shuffled_reachability = {"A": True, "B": False, "C": False}
+    assert fixed_roster == ("A", "B")
+    assert any(not shuffled_reachability[target] for target in fixed_roster)
+    selection_summary = _checkpoint_selection_summary(
+        {
+            "all_targets": {"targets": 2, "selection_score": 0.9},
+            "route_supported_targets": {"targets": 1, "selection_score": 0.1},
+        }
+    )
+    assert selection_summary["targets"] == 2
+    assert selection_summary["selection_score"] == 0.9
     return {
         "module_construction_targets": list(first.construction_targets),
         "validation_mutation_changed_modules": False,
         "frozen_split_loader_exercised": True,
+        "fixed_base_roster_used_by_all_retrained_conditions": True,
         "target_blocks": blocks,
     }
 

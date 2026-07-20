@@ -700,6 +700,38 @@ def _end_to_end_regulator_reachability(priors: ChromatinTwinPriors) -> Tensor:
     return ((tf_bins > 0) | (complex_bins > 0)).any(dim=1)
 
 
+def _base_supported_target_roster(
+    targets: Sequence[str],
+    regulators: Sequence[str],
+    base_reachability: Sequence[object],
+) -> Tuple[str, ...]:
+    """Freeze the train roster from the true topology for every condition."""
+
+    regulator_index = {str(value): index for index, value in enumerate(regulators)}
+    if len(regulator_index) != len(regulators) or len(base_reachability) != len(regulators):
+        raise RuntimeError("Regulator vocabulary and base reachability disagree")
+    normalized = tuple(sorted(set(map(str, targets))))
+    unknown = set(normalized) - set(regulator_index)
+    if unknown:
+        raise RuntimeError(f"Training targets lack named regulators: {sorted(unknown)}")
+    return tuple(
+        target
+        for target in normalized
+        if bool(base_reachability[regulator_index[target]])
+    )
+
+
+def _checkpoint_selection_summary(
+    evaluation: Mapping[str, object],
+) -> Mapping[str, object]:
+    """Score every prespecified target, including shuffled-unreachable ones."""
+
+    summary = evaluation.get("all_targets")
+    if not isinstance(summary, Mapping):
+        raise RuntimeError("Validation evaluation lacks an all-target summary")
+    return summary
+
+
 def _verify_condition_evaluation_blocks(
     report: Mapping[str, object],
     validation_blocks: Mapping[str, Sequence[str]],
@@ -750,12 +782,22 @@ def _fit_condition(
     config: TwinTrainingConfig,
     provenance_digest: str,
     device: torch.device,
+    *,
+    fixed_base_training_targets: Sequence[str],
 ) -> Tuple[WLDChromatinDigitalTwin, Dict[str, object]]:
     root = Path(output_root) / condition / f"seed_{int(seed)}"
     root.mkdir(parents=True, exist_ok=True)
     report_path, model_path = root / "condition_report.json", root / "best_model.pt"
     config_value = asdict(config)
     prior_digest = topology_digest(priors)
+    training_targets = tuple(map(str, fixed_base_training_targets))
+    if (
+        not training_targets
+        or len(training_targets) != len(set(training_targets))
+        or not set(training_targets).issubset(set(bundle.split_targets("train")))
+    ):
+        raise RuntimeError("Fixed base-supported training target roster is invalid")
+    training_targets_json = list(training_targets)
 
     def new_model() -> WLDChromatinDigitalTwin:
         foundation = _load_foundation(prior_root, checkpoint, device)
@@ -767,6 +809,7 @@ def _fit_condition(
             report.get("provenance_digest") == provenance_digest,
             report.get("topology_sha256") == prior_digest,
             report.get("config") == json.loads(json.dumps(config_value)),
+            report.get("fixed_base_training_targets") == training_targets_json,
             int(report.get("seed", -1)) == int(seed),
             report.get("checkpoint_sha256") == sha256_file(model_path),
             report.get("claims", {}).get("test_targets_evaluated") is False,
@@ -800,13 +843,12 @@ def _fit_condition(
         weight_decay=config.weight_decay,
     )
     regulator_index = {value: index for index, value in enumerate(model_regulators(model, bundle))}
-    reachable = model.field.reachability()["total"].any(dim=1).detach().cpu().numpy()
-    training_targets = [
-        target for target in bundle.split_targets("train")
-        if target in regulator_index and bool(reachable[regulator_index[target]])
-    ]
+    if any(target not in regulator_index for target in training_targets):
+        raise RuntimeError("Fixed training target lacks a named intervention")
     if len(training_targets) < config.min_supported_training_targets:
-        raise RuntimeError(f"Only {len(training_targets)} supported training targets for {condition}")
+        raise RuntimeError(
+            f"Only {len(training_targets)} base-supported training targets for {condition}"
+        )
     selection = list(validation_blocks["selection"])
     projection = _projections(len(bundle.bins), config.projections, int(seed) + 17, device)
     state_path = root / "training_state.pt"
@@ -821,6 +863,7 @@ def _fit_condition(
             state.get("provenance_digest") == provenance_digest,
             state.get("topology_sha256") == prior_digest,
             state.get("config") == config_value,
+            state.get("fixed_base_training_targets") == training_targets_json,
             state.get("condition") == condition,
             int(state.get("seed", -1)) == int(seed),
         )
@@ -892,9 +935,10 @@ def _fit_condition(
         validation = evaluate_model(
             model, bundle, selection, config, seed=int(seed) + 500_001
         )
-        score_value = validation["route_supported_targets"]["selection_score"]
+        selection_summary = _checkpoint_selection_summary(validation)
+        score_value = selection_summary.get("selection_score")
         if score_value is None or not math.isfinite(float(score_value)):
-            raise RuntimeError("No route-supported selection target")
+            raise RuntimeError("No finite all-target selection score")
         score = float(score_value)
         improved = score < best_score - 1e-6
         if improved:
@@ -909,7 +953,8 @@ def _fit_condition(
         history.append({
             "epoch": epoch,
             "training_loss": float(np.mean(losses)),
-            "selection": validation["route_supported_targets"],
+            "selection": dict(selection_summary),
+            "condition_route_supported_selection": validation["route_supported_targets"],
             "improved": improved,
         })
         print(
@@ -926,6 +971,7 @@ def _fit_condition(
             "config": config_value,
             "provenance_digest": provenance_digest,
             "topology_sha256": prior_digest,
+            "fixed_base_training_targets": training_targets_json,
             "model_state": model.state_dict(),
             "optimizer_state": optimizer.state_dict(),
             "best_score": best_score,
@@ -959,6 +1005,7 @@ def _fit_condition(
         "config": config_value,
         "provenance_digest": provenance_digest,
         "topology_sha256": prior_digest,
+        "fixed_base_training_targets": training_targets_json,
         "best_selection_score": best_score,
         "epochs_attempted": len(history),
         "history": history,
@@ -1179,6 +1226,13 @@ def run_twin_development(
 
     total_reach = _end_to_end_regulator_reachability(base_priors).cpu().numpy()
     supported = [regulators[index] for index, value in enumerate(total_reach) if bool(value)]
+    base_training_targets = _base_supported_target_roster(
+        bundle.split_targets("train"), regulators, total_reach
+    )
+    if len(base_training_targets) < config.min_supported_training_targets:
+        raise RuntimeError(
+            f"Only {len(base_training_targets)} base-supported training targets"
+        )
     blocks = split_validation_targets(
         bundle.split_targets("validation"),
         supported,
@@ -1245,6 +1299,7 @@ def run_twin_development(
         true_model, true_report = _fit_condition(
             "true_dual_routes", seed, base_priors, prior_root, foundation_checkpoint,
             bundle, blocks, output_root, config, provenance["digest"], resolved_device,
+            fixed_base_training_targets=base_training_targets,
         )
         true_reports[seed] = true_report
         frozen_for_seed: Dict[str, Mapping[str, object]] = {}
@@ -1288,6 +1343,7 @@ def run_twin_development(
             _model, report = _fit_condition(
                 name, seed, shuffled, prior_root, foundation_checkpoint, bundle,
                 blocks, output_root, config, provenance["digest"], resolved_device,
+                fixed_base_training_targets=base_training_targets,
             )
             shuffle_reports[seed].append(report)
             shuffle_report_path = output_root / name / f"seed_{seed}" / "condition_report.json"
@@ -1408,6 +1464,10 @@ def run_twin_development(
         "prior_audit": prior_audit,
         "validation_target_blocks": blocks,
         "selection_calibration_audit_contract": {
+            "fixed_base_training_targets_for_every_retrained_condition": list(
+                base_training_targets
+            ),
+            "all_selection_targets_score_every_retrained_condition": True,
             "selection_targets_choose_checkpoints": True,
             "calibration_targets_choose_checkpoints": False,
             "audit_targets_choose_checkpoints": False,
