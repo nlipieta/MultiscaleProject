@@ -1,4 +1,4 @@
-"""CPU smoke tests for the WLD v5.5 chromatin digital-model contract."""
+"""CPU/CUDA smoke tests for the WLD v5.5 chromatin digital-model contract."""
 
 from __future__ import annotations
 
@@ -77,7 +77,10 @@ class _FakeFoundation(nn.Module):
         self.context_network = nn.Sequential(nn.Linear(5, 3), nn.Tanh())
 
 
-def fixture() -> tuple[WLDChromatinDigitalTwin, ChromatinTwinPriors]:
+def fixture(
+    device: torch.device | str = "cpu",
+) -> tuple[WLDChromatinDigitalTwin, ChromatinTwinPriors]:
+    resolved_device = torch.device(device)
     regulator_tf = torch.tensor(
         [
             [1.0, 0.0],  # TF-only
@@ -86,13 +89,15 @@ def fixture() -> tuple[WLDChromatinDigitalTwin, ChromatinTwinPriors]:
             [0.0, 0.0],  # unsupported
             [1.0, 0.0],
             [0.0, 1.0],
-        ]
+        ],
+        device=resolved_device,
     )
     motif = torch.tensor(
         [
             [1.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
             [0.0, 0.0, 0.9, 1.0, 0.0, 0.0, 0.0, 0.0],
-        ]
+        ],
+        device=resolved_device,
     )
     regulator_complex = torch.tensor(
         [
@@ -102,14 +107,19 @@ def fixture() -> tuple[WLDChromatinDigitalTwin, ChromatinTwinPriors]:
             [0.0, 0.0],
             [1.0, 0.0],
             [0.0, 1.0],
-        ]
+        ],
+        device=resolved_device,
     )
-    complex_module = torch.tensor([[1.0, 0.0], [0.0, -0.8]])
+    complex_module = torch.tensor(
+        [[1.0, 0.0], [0.0, -0.8]],
+        device=resolved_device,
+    )
     module_peak = torch.tensor(
         [
             [0.0, 0.0, 0.0, 0.0, 1.0, -0.7, 0.0, 0.0],
             [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, -1.0],
-        ]
+        ],
+        device=resolved_device,
     )
     priors = ChromatinTwinPriors(
         regulator_tf_support=regulator_tf,
@@ -117,16 +127,66 @@ def fixture() -> tuple[WLDChromatinDigitalTwin, ChromatinTwinPriors]:
         regulator_complex_support=regulator_complex,
         complex_module_effect=complex_module,
         module_peak_loading=module_peak,
-        foundation_peak_index=torch.tensor([0, 2, 4, 6]),
+        foundation_peak_index=torch.tensor(
+            [0, 2, 4, 6],
+            device=resolved_device,
+        ),
     )
     torch.manual_seed(7)
-    return WLDChromatinDigitalTwin(_FakeFoundation(), priors), priors
+    foundation = _FakeFoundation().to(resolved_device)
+    return WLDChromatinDigitalTwin(foundation, priors).to(resolved_device), priors
 
 
-def intervention(index: int, batch: int = 5) -> torch.Tensor:
-    value = torch.zeros(batch, 6)
+def intervention(
+    index: int,
+    batch: int = 5,
+    device: torch.device | str = "cpu",
+) -> torch.Tensor:
+    value = torch.zeros(batch, 6, device=device)
     value[:, index] = 1.0
     return value
+
+
+def device_contract_smoke() -> dict:
+    devices = [torch.device("cpu")]
+    if torch.cuda.is_available():
+        devices.append(torch.device("cuda"))
+
+    for device in devices:
+        model, _priors = fixture(device)
+        control = torch.full((3, 8), 0.35, device=device)
+        cues = torch.zeros(3, 1, device=device)
+        zero_intervention = torch.zeros(3, 6, device=device)
+        supported_intervention = intervention(0, batch=3, device=device)
+
+        for _name, parameter in model.named_parameters():
+            assert parameter.device == device
+        for _name, buffer in model.named_buffers():
+            assert buffer.device == device
+
+        zero = model(control, zero_intervention, cues=cues, steps=2)
+        supported = model(control, supported_intervention, cues=cues, steps=2)
+        assert zero["atac_t"].device == device
+        assert supported["atac_t"].device == device
+        assert torch.equal(zero["atac_t"], control)
+        assert float((supported["atac_t"] - control).abs().sum().detach().cpu()) > 1e-6
+
+        model.zero_grad(set_to_none=True)
+        supported["atac_t"].sum().backward()
+        gradients = [
+            parameter.grad
+            for parameter in model.parameters()
+            if parameter.grad is not None
+        ]
+        assert gradients
+        assert all(gradient.device == device for gradient in gradients)
+        assert all(bool(torch.isfinite(gradient).all()) for gradient in gradients)
+
+    return {
+        "tested_devices": [str(device) for device in devices],
+        "cuda_constructor_forward_backward_tested": torch.cuda.is_available(),
+        "priors_moved_before_model_construction": True,
+    }
 
 
 def architecture_smoke() -> dict:
@@ -599,6 +659,7 @@ def main() -> None:
     torch.set_num_threads(1)
     report = {
         "scope": "synthetic numerical/contract verification only; no biological claim",
+        "device_contract": device_contract_smoke(),
         "architecture": architecture_smoke(),
         "statistics": statistics_smoke(),
         "data_contract": data_contract_smoke(),
@@ -612,6 +673,7 @@ def main() -> None:
     output = Path("wld_v55_synthetic_validation.json")
     output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
     print("PASS: immutable dual-branch evidence topology and provenance")
+    print("PASS: device-local prior construction, forward pass, and gradients")
     print("PASS: exact persistence and full-response ATAC domain validation")
     print("PASS: complex and TF branches have selective causal effects")
     print("PASS: context varies supported gains/rates without creating edges")
