@@ -376,19 +376,49 @@ def sliced_wasserstein(left: Tensor, right: Tensor, projections: Tensor) -> Tens
 def distribution_loss(
     prediction: Tensor,
     target: Tensor,
+    control: Tensor,
     projections: Tensor,
+    *,
+    observed_target_mean: Tensor,
+    observed_control_mean: Tensor,
 ) -> Tuple[Tensor, Dict[str, float]]:
     swd = sliced_wasserstein(prediction, target, projections)
     mean = F.mse_loss(prediction.mean(0), target.mean(0))
     variance = F.mse_loss(
         prediction.var(0, unbiased=False), target.var(0, unbiased=False)
     )
-    total = swd + 2.0 * mean + 0.25 * variance
+    # Most peaks do not move under one perturbation, so an absolute-state loss
+    # alone is minimized by persistence.  Estimate the observed response from
+    # every cell in the target/control populations, then explicitly fit that
+    # pseudobulk displacement.  This remains unpaired: no target cell is
+    # matched to any control cell.
+    observed_response = observed_target_mean - observed_control_mean
+    predicted_response = prediction.mean(0) - control.mean(0)
+    response_rms = observed_response.square().mean().sqrt().clamp_min(2e-3)
+    response_nrmse = (
+        (predicted_response - observed_response).square().mean().sqrt()
+        / response_rms
+    )
+    response_cosine_loss = 1.0 - F.cosine_similarity(
+        predicted_response.unsqueeze(0),
+        observed_response.unsqueeze(0),
+        dim=1,
+        eps=1e-8,
+    ).mean()
+    total = (
+        swd
+        + 2.0 * mean
+        + 0.25 * variance
+        + 0.05 * response_nrmse
+        + 0.02 * response_cosine_loss
+    )
     return total, {
         "loss": float(total.detach()),
         "swd": float(swd.detach()),
         "mean_mse": float(mean.detach()),
         "variance_mse": float(variance.detach()),
+        "response_nrmse": float(response_nrmse.detach()),
+        "response_cosine_loss": float(response_cosine_loss.detach()),
     }
 
 
@@ -468,7 +498,11 @@ def evaluate_model(
             )["atac_t"]
             model_swd = float(sliced_wasserstein(prediction, observed, projection))
             persistence_swd = float(sliced_wasserstein(control, observed, projection))
-            observed_response = observed.mean(0) - control.mean(0)
+            observed_response = torch.as_tensor(
+                bundle.accessibility[target_rows].mean(0)
+                - bundle.accessibility[control_rows].mean(0),
+                device=device,
+            )
             predicted_response = prediction.mean(0) - control.mean(0)
             cosine = float(
                 F.cosine_similarity(
@@ -478,6 +512,18 @@ def evaluate_model(
                     eps=1e-8,
                 )[0]
             )
+            response_rms = float(
+                observed_response.square().mean().sqrt().clamp_min(2e-3)
+            )
+            response_nrmse = float(
+                (predicted_response - observed_response)
+                .square()
+                .mean()
+                .sqrt()
+                / response_rms
+            )
+            relative_swd = model_swd / max(persistence_swd, 1e-8)
+            selection_score = 0.70 * relative_swd + 0.30 * response_nrmse
             route_edges = int(torch.count_nonzero(support[regulator_index[target]]))
             metrics.append(
                 {
@@ -490,6 +536,9 @@ def evaluate_model(
                     "persistence_swd": persistence_swd,
                     "gain_over_persistence": persistence_swd - model_swd,
                     "response_cosine": cosine,
+                    "response_nrmse": response_nrmse,
+                    "relative_swd": relative_swd,
+                    "selection_score": selection_score,
                     "mean_absolute_predicted_change": float(predicted_response.abs().mean()),
                 }
             )
@@ -502,6 +551,9 @@ def evaluate_model(
                 "persistence_swd": float("nan"),
                 "gain_over_persistence": float("nan"),
                 "response_cosine": float("nan"),
+                "response_nrmse": float("nan"),
+                "relative_swd": float("nan"),
+                "selection_score": float("nan"),
             }
         return {
             "targets": len(rows),
@@ -509,6 +561,9 @@ def evaluate_model(
             "persistence_swd": float(np.mean([row["persistence_swd"] for row in rows])),
             "gain_over_persistence": float(np.mean([row["gain_over_persistence"] for row in rows])),
             "response_cosine": float(np.mean([row["response_cosine"] for row in rows])),
+            "response_nrmse": float(np.mean([row["response_nrmse"] for row in rows])),
+            "relative_swd": float(np.mean([row["relative_swd"] for row in rows])),
+            "selection_score": float(np.mean([row["selection_score"] for row in rows])),
         }
 
     supported = [row for row in metrics if row["route_supported"]]
@@ -630,6 +685,12 @@ def _fit_condition(
             control_sample = _sample_rows(control_rows, config.batch_size, rng)
             observed = torch.as_tensor(bundle.accessibility[observed_rows], device=device)
             control = torch.as_tensor(bundle.accessibility[control_sample], device=device)
+            observed_target_mean = torch.as_tensor(
+                bundle.accessibility[target_rows].mean(0), device=device
+            )
+            observed_control_mean = torch.as_tensor(
+                bundle.accessibility[control_rows].mean(0), device=device
+            )
             intervention = _intervention(
                 target, regulator_index, config.batch_size, device
             )
@@ -639,7 +700,14 @@ def _fit_condition(
                 horizon=config.horizon,
                 steps=config.integration_steps,
             )["atac_t"]
-            loss, _ = distribution_loss(prediction, observed, projection)
+            loss, _ = distribution_loss(
+                prediction,
+                observed,
+                control,
+                projection,
+                observed_target_mean=observed_target_mean,
+                observed_control_mean=observed_control_mean,
+            )
             # Small regularization keeps the response field finite without
             # forcing cell-varying gains or rates to a shared constant.
             regularization = 1e-5 * (
@@ -669,7 +737,7 @@ def _fit_condition(
             # validation cells was drawn.
             seed=config.seed + 500_001,
         )
-        score = validation["route_supported_targets"]["model_swd"]
+        score = validation["route_supported_targets"]["selection_score"]
         if not math.isfinite(score):
             raise RuntimeError("No route-supported validation target for checkpoint selection")
         improved = score < best_score - 1e-6
@@ -688,7 +756,8 @@ def _fit_condition(
         history.append(row)
         print(
             f"   {name} epoch {epoch:03d} | train {row['training_loss']:.6f} | "
-            f"val SWD {score:.6f} | persistence "
+            f"val objective {score:.6f} | SWD "
+            f"{validation['route_supported_targets']['model_swd']:.6f} | persistence "
             f"{validation['route_supported_targets']['persistence_swd']:.6f}",
             flush=True,
         )
@@ -728,7 +797,7 @@ def _fit_condition(
     report = {
         "condition": name,
         "route_sha256": route_digest,
-        "best_validation_swd_during_training": best_score,
+        "best_validation_selection_score": best_score,
         "epochs_attempted": len(history),
         "history": history,
         "final_validation": final_validation,
@@ -812,7 +881,9 @@ def run_chromatin_response_development(
         "validation",
         route,
         config,
-        seed=config.seed + 700_001,
+        # Use the exact same validation cells and SWD projections as the true
+        # model.  Otherwise the frozen effect is confounded by resampling.
+        seed=config.seed + 900_001,
         support_override=torch.zeros_like(route, device=resolved_device),
     )
     frozen_shuffles = [
@@ -822,7 +893,7 @@ def run_chromatin_response_development(
             "validation",
             route,
             config,
-            seed=config.seed + 710_001 + replicate,
+            seed=config.seed + 900_001,
             support_override=shuffled.to(resolved_device),
         )
         for replicate, shuffled in enumerate(shuffled_supports)
@@ -837,6 +908,9 @@ def run_chromatin_response_development(
         "true_model_swd": true_metrics["model_swd"],
         "persistence_swd": true_metrics["persistence_swd"],
         "true_gain_over_persistence": true_metrics["gain_over_persistence"],
+        "true_response_nrmse": true_metrics["response_nrmse"],
+        "true_response_cosine": true_metrics["response_cosine"],
+        "true_selection_score": true_metrics["selection_score"],
         "mean_retrained_degree_shuffle_swd": float(np.mean(shuffled_swd)) if shuffled_swd else float("nan"),
         "true_advantage_over_retrained_shuffles": (
             float(np.mean(shuffled_swd)) - true_metrics["model_swd"]
@@ -851,7 +925,7 @@ def run_chromatin_response_development(
         ],
     }
     report = {
-        "schema_version": "wld-v5.4-chromatin-response-development",
+        "schema_version": "wld-v5.4.1-response-calibrated-development",
         "created_utc": datetime.now(timezone.utc).isoformat(),
         "scope": (
             "GSE161002 unpaired CRISPR-sciATAC transient response development on "
@@ -884,6 +958,15 @@ def run_chromatin_response_development(
             "retrained degree-preserving shuffles, and frozen route removal. Even a positive "
             "result does not establish a fixed point, basin, or attractor."
         ),
+        "v5_4_repair": {
+            "response_centered_pseudobulk_objective": True,
+            "nondegenerate_response_initialization": True,
+            "frozen_ablation_uses_identical_validation_sample_and_projections": True,
+            "reason": (
+                "v5.4 initialized the response field effectively at persistence and "
+                "compared its frozen ablation on a different random validation draw"
+            ),
+        },
     }
     atomic_json(final_report, report)
     return report
