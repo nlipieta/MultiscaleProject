@@ -15,17 +15,19 @@ kinetic fine-tuning on genuine longitudinal or perturbational cohorts. Snapshot
 pretraining never substitutes pseudotime or nearest-neighbor cell matching for
 measured time.
 
-The current development head is v5.5: a **mechanistic chromatin-response
-digital-model prototype**. It preserves the foundation encoder but evolves the
-complete CRISPR-sciATAC bin landscape through two auditable paths: a
-TF-to-motif path and a curated protein-complex-to-accessibility-module path.
-Complex modules are compiled from training perturbation targets only. Cell
-context may vary supported gains and rates, but guide identity is injected
-after encoding and no neural context-to-peak response decoder exists. Removing
-both routes must return exact persistence. "Digital twin" is the engineering
-direction, not a present claim: there is no continuously synchronized physical
-counterpart, prospective update loop, identified kinetic time scale, or
-attractor evidence.
+The current development head is v5.6: a **null-aware mechanistic
+chromatin-response prototype** built after v5.5 failed to beat persistence.
+It preserves the two auditable TF-to-motif and curated
+protein-complex-to-accessibility-module paths, but normalizes each regulator's
+supported evidence mass and initializes learnable branch efficacy close to the
+exact persistence solution. Training and checkpoint selection emphasize the
+target-minus-control response; literal persistence, a training-only generic
+perturbed-mean baseline, frozen route removals, and at least ten matched
+topology controls remain mandatory. Previously inspected validation targets
+are reused only for development, so no confidence interval or confirmatory
+claim is produced. "Digital twin" remains an engineering direction, not a
+present claim: there is no synchronized physical counterpart, prospective
+update loop, identified kinetic time scale, or attractor evidence.
 
 The recommended v3 temporal model represents four biological layers explicitly:
 
@@ -77,6 +79,12 @@ but they are not the recommended route for a temporal attractor claim.
 - `run_wld_v55_twin_colab.py` — real-data entry point that restores prior artifacts, compiles CORUM modules, and resumes all fitted/control seeds from Drive.
 - `colab_wld_v55_chromatin_twin.py` — paste-ready Colab launcher pinned to an immutable source commit, per-file SHA-256 locks, CORUM 5.3, an isolated numerical stack, and Drive-backed checkpoints/logs.
 - `wld_v55_digital_twin_contract.md` — scientific scope, fixed evidence versus variable biology, leakage controls, validation ladder, and digital-twin literature basis.
+- `wld_chromatin_twin_v56.py` — persistence-anchored dual-route field with separately normalized route evidence, bounded learnable efficacy gates, exact null behavior, and realized-effect regularization.
+- `wld_v56_topology_controls.py` — deterministic split-stratified joint TF/complex route-profile permutations preserving end-to-end footprint, sign, degree, and path-mass distributions.
+- `wld_chromatin_twin_training_v56.py` — response-focused reused-development trainer, training-only perturbed-mean baseline, ten-control ensemble, frozen route audits, restart locks, and sealed-test enforcement.
+- `run_wld_v56_nullaware_smoke.py` — CPU/CUDA synthetic checks for live near-null gradients, gate learning, exact persistence, route normalization, matched controls, and claim boundaries.
+- `run_wld_v56_nullaware_colab.py` — real-data restart-safe entry point using the completed v5.5 artifacts while leaving the v5.3 test partition sealed.
+- `wld_v56_nullaware_contract.md` — v5.5 failure diagnosis, v5.6 model/training/control requirements, descriptive development gates, and future confirmation boundary.
 - `docs/legacy_colab_audit.md` — fingerprints, saved outputs, and scientific interpretation of the immutable exploratory notebook.
 - `docs/attractor_state_computational_revision.md` — manuscript-ready computational framing and minimum experimental design.
 - `docs/wld_v3_circuit_dynamics.md` — v3 data contract, training path, controls, and attractor falsification criteria.
