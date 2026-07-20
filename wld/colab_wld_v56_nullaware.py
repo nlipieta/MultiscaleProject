@@ -19,7 +19,7 @@ from pathlib import Path
 
 
 REPOSITORY = "nlipieta/MultiscaleProject"
-SOURCE_REF = "35e9c193ac1f668b04c05bf12a629ad8f95d285d"
+SOURCE_REF = "c54be0e01e3309a88b43516be8f2c44370104ed6"
 BACKUP = Path("/content/drive/MyDrive/WLD_Backup")
 CODE = Path("/content/wld_v56_code")
 PACKAGES = Path("/content/wld_v56_packages_py312_np1264")
@@ -27,7 +27,7 @@ PHASE_B = BACKUP / "wld_phase_b"
 CORPUS = BACKUP / "wld_corpus_pretraining"
 V53_BUNDLE = BACKUP / "wld_v53_crispr_sciatac_ingestion" / "bundle"
 V55_ROOT = BACKUP / "wld_v55_chromatin_twin_r3"
-OUTPUT = BACKUP / "wld_v56_nullaware_r1"
+OUTPUT = BACKUP / "wld_v56_nullaware_r2"
 LAUNCHER_MANIFEST = OUTPUT / "launcher_provenance.json"
 LOG = OUTPUT / "wld_v56_complete.log"
 REPORT = OUTPUT / "development" / "wld_v56_null_aware_development_report.json"
@@ -44,9 +44,9 @@ FILES = {
     "wld_twin_statistics_v55.py": "b0bc34f52d77bbe396b8f0111907321415daadf3b2dab293c8902069a360f25e",
     "wld_chromatin_twin_training_v55.py": "a3315be4afe6a325474ac6842af0524e48169761324b25a401e5355d3fb7e18a",
     "wld_chromatin_twin_v56.py": "8c44e7b8b355cb9dceabf49c70861adac6bdc697b000531b7c44586766dc3be5",
-    "wld_chromatin_twin_training_v56.py": "ade66d49265692a571493e899c31f37e024e73aab62e114f45bd3c7cccdea76f",
+    "wld_chromatin_twin_training_v56.py": "42646a587df132199be2b4741ef673ba2b2606af6353cb04307bf7874aafc0e2",
     "wld_v56_topology_controls.py": "b95338a5d70bfc0362cc3073c16acdcb3565ea71e74bd0a1ca6c3623d5490a37",
-    "run_wld_v56_nullaware_smoke.py": "3b73d60fb0a2202d1383411ad8ed8d0c7fc76221287d8775cf7e2dbd485d3961",
+    "run_wld_v56_nullaware_smoke.py": "9f838b3cc919a02637fbda1e1735b2510c5f04fa9cb8878d98855d2bd7159f4b",
     "run_wld_v56_nullaware_colab.py": "e82a98e4db6c02340127af6d584558f7d922d4476e50d1653b5ea687f47db344",
     "wld_v56_nullaware_contract.md": "6f69de6b7dd76077cb5a5ddaa7028f8d19cd706fb734242471fff5210890ebeb",
 }
