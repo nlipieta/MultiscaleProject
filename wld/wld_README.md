@@ -15,6 +15,18 @@ kinetic fine-tuning on genuine longitudinal or perturbational cohorts. Snapshot
 pretraining never substitutes pseudotime or nearest-neighbor cell matching for
 measured time.
 
+The current development head is v5.5: a **mechanistic chromatin-response
+digital-model prototype**. It preserves the foundation encoder but evolves the
+complete CRISPR-sciATAC bin landscape through two auditable paths: a
+TF-to-motif path and a curated protein-complex-to-accessibility-module path.
+Complex modules are compiled from training perturbation targets only. Cell
+context may vary supported gains and rates, but guide identity is injected
+after encoding and no neural context-to-peak response decoder exists. Removing
+both routes must return exact persistence. "Digital twin" is the engineering
+direction, not a present claim: there is no continuously synchronized physical
+counterpart, prospective update loop, identified kinetic time scale, or
+attractor evidence.
+
 The recommended v3 temporal model represents four biological layers explicitly:
 
 1. **Tissue and extracellular cues:** measured inputs enter a signed signaling/PPI graph.
@@ -57,6 +69,13 @@ but they are not the recommended route for a temporal attractor claim.
 - `wld_corpus_snapshot_pretraining.py` — continues the human Phase B checkpoint on the expanded corpus with exact-pair or unpaired-population objectives and explicit snapshot/kinetic identifiability guards.
 - `run_wld_corpus_pretraining_colab.py` — restart-safe Drive-backed entrypoint for the expanded-corpus representation stage.
 - `run_wld_corpus_pretraining_smoke.py` — synthetic proof of atlas projection, pairing-aware losses, whole-study validation, species isolation, parameter-scope isolation, and restart locks.
+- `wld_chromatin_twin_v55.py` — dual-route TF/motif plus curated-complex/module accessibility field, cell-context parameter adapters, independent branch kill switches, and no direct response bypass.
+- `wld_chromatin_modules_v55.py` — full-bin sparse v5.3 loader, flexible CORUM parser, and train-only bootstrap compiler for stable complex accessibility modules; sealed test CSR values are never materialized.
+- `wld_chromatin_twin_training_v55.py` — restart-safe three-seed whole-target development, matched degree-preserving retrained controls, frozen branch ablations, and disjoint target-block uncertainty calibration.
+- `wld_twin_statistics_v55.py` — target-level paired bootstrap, finite-sample split-conformal intervals, and explicit transient/digital-twin/attractor claim gates.
+- `run_wld_v55_twin_smoke.py` — synthetic functional kill-switch, branch causality, leakage, bootstrap, uncertainty, and claim-boundary contract.
+- `run_wld_v55_twin_colab.py` — real-data entry point that restores prior artifacts, compiles CORUM modules, and resumes all fitted/control seeds from Drive.
+- `wld_v55_digital_twin_contract.md` — scientific scope, fixed evidence versus variable biology, leakage controls, validation ladder, and digital-twin literature basis.
 - `docs/legacy_colab_audit.md` — fingerprints, saved outputs, and scientific interpretation of the immutable exploratory notebook.
 - `docs/attractor_state_computational_revision.md` — manuscript-ready computational framing and minimum experimental design.
 - `docs/wld_v3_circuit_dynamics.md` — v3 data contract, training path, controls, and attractor falsification criteria.
