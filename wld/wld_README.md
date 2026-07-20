@@ -75,6 +75,7 @@ but they are not the recommended route for a temporal attractor claim.
 - `wld_twin_statistics_v55.py` — target-level paired bootstrap, finite-sample split-conformal intervals, and explicit transient/digital-twin/attractor claim gates.
 - `run_wld_v55_twin_smoke.py` — synthetic functional kill-switch, branch causality, leakage, bootstrap, uncertainty, and claim-boundary contract.
 - `run_wld_v55_twin_colab.py` — real-data entry point that restores prior artifacts, compiles CORUM modules, and resumes all fitted/control seeds from Drive.
+- `colab_wld_v55_chromatin_twin.py` — paste-ready Colab launcher pinned to an immutable source commit, per-file SHA-256 locks, CORUM 5.3, an isolated numerical stack, and Drive-backed checkpoints/logs.
 - `wld_v55_digital_twin_contract.md` — scientific scope, fixed evidence versus variable biology, leakage controls, validation ladder, and digital-twin literature basis.
 - `docs/legacy_colab_audit.md` — fingerprints, saved outputs, and scientific interpretation of the immutable exploratory notebook.
 - `docs/attractor_state_computational_revision.md` — manuscript-ready computational framing and minimum experimental design.
