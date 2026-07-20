@@ -1,0 +1,15 @@
+{
+  "scope": "synthetic expanded-corpus pretraining contract only",
+  "real_biological_pretraining_complete": false,
+  "checks": [
+    "phase_a_plus_expansion_projection",
+    "exact_pair_contrastive_loss",
+    "unpaired_distributional_loss",
+    "whole_study_validation",
+    "species_prior_isolation",
+    "snapshot_kinetic_identifiability_guard",
+    "restart_and_input_hash_lock"
+  ],
+  "sealed_test_evaluated": false,
+  "attractor_claim": false
+}

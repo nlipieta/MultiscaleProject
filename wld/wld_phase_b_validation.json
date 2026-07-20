@@ -1,0 +1,23 @@
+{
+  "scope": "synthetic Phase B software contract only",
+  "real_biological_pretraining_complete": false,
+  "checks": [
+    "evidence_intersection",
+    "hard_topology",
+    "exact_pairing",
+    "missing_modality_mask",
+    "snapshot_pretraining",
+    "no_snapshot_kinetic_claim"
+  ],
+  "prior_dimensions": {
+    "genes": 4,
+    "peaks": 4,
+    "tfs": 2,
+    "signals": 2,
+    "cues": 1,
+    "proteins": 1,
+    "metabolites": 0
+  },
+  "sealed_test_evaluated": false,
+  "attractor_claim": false
+}

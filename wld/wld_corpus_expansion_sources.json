@@ -1,0 +1,275 @@
+{
+  "schema_version": "1.0",
+  "purpose": "Expansion-only raw-count corpus. It does not replace, evaluate, or unseal the completed Phase B run.",
+  "policy": {
+    "raw_or_deposited_count_matrices_only": true,
+    "same_study_rna_atac_only": true,
+    "barcode_pairing_requires_deposited_evidence": true,
+    "metadata_retained_outside_encoder": true,
+    "human_mouse_atlases_separate": true,
+    "genome_builds_separate_until_audited_liftover": true,
+    "sealed_test_downloaded": false
+  },
+  "sealed_exclusions": [
+    "GSE183273",
+    "GSE214546"
+  ],
+  "studies": {
+    "GSE216464": {
+      "split": "train",
+      "species": "Homo sapiens",
+      "genome_build": "GRCh38",
+      "tissue": "bone marrow",
+      "design": "SHARE-seq of bone marrow from seven human donors",
+      "source": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE216464"
+    },
+    "GSE244184": {
+      "split": "train",
+      "species": "Homo sapiens",
+      "genome_build": "GRCh38",
+      "tissue": "peripheral-blood-derived antigen-specific T cells",
+      "design": "SHARE-seq from four healthy donors at day 7/day 14 with DMSO or iberdomide",
+      "source": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE244184"
+    },
+    "GSE140203": {
+      "split": "train",
+      "species": "Mus musculus",
+      "genome_build": "mm10",
+      "tissue": "brain, skin and lung",
+      "design": "same-cell SHARE-seq across adult mouse tissues",
+      "source": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE140203"
+    }
+  },
+  "staged_not_ingested": {
+    "GSE217215": {
+      "reason": "The deposited hESC series mixes an ATAC H5AD with per-sample CSV files in a RAW TAR. It remains staged until a schema probe proves the raw RNA-to-ATAC barcode relation.",
+      "source": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE217215"
+    },
+    "GSE207308": {
+      "reason": "The BMMC peaks are hg19. It remains a separate source until an audited chain-file liftover is added; it is never silently merged into GRCh38.",
+      "source": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE207308"
+    }
+  },
+  "cohorts": [
+    {
+      "cohort_id": "GSE216464_human_bmmc_shareseq",
+      "study_id": "GSE216464",
+      "tier": "core",
+      "split": "train",
+      "species": "Homo sapiens",
+      "genome_build": "GRCh38",
+      "tissue": "bone marrow",
+      "adapter": "shareseq_metadata_pair",
+      "donor_scope": "seven deposited human donors; donor and age remain observation-level context",
+      "context_contract": {
+        "retain_outside_encoder": ["donor", "age", "sex", "sample", "batch", "tissue"],
+        "never_encoder": ["barcode", "cell_type", "cluster", "embedding", "pseudotime", "study_id"],
+        "fold_local_context_encoding_required": true
+      },
+      "files": [
+        {
+          "role": "rna_matrix",
+          "name": "GSE216461_human_BMMC_RNA_count_matrix.mtx.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE216nnn/GSE216461/suppl/GSE216461_human_BMMC_RNA_count_matrix.mtx.gz"
+        },
+        {
+          "role": "rna_features",
+          "name": "GSE216461_human_BMMC_gene_names.tsv.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE216nnn/GSE216461/suppl/GSE216461_human_BMMC_gene_names.tsv.gz"
+        },
+        {
+          "role": "rna_metadata",
+          "name": "GSE216461_human_BMMC_RNA_cell_meta.tsv.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE216nnn/GSE216461/suppl/GSE216461_human_BMMC_RNA_cell_meta.tsv.gz"
+        },
+        {
+          "role": "atac_matrix",
+          "name": "GSE216462_human_BMMC_ATAC_count_matrix.mtx.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE216nnn/GSE216462/suppl/GSE216462_human_BMMC_ATAC_count_matrix.mtx.gz"
+        },
+        {
+          "role": "atac_features",
+          "name": "GSE216462_human_BMMC_peaks.bed.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE216nnn/GSE216462/suppl/GSE216462_human_BMMC_peaks.bed.gz"
+        },
+        {
+          "role": "atac_metadata",
+          "name": "GSE216462_human_BMMC_ATAC_cell_meta.tsv.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE216nnn/GSE216462/suppl/GSE216462_human_BMMC_ATAC_cell_meta.tsv.gz"
+        }
+      ]
+    },
+    {
+      "cohort_id": "GSE244184_human_t_exhaustion_shareseq",
+      "study_id": "GSE244184",
+      "tier": "extended",
+      "split": "train",
+      "species": "Homo sapiens",
+      "genome_build": "GRCh38",
+      "tissue": "peripheral-blood-derived antigen-specific T cells",
+      "adapter": "shareseq_metadata_pair",
+      "donor_scope": "four healthy donors; donor pool, day and drug remain observation-level context",
+      "context_contract": {
+        "retain_outside_encoder": ["donor", "day", "treatment", "condition", "sample", "batch", "tissue"],
+        "never_encoder": ["barcode", "cell_type", "cluster", "embedding", "pseudotime", "study_id"],
+        "fold_local_context_encoding_required": true
+      },
+      "files": [
+        {
+          "role": "rna_matrix",
+          "name": "GSE244180_counts.txt.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE244nnn/GSE244180/suppl/GSE244180_counts.txt.gz"
+        },
+        {
+          "role": "rna_features",
+          "name": "GSE244180_geneNames.txt.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE244nnn/GSE244180/suppl/GSE244180_geneNames.txt.gz"
+        },
+        {
+          "role": "rna_metadata",
+          "name": "GSE244180_cellMeta.txt.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE244nnn/GSE244180/suppl/GSE244180_cellMeta.txt.gz"
+        },
+        {
+          "role": "atac_matrix",
+          "name": "GSE244162_counts.ATAC.txt.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE244nnn/GSE244162/suppl/GSE244162_counts.ATAC.txt.gz"
+        },
+        {
+          "role": "atac_features",
+          "name": "GSE244162_peaks.bed.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE244nnn/GSE244162/suppl/GSE244162_peaks.bed.gz"
+        },
+        {
+          "role": "atac_metadata",
+          "name": "GSE244162_cellMeta.ATAC.txt.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE244nnn/GSE244162/suppl/GSE244162_cellMeta.ATAC.txt.gz"
+        }
+      ]
+    },
+    {
+      "cohort_id": "GSE140203_mouse_brain_shareseq",
+      "study_id": "GSE140203",
+      "tier": "core",
+      "split": "train",
+      "species": "Mus musculus",
+      "genome_build": "mm10",
+      "tissue": "adult brain",
+      "adapter": "shareseq_legacy_pair",
+      "donor_scope": "deposited adult mouse brain sample; cell annotations remain metadata only",
+      "context_contract": {
+        "retain_outside_encoder": ["tissue", "sample", "batch"],
+        "never_encoder": ["barcode", "cell_type", "cluster", "embedding", "pseudotime", "study_id"],
+        "fold_local_context_encoding_required": true
+      },
+      "files": [
+        {
+          "role": "rna_table",
+          "name": "GSM4156610_brain.rna.counts.txt.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4156nnn/GSM4156610/suppl/GSM4156610_brain.rna.counts.txt.gz"
+        },
+        {
+          "role": "atac_matrix",
+          "name": "GSM4156599_brain.counts.txt.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4156nnn/GSM4156599/suppl/GSM4156599_brain.counts.txt.gz"
+        },
+        {
+          "role": "atac_barcodes",
+          "name": "GSM4156599_brain.barcodes.txt.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4156nnn/GSM4156599/suppl/GSM4156599_brain.barcodes.txt.gz"
+        },
+        {
+          "role": "atac_features",
+          "name": "GSM4156599_brain.peaks.bed.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4156nnn/GSM4156599/suppl/GSM4156599_brain.peaks.bed.gz"
+        },
+        {
+          "role": "pairing_metadata",
+          "name": "GSM4156599_brain_celltype.txt.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4156nnn/GSM4156599/suppl/GSM4156599_brain_celltype.txt.gz"
+        }
+      ]
+    },
+    {
+      "cohort_id": "GSE140203_mouse_skin_shareseq",
+      "study_id": "GSE140203",
+      "tier": "extended",
+      "split": "train",
+      "species": "Mus musculus",
+      "genome_build": "mm10",
+      "tissue": "skin, late anagen",
+      "adapter": "shareseq_legacy_pair",
+      "donor_scope": "deposited female C57BL/6 late-anagen skin sample; stage remains context",
+      "context_contract": {
+        "retain_outside_encoder": ["tissue", "hair_cycle_stage", "sex", "sample", "batch"],
+        "never_encoder": ["barcode", "cell_type", "cluster", "embedding", "pseudotime", "study_id"],
+        "fold_local_context_encoding_required": true
+      },
+      "files": [
+        {
+          "role": "rna_table",
+          "name": "GSM4156608_skin.late.anagen.rna.counts.txt.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4156nnn/GSM4156608/suppl/GSM4156608_skin.late.anagen.rna.counts.txt.gz"
+        },
+        {
+          "role": "atac_matrix",
+          "name": "GSM4156597_skin.late.anagen.counts.txt.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4156nnn/GSM4156597/suppl/GSM4156597_skin.late.anagen.counts.txt.gz"
+        },
+        {
+          "role": "atac_barcodes",
+          "name": "GSM4156597_skin.late.anagen.barcodes.txt.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4156nnn/GSM4156597/suppl/GSM4156597_skin.late.anagen.barcodes.txt.gz"
+        },
+        {
+          "role": "atac_features",
+          "name": "GSM4156597_skin.late.anagen.peaks.bed.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4156nnn/GSM4156597/suppl/GSM4156597_skin.late.anagen.peaks.bed.gz"
+        },
+        {
+          "role": "pairing_metadata",
+          "name": "GSM4156597_skin_celltype.txt.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4156nnn/GSM4156597/suppl/GSM4156597_skin_celltype.txt.gz"
+        }
+      ]
+    },
+    {
+      "cohort_id": "GSE140203_mouse_lung_shareseq",
+      "study_id": "GSE140203",
+      "tier": "extended",
+      "split": "train",
+      "species": "Mus musculus",
+      "genome_build": "mm10",
+      "tissue": "adult lung",
+      "adapter": "shareseq_legacy_pair",
+      "donor_scope": "deposited adult mouse lung sample",
+      "context_contract": {
+        "retain_outside_encoder": ["tissue", "sample", "batch"],
+        "never_encoder": ["barcode", "cell_type", "cluster", "embedding", "pseudotime", "study_id"],
+        "fold_local_context_encoding_required": true
+      },
+      "files": [
+        {
+          "role": "rna_table",
+          "name": "GSM4156611_lung.rna.counts.txt.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4156nnn/GSM4156611/suppl/GSM4156611_lung.rna.counts.txt.gz"
+        },
+        {
+          "role": "atac_matrix",
+          "name": "GSM4156600_lung.counts.txt.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4156nnn/GSM4156600/suppl/GSM4156600_lung.counts.txt.gz"
+        },
+        {
+          "role": "atac_barcodes",
+          "name": "GSM4156600_lung.barcodes.txt.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4156nnn/GSM4156600/suppl/GSM4156600_lung.barcodes.txt.gz"
+        },
+        {
+          "role": "atac_features",
+          "name": "GSM4156600_lung.peaks.bed.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4156nnn/GSM4156600/suppl/GSM4156600_lung.peaks.bed.gz"
+        }
+      ]
+    }
+  ]
+}

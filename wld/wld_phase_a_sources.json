@@ -1,0 +1,140 @@
+{
+  "schema_version": "1.0",
+  "policy": {
+    "raw_counts_only": true,
+    "integrated_embeddings_forbidden": true,
+    "cell_labels_are_metadata_only": true,
+    "source_sha256_locked_after_first_download": true,
+    "feature_atlas_built_from_training_studies_only": true,
+    "sealed_test_studies_downloaded_during_development": false
+  },
+  "studies": {
+    "GSE126074": {
+      "split": "train",
+      "species": "Homo sapiens and Mus musculus",
+      "genome_build": "hg19/mm10 as submitted; explicit harmonization required",
+      "tissue": "brain cortex and cell lines",
+      "source": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE126074"
+    },
+    "GSE158013": {
+      "split": "train",
+      "species": "Homo sapiens",
+      "genome_build": "GRCh38",
+      "tissue": "peripheral blood",
+      "source": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE158013"
+    },
+    "GSE233046": {
+      "split": "train",
+      "species": "Homo sapiens",
+      "genome_build": "GRCh38",
+      "tissue": "peripheral blood",
+      "source": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE233046"
+    },
+    "GSE240061": {
+      "split": "validation",
+      "species": "Homo sapiens",
+      "genome_build": "GRCh38",
+      "tissue": "skeletal muscle",
+      "source": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE240061"
+    },
+    "GSE214546": {
+      "split": "sealed_test",
+      "species": "Homo sapiens",
+      "genome_build": "GRCh38",
+      "tissue": "peripheral blood",
+      "source": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE214546"
+    },
+    "GSE183273": {
+      "split": "sealed_test",
+      "species": "Homo sapiens",
+      "genome_build": "GRCh38",
+      "tissue": "kidney",
+      "source": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE183273"
+    }
+  },
+  "cohorts": [
+    {
+      "cohort_id": "GSE158013_GSM5123951_TEA",
+      "study_id": "GSE158013",
+      "species": "Homo sapiens",
+      "genome_build": "GRCh38",
+      "adapter": "tenx_h5_with_adt_csv",
+      "donor_scope": "HMN200910",
+      "files": [
+        {
+          "role": "tenx_h5",
+          "name": "GSM5123951_X066-MP0C1W3_leukopak_perm-cells_tea_200M_cellranger-arc_filtered_feature_bc_matrix.h5",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5123nnn/GSM5123951/suppl/GSM5123951_X066-MP0C1W3_leukopak_perm-cells_tea_200M_cellranger-arc_filtered_feature_bc_matrix.h5"
+        },
+        {
+          "role": "adt_csv",
+          "name": "GSM5123951_X066-MP0C1W3_leukopak_perm-cells_tea_48M_adt_counts.csv.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5123nnn/GSM5123951/suppl/GSM5123951_X066-MP0C1W3_leukopak_perm-cells_tea_48M_adt_counts.csv.gz"
+        },
+        {
+          "role": "metadata",
+          "name": "GSM5123951_X066-MP0C1W3_leukopak_perm-cells_tea_200M_atac_filtered_metadata.csv.gz",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5123nnn/GSM5123951/suppl/GSM5123951_X066-MP0C1W3_leukopak_perm-cells_tea_200M_atac_filtered_metadata.csv.gz"
+        }
+      ]
+    },
+    {
+      "cohort_id": "GSE126074_adult_brain",
+      "study_id": "GSE126074",
+      "species": "Mus musculus",
+      "genome_build": "mm10",
+      "adapter": "paired_mtx",
+      "donor_scope": "submitted replicate nuclei; retained as unpaired if barcode identity is not exact",
+      "files": [
+        {"role": "rna_matrix", "name": "GSE126074_AdBrainCortex_SNAREseq_cDNA.counts.mtx.gz", "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE126nnn/GSE126074/suppl/GSE126074_AdBrainCortex_SNAREseq_cDNA.counts.mtx.gz"},
+        {"role": "rna_barcodes", "name": "GSE126074_AdBrainCortex_SNAREseq_cDNA.barcodes.tsv.gz", "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE126nnn/GSE126074/suppl/GSE126074_AdBrainCortex_SNAREseq_cDNA.barcodes.tsv.gz"},
+        {"role": "rna_features", "name": "GSE126074_AdBrainCortex_SNAREseq_cDNA.genes.tsv.gz", "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE126nnn/GSE126074/suppl/GSE126074_AdBrainCortex_SNAREseq_cDNA.genes.tsv.gz"},
+        {"role": "atac_matrix", "name": "GSE126074_AdBrainCortex_SNAREseq_chromatin.counts.mtx.gz", "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE126nnn/GSE126074/suppl/GSE126074_AdBrainCortex_SNAREseq_chromatin.counts.mtx.gz"},
+        {"role": "atac_barcodes", "name": "GSE126074_AdBrainCortex_SNAREseq_chromatin.barcodes.tsv.gz", "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE126nnn/GSE126074/suppl/GSE126074_AdBrainCortex_SNAREseq_chromatin.barcodes.tsv.gz"},
+        {"role": "atac_features", "name": "GSE126074_AdBrainCortex_SNAREseq_chromatin.peaks.tsv.gz", "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE126nnn/GSE126074/suppl/GSE126074_AdBrainCortex_SNAREseq_chromatin.peaks.tsv.gz"}
+      ]
+    },
+    {
+      "cohort_id": "GSE126074_neonatal_brain",
+      "study_id": "GSE126074",
+      "species": "Mus musculus",
+      "genome_build": "mm10",
+      "adapter": "paired_mtx",
+      "donor_scope": "submitted replicate nuclei; retained as unpaired if barcode identity is not exact",
+      "files": [
+        {"role": "rna_matrix", "name": "GSE126074_P0_BrainCortex_SNAREseq_cDNA.counts.mtx.gz", "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE126nnn/GSE126074/suppl/GSE126074_P0_BrainCortex_SNAREseq_cDNA.counts.mtx.gz"},
+        {"role": "rna_barcodes", "name": "GSE126074_P0_BrainCortex_SNAREseq_cDNA.barcodes.tsv.gz", "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE126nnn/GSE126074/suppl/GSE126074_P0_BrainCortex_SNAREseq_cDNA.barcodes.tsv.gz"},
+        {"role": "rna_features", "name": "GSE126074_P0_BrainCortex_SNAREseq_cDNA.genes.tsv.gz", "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE126nnn/GSE126074/suppl/GSE126074_P0_BrainCortex_SNAREseq_cDNA.genes.tsv.gz"},
+        {"role": "atac_matrix", "name": "GSE126074_P0_BrainCortex_SNAREseq_chromatin.counts.mtx.gz", "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE126nnn/GSE126074/suppl/GSE126074_P0_BrainCortex_SNAREseq_chromatin.counts.mtx.gz"},
+        {"role": "atac_barcodes", "name": "GSE126074_P0_BrainCortex_SNAREseq_chromatin.barcodes.tsv.gz", "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE126nnn/GSE126074/suppl/GSE126074_P0_BrainCortex_SNAREseq_chromatin.barcodes.tsv.gz"},
+        {"role": "atac_features", "name": "GSE126074_P0_BrainCortex_SNAREseq_chromatin.peaks.tsv.gz", "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE126nnn/GSE126074/suppl/GSE126074_P0_BrainCortex_SNAREseq_chromatin.peaks.tsv.gz"}
+      ]
+    },
+    {
+      "cohort_id": "GSE233046_20220819_stim3",
+      "study_id": "GSE233046",
+      "species": "Homo sapiens",
+      "genome_build": "GRCh38",
+      "adapter": "tenx_mtx",
+      "donor_scope": "multiplexed donors; HTO metadata is required before donor-group training",
+      "files": [
+        {"role": "matrix", "name": "GSE233046_20220819_Stim3_matrix.mtx.gz", "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE233nnn/GSE233046/suppl/GSE233046_20220819_Stim3_matrix.mtx.gz"},
+        {"role": "barcodes", "name": "GSE233046_20220819_Stim3_barcodes.tsv.gz", "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE233nnn/GSE233046/suppl/GSE233046_20220819_Stim3_barcodes.tsv.gz"},
+        {"role": "features", "name": "GSE233046_20220819_Stim3_features.tsv.gz", "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE233nnn/GSE233046/suppl/GSE233046_20220819_Stim3_features.tsv.gz"}
+      ]
+    },
+    {
+      "cohort_id": "GSE233046_20220819_unstim",
+      "study_id": "GSE233046",
+      "species": "Homo sapiens",
+      "genome_build": "GRCh38",
+      "adapter": "tenx_mtx",
+      "donor_scope": "multiplexed donors; HTO metadata is required before donor-group training",
+      "files": [
+        {"role": "matrix", "name": "GSE233046_20220819_Unstim_matrix.mtx.gz", "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE233nnn/GSE233046/suppl/GSE233046_20220819_Unstim_matrix.mtx.gz"},
+        {"role": "barcodes", "name": "GSE233046_20220819_Unstim_barcodes.tsv.gz", "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE233nnn/GSE233046/suppl/GSE233046_20220819_Unstim_barcodes.tsv.gz"},
+        {"role": "features", "name": "GSE233046_20220819_Unstim_features.tsv.gz", "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE233nnn/GSE233046/suppl/GSE233046_20220819_Unstim_features.tsv.gz"}
+      ]
+    }
+  ]
+}

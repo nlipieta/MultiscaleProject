@@ -1,0 +1,99 @@
+{
+  "schema_version": "1.0",
+  "status": "candidate registry; each cohort requires a frozen adapter manifest and license review before training",
+  "selection_policy": {
+    "minimum_core_modalities": [
+      "RNA",
+      "ATAC"
+    ],
+    "preferred_supplementary_modalities": [
+      "surface protein",
+      "metabolites",
+      "perturbation",
+      "longitudinal time"
+    ],
+    "metadata_only_never_encoder_inputs": [
+      "study_id",
+      "donor_id",
+      "cell_barcode",
+      "cell_type_label",
+      "cluster_label"
+    ],
+    "split_order": "freeze whole-study test and validation partitions before feature selection, harmonization or prior compilation",
+    "assessment_gate": "no generalization or attractor assessment until multiple tissues, platforms and biological groups are represented in training"
+  },
+  "studies": [
+    {
+      "accession": "GSE240061",
+      "species": "Homo sapiens",
+      "tissue": "skeletal muscle",
+      "modalities": ["RNA", "ATAC", "exercise cue", "time"],
+      "design": "pre and 3.5-hour post exercise with controls",
+      "role": "temporal adaptation cohort",
+      "source": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE240061"
+    },
+    {
+      "accession": "GSE158013",
+      "species": "Homo sapiens",
+      "tissue": "peripheral blood",
+      "modalities": ["RNA", "ATAC", "surface protein"],
+      "design": "TEA-seq and multiome",
+      "role": "tri-modal cross-sectional pretraining",
+      "source": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE158013"
+    },
+    {
+      "accession": "GSE214546",
+      "species": "Homo sapiens",
+      "tissue": "peripheral blood",
+      "modalities": ["RNA", "ATAC", "surface protein"],
+      "design": "age-associated TEA-seq cohort",
+      "role": "tri-modal subject/context variation",
+      "source": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE214546"
+    },
+    {
+      "accession": "GSE233046",
+      "species": "Homo sapiens",
+      "tissue": "peripheral blood",
+      "modalities": ["RNA", "ATAC", "surface protein", "infection/vaccination context"],
+      "design": "multi-individual immune-memory cohort with a TEA-seq subset",
+      "role": "tri-modal perturbation/context pretraining",
+      "source": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE233046"
+    },
+    {
+      "accession": "GSE183273",
+      "species": "Homo sapiens",
+      "tissue": "kidney",
+      "modalities": ["RNA", "ATAC", "injury context"],
+      "design": "SNARE-seq2 healthy and injured kidney atlas",
+      "role": "tissue and disease-context pretraining",
+      "source": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE183273"
+    },
+    {
+      "accession": "GSE117089",
+      "species": "Homo sapiens and Mus musculus",
+      "tissue": "cell lines and kidney",
+      "modalities": ["RNA", "ATAC", "dexamethasone perturbation", "time"],
+      "design": "sci-CAR 0-, 1- and 3-hour treatment plus mouse kidney",
+      "role": "method/platform and perturbation-time pretraining",
+      "source": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE117089"
+    },
+    {
+      "accession": "GSE140203",
+      "species": "Homo sapiens and Mus musculus",
+      "tissue": "cell lines, skin, brain and lung",
+      "modalities": ["RNA", "ATAC"],
+      "design": "SHARE-seq joint profiling",
+      "role": "cross-tissue and platform pretraining",
+      "source": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE140203"
+    },
+    {
+      "accession": "GSE126074",
+      "species": "Homo sapiens and Mus musculus",
+      "tissue": "cell lines and brain cortex",
+      "modalities": ["RNA", "ATAC"],
+      "design": "SNARE-seq matched single-nucleus measurements",
+      "role": "cross-platform and neural-tissue pretraining",
+      "source": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE126074"
+    }
+  ]
+}
