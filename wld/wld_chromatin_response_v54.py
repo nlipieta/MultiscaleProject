@@ -133,24 +133,30 @@ class GraphRoutedChromatinField(nn.Module):
         # Direction is learned only on supported paths using perturbational
         # chromatin observations.  There is no parameter for an unsupported
         # regulator-TF or TF-peak edge.
-        self.raw_tf_direction = nn.Parameter(
-            torch.linspace(-0.15, 0.15, self.num_tfs)
+        tf_direction = torch.where(
+            torch.arange(self.num_tfs) % 2 == 0,
+            torch.full((self.num_tfs,), -0.55),
+            torch.full((self.num_tfs,), 0.55),
         )
+        self.raw_tf_direction = nn.Parameter(tf_direction)
         self.raw_tf_gain = nn.Parameter(
-            torch.full((self.num_tfs,), _inverse_softplus(0.15))
+            torch.full((self.num_tfs,), _inverse_softplus(0.75))
         )
-        self.raw_motif_direction = nn.Parameter(
-            torch.linspace(-0.10, 0.10, edges.shape[0])
+        motif_direction = torch.where(
+            torch.arange(edges.shape[0]) % 2 == 0,
+            torch.full((edges.shape[0],), -0.45),
+            torch.full((edges.shape[0],), 0.45),
         )
+        self.raw_motif_direction = nn.Parameter(motif_direction)
         self.raw_motif_gain = nn.Parameter(
-            torch.full((edges.shape[0],), _inverse_softplus(0.05))
+            torch.full((edges.shape[0],), _inverse_softplus(0.50))
         )
         self.tf_context_gain = nn.Linear(context_dim, self.num_tfs, bias=False)
         nn.init.zeros_(self.tf_context_gain.weight)
 
-        self.open_rate = ContextRate(context_dim, self.num_peaks, 0.08)
-        self.close_rate = ContextRate(context_dim, self.num_peaks, 0.08)
-        self.recovery_rate = ContextRate(context_dim, self.num_peaks, 0.02)
+        self.open_rate = ContextRate(context_dim, self.num_peaks, 0.50)
+        self.close_rate = ContextRate(context_dim, self.num_peaks, 0.50)
+        self.recovery_rate = ContextRate(context_dim, self.num_peaks, 0.03)
 
     @property
     def motif_edges(self) -> int:
