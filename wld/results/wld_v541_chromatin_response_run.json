@@ -1,0 +1,48 @@
+{
+  "schema_version": "wld-v5.4.1-run-record",
+  "repository": "nlipieta/MultiscaleProject",
+  "source_commit": "f10ac0584dde0728a2cbf990bd469d8b68564990",
+  "run_scope": "response-calibrated chromatin development on whole held-out perturbation targets",
+  "environment": {
+    "python": "3.12.13",
+    "numpy": "1.26.4",
+    "scipy": "1.16.3",
+    "pytorch": "2.11.0+cu128",
+    "accelerator": "Tesla T4"
+  },
+  "split": {
+    "training_targets": 73,
+    "validation_targets": 16,
+    "test_targets": 16,
+    "test_targets_evaluated": false,
+    "muscle_subjects_j_l_evaluated": false
+  },
+  "route_compilation": {
+    "supported_routes": 1003,
+    "covered_training_targets": 60,
+    "covered_validation_targets": 11,
+    "covered_test_targets": 13
+  },
+  "validation": {
+    "true_route_swd": 0.024337,
+    "persistence_swd": 0.024389,
+    "gain_over_persistence": 0.000052,
+    "response_nrmse": 0.999377,
+    "response_cosine": 0.024717,
+    "advantage_over_retrained_degree_shuffles": 0.000068,
+    "frozen_zero_route_effect": 0.000052
+  },
+  "claims": {
+    "target_identity_in_encoder": false,
+    "ode_kinetics_identified": false,
+    "attractor_claim": false,
+    "interpretation": "The fitted model has a small detectable dependence on supported routes, but biologically useful perturbation prediction and attractor dynamics are not established."
+  },
+  "durable_artifacts": {
+    "storage": "Google Drive",
+    "root": "/content/drive/MyDrive/WLD_Backup/wld_v541_response_calibrated",
+    "report": "development/wld_v54_chromatin_response_report.json",
+    "log": "wld_v541_complete.log",
+    "large_artifacts_committed_to_git": false
+  }
+}
