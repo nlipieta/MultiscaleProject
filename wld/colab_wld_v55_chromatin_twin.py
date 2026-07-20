@@ -19,7 +19,7 @@ from pathlib import Path
 
 
 REPOSITORY = "nlipieta/MultiscaleProject"
-SOURCE_REF = "ae33982466e9fc6784ca62393296dabb4ff304ae"
+SOURCE_REF = "a828f2641cc4e7f5dc0afbcde087c31f36fdf917"
 BACKUP = Path("/content/drive/MyDrive/WLD_Backup")
 CODE = Path("/content/wld_v55_code")
 PACKAGES = Path("/content/wld_v55_packages_py312_np1264")
@@ -27,7 +27,7 @@ PHASE_B = BACKUP / "wld_phase_b"
 CORPUS = BACKUP / "wld_corpus_pretraining"
 V53_BUNDLE = BACKUP / "wld_v53_crispr_sciatac_ingestion" / "bundle"
 PRIOR_SOURCES = BACKUP / "wld_real_data" / "prior_sources"
-OUTPUT = BACKUP / "wld_v55_chromatin_twin"
+OUTPUT = BACKUP / "wld_v55_chromatin_twin_r2"
 SOURCE_DIR = OUTPUT / "frozen_sources"
 CORUM = SOURCE_DIR / "corum_human_complexes_v5_3.txt"
 CORUM_MANIFEST = SOURCE_DIR / "corum_human_complexes_v5_3.json"
@@ -53,11 +53,11 @@ FILES = {
     "wld_phase_b_priors.py": "d3b216b1d11c7ec3f767126787abc5df9abc2cc22f6b6c12d1bc2bc6566d58ce",
     "wld_chromatin_response_v54.py": "7743c61e415dbe3fc9bb941448d99c07a1d6ec3469235c585964ef58a7340579",
     "wld_chromatin_training_v54.py": "24b0a314d38730045745fc6361f1912581e7730b50c88d97acf1ac5c615cdfa4",
-    "wld_chromatin_twin_v55.py": "67489f070770b394953b307dc932171d07415eaf4208d846ee34c542b9cd0b89",
+    "wld_chromatin_twin_v55.py": "c9ec8a16c1355dd59f02fcf8492dff3bf4ed089575b4413d2d4568dbb4c16e4e",
     "wld_chromatin_modules_v55.py": "eecda349e2bba4a03071fb9018cff87ff6c480c3a68e6b621b0c242512f3f91a",
     "wld_twin_statistics_v55.py": "b0bc34f52d77bbe396b8f0111907321415daadf3b2dab293c8902069a360f25e",
     "wld_chromatin_twin_training_v55.py": "a3315be4afe6a325474ac6842af0524e48169761324b25a401e5355d3fb7e18a",
-    "run_wld_v55_twin_smoke.py": "c7f039a1f0945bf5e6b6cdbd1fa2f5114a5fa9f45b6d0abdeaa1a48011b157c1",
+    "run_wld_v55_twin_smoke.py": "eea2f3594baaa08631cf0561cd15c081878f1c1e6251be8257ead45fa26c93ca",
     "run_wld_v55_twin_colab.py": "b6c9678b6016960cefe38a98dfaab46ab9dd413754c164ab76e682e3f34add29",
     "wld_v55_digital_twin_contract.md": "89d4943e731044b45fb56c82ab8be88512d5c88067852cc06e706908f38dcbb6",
 }
