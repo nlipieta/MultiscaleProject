@@ -19,6 +19,7 @@ from wld_chromatin_twin_v56 import (
     WLDNullAwareChromatinTwin,
     architecture_contract,
 )
+from wld_foundation_model_v4 import FoundationPriors, WLDMultistudyFoundationModel
 from wld_chromatin_twin_training_v56 import (
     TwinTrainingConfig,
     _make_optimizer,
@@ -149,6 +150,138 @@ def _fixture(
         complex_initial_efficacy=complex_efficacy,
     ).to(device)
     return model, priors
+
+
+def _real_foundation_fixture() -> WLDNullAwareChromatinTwin:
+    """Construct the real foundation class with zero-width optional modalities."""
+
+    foundation_priors = FoundationPriors(
+        peak_to_gene=torch.zeros(4, 5),
+        peak_tf_motif=torch.tensor(
+            [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]]
+        ),
+        tf_gene_support=torch.zeros(3, 5),
+        circuit_tf_tf=torch.zeros(3, 3),
+        signal_signal=torch.zeros(2, 2),
+        signal_tf=torch.zeros(2, 3),
+        cue_signal=torch.tensor([[1.0, 0.0]]),
+        tf_peak_effect=torch.zeros(3, 4),
+        tf_gene_index=torch.tensor([0, 1, 2]),
+        protein_signal=torch.zeros(0, 2),
+        metabolic_signal=torch.zeros(0, 2),
+        metabolic_tf=torch.zeros(0, 3),
+    )
+    foundation = WLDMultistudyFoundationModel(
+        foundation_priors,
+        context_covariate_dim=0,
+        context_dim=4,
+    )
+    return WLDNullAwareChromatinTwin(foundation, _model_priors())
+
+
+def real_foundation_optimizer_partition_smoke() -> Dict[str, object]:
+    """Regress the Colab failure caused by auditing frozen raw coordinates."""
+
+    model = _real_foundation_fixture()
+    # Use an intentionally visible decay step so the membership test remains
+    # robust at float32 precision; the grouping rule is identical to default.
+    config = TwinTrainingConfig(
+        learning_rate=1e-2,
+        representation_learning_rate=1e-2,
+        weight_decay=0.1,
+    )
+    optimizer, optimized, audit = _make_optimizer(model, config)
+    frozen = set(audit["frozen_parameters"])
+    grouped = {
+        name
+        for group in audit["groups"]
+        for name in group["parameters"]
+    }
+    frozen_raw = {
+        name
+        for name, _parameter in model.named_parameters()
+        if name.startswith("foundation.field.") and ".raw_" in name.lower()
+    }
+    frozen_foundation_field = {
+        name
+        for name, _parameter in model.named_parameters()
+        if name.startswith("foundation.field.")
+    }
+    foundation_field_in_optimizer = bool(frozen_foundation_field & grouped)
+    assert len(frozen_raw) == 18
+    assert frozen_raw <= frozen
+    assert frozen_foundation_field <= frozen
+    assert not foundation_field_in_optimizer
+    named_parameters = dict(model.named_parameters())
+    assert all(
+        not named_parameters[name].requires_grad
+        for name in frozen_foundation_field
+    )
+    assert len(optimized) == len(grouped)
+
+    decay_by_name = {
+        name: float(group["weight_decay"])
+        for group in audit["groups"]
+        for name in group["parameters"]
+    }
+    assert all(
+        decay_by_name[name] == 0.0
+        for name in grouped
+        if named_parameters[name].ndim <= 1
+    )
+    assert any(
+        decay_by_name[name] > 0.0
+        for name in grouped
+        if named_parameters[name].ndim > 1
+    )
+
+    for group in audit["groups"]:
+        if float(group["weight_decay"]) == 0.0:
+            continue
+        for name in group["parameters"]:
+            lower = name.lower()
+            assert ".raw_" not in lower and "gate" not in lower and "efficacy" not in lower
+
+    zero_decay = set(audit["zero_weight_decay_parameters"])
+    trainable_raw_or_gate = {
+        name
+        for name in grouped
+        if ".raw_" in name.lower()
+        or "gate" in name.lower()
+        or "efficacy" in name.lower()
+    }
+    sensitive_coordinate_decayed = bool(trainable_raw_or_gate - zero_decay)
+    assert not sensitive_coordinate_decayed
+    assert "field.tf_gate_logit" in zero_decay
+    assert "field.complex_gate_logit" in zero_decay
+
+    before = {
+        name: named_parameters[name].detach().clone()
+        for name in grouped
+    }
+    for parameter in optimized:
+        parameter.grad = torch.zeros_like(parameter)
+    optimizer.step()
+    zero_decay_coordinate_changed = any(
+        not torch.equal(named_parameters[name].detach(), before[name])
+        for name in zero_decay
+    )
+    assert not zero_decay_coordinate_changed
+    decayed_matrix_moved = any(
+        not torch.equal(named_parameters[name].detach(), before[name])
+        for name in grouped
+        if decay_by_name[name] > 0.0
+    )
+    assert decayed_matrix_moved
+    return {
+        "frozen_foundation_raw_coordinates": len(frozen_raw),
+        "frozen_foundation_field_parameters": len(frozen_foundation_field),
+        "optimized_parameters": len(grouped),
+        "frozen_parameters_in_optimizer": foundation_field_in_optimizer,
+        "trainable_inverse_link_or_gate_parameters_decayed": sensitive_coordinate_decayed,
+        "zero_gradient_decay_changed_sensitive_coordinate": zero_decay_coordinate_changed,
+        "zero_gradient_decay_changed_ordinary_matrix": decayed_matrix_moved,
+    }
 
 
 def _intervention(
@@ -570,6 +703,7 @@ def main() -> None:
         "near_persistence": near_persistence_and_gradient_smoke(),
         "gate_learning": gate_learning_smoke(),
         "persistence_and_regularization": persistence_and_regularization_smoke(),
+        "real_foundation_optimizer_partition": real_foundation_optimizer_partition_smoke(),
         "route_normalization": route_normalization_smoke(),
         "device_contract": device_smoke(),
         "response_selection": response_selection_smoke(),
@@ -584,6 +718,7 @@ def main() -> None:
     print("PASS: near-persistence initialization with live route-gate gradients")
     print("PASS: supported TF and complex gates learn away from the null")
     print("PASS: realized-effect regularization and zero-decay inverse coordinates")
+    print("PASS: real foundation raw coordinates remain frozen outside the optimizer")
     print("PASS: exact zero/frozen/unsupported persistence")
     print("PASS: separately normalized TF and complex evidence mass")
     print("PASS: CPU/CUDA parameter, buffer, forward, backward placement")

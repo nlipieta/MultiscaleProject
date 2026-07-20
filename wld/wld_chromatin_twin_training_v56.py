@@ -496,7 +496,7 @@ def _make_optimizer(
     model: WLDNullAwareChromatinTwin,
     config: TwinTrainingConfig,
 ) -> Tuple[torch.optim.Optimizer, List[Tensor], Dict[str, object]]:
-    """Group parameters without decaying inverse-softplus/gate coordinates."""
+    """Decay ordinary matrix weights, never inverse-link/vector coordinates."""
 
     groups: Dict[Tuple[float, float], List[Tensor]] = {}
     names_by_group: Dict[Tuple[float, float], List[str]] = {}
@@ -518,7 +518,8 @@ def _make_optimizer(
         )
         lower = name.lower()
         no_decay = (
-            ".raw_" in lower
+            parameter.ndim <= 1
+            or ".raw_" in lower
             or "gate" in lower
             or "efficacy" in lower
             or lower.endswith(".bias")
@@ -532,13 +533,26 @@ def _make_optimizer(
         optimized.append(parameter)
     if not optimized or len({id(parameter) for parameter in optimized}) != len(optimized):
         raise RuntimeError("optimizer parameter partition is empty or duplicated")
-    raw_or_gate = {
-        name
-        for name, _parameter in model.named_parameters()
-        if ".raw_" in name.lower() or "gate" in name.lower() or "efficacy" in name.lower()
+    # Audit only parameters that are actually assigned to an optimizer group.
+    # The frozen foundation ODE intentionally contains its own raw Hill/gain
+    # coordinates; requiring those frozen names to appear in ``zero_decay``
+    # is a category error because they receive neither optimization nor decay.
+    optimized_names = {
+        name for group_names in names_by_group.values() for name in group_names
     }
-    if not raw_or_gate.issubset(set(zero_decay)):
-        raise RuntimeError("an inverse-softplus/gate parameter received weight decay")
+    sensitive_coordinates = {
+        name
+        for name, parameter in model.named_parameters()
+        if name in optimized_names
+        and (
+            parameter.ndim <= 1
+            or ".raw_" in name.lower()
+            or "gate" in name.lower()
+            or "efficacy" in name.lower()
+        )
+    }
+    if not sensitive_coordinates.issubset(set(zero_decay)):
+        raise RuntimeError("an inverse-link/gate/vector coordinate received weight decay")
     optimizer = torch.optim.AdamW(
         [
             {"params": parameters, "lr": lr, "weight_decay": decay}
