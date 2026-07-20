@@ -19,7 +19,7 @@ from pathlib import Path
 
 
 REPOSITORY = "nlipieta/MultiscaleProject"
-SOURCE_REF = "a828f2641cc4e7f5dc0afbcde087c31f36fdf917"
+SOURCE_REF = "d3367efbae31d9d460fb9ec7c98acb46c10e4fa2"
 BACKUP = Path("/content/drive/MyDrive/WLD_Backup")
 CODE = Path("/content/wld_v55_code")
 PACKAGES = Path("/content/wld_v55_packages_py312_np1264")
@@ -27,7 +27,7 @@ PHASE_B = BACKUP / "wld_phase_b"
 CORPUS = BACKUP / "wld_corpus_pretraining"
 V53_BUNDLE = BACKUP / "wld_v53_crispr_sciatac_ingestion" / "bundle"
 PRIOR_SOURCES = BACKUP / "wld_real_data" / "prior_sources"
-OUTPUT = BACKUP / "wld_v55_chromatin_twin_r2"
+OUTPUT = BACKUP / "wld_v55_chromatin_twin_r3"
 SOURCE_DIR = OUTPUT / "frozen_sources"
 CORUM = SOURCE_DIR / "corum_human_complexes_v5_3.txt"
 CORUM_MANIFEST = SOURCE_DIR / "corum_human_complexes_v5_3.json"
@@ -57,7 +57,7 @@ FILES = {
     "wld_chromatin_modules_v55.py": "eecda349e2bba4a03071fb9018cff87ff6c480c3a68e6b621b0c242512f3f91a",
     "wld_twin_statistics_v55.py": "b0bc34f52d77bbe396b8f0111907321415daadf3b2dab293c8902069a360f25e",
     "wld_chromatin_twin_training_v55.py": "a3315be4afe6a325474ac6842af0524e48169761324b25a401e5355d3fb7e18a",
-    "run_wld_v55_twin_smoke.py": "eea2f3594baaa08631cf0561cd15c081878f1c1e6251be8257ead45fa26c93ca",
+    "run_wld_v55_twin_smoke.py": "81c696116160bdd662f3659d334bb1a0db2b16acf3e2dc3d58745e5eab864351",
     "run_wld_v55_twin_colab.py": "b6c9678b6016960cefe38a98dfaab46ab9dd413754c164ab76e682e3f34add29",
     "wld_v55_digital_twin_contract.md": "89d4943e731044b45fb56c82ab8be88512d5c88067852cc06e706908f38dcbb6",
 }
