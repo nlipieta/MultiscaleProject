@@ -150,7 +150,10 @@ def intervention(
 def device_contract_smoke() -> dict:
     devices = [torch.device("cpu")]
     if torch.cuda.is_available():
-        devices.append(torch.device("cuda"))
+        # PyTorch reports tensors on the selected accelerator as ``cuda:N``.
+        # Resolve N explicitly because torch.device("cuda") !=
+        # torch.device("cuda:0") even when cuda:0 is the active device.
+        devices.append(torch.device("cuda", torch.cuda.current_device()))
 
     for device in devices:
         model, _priors = fixture(device)
@@ -159,10 +162,18 @@ def device_contract_smoke() -> dict:
         zero_intervention = torch.zeros(3, 6, device=device)
         supported_intervention = intervention(0, batch=3, device=device)
 
-        for _name, parameter in model.named_parameters():
-            assert parameter.device == device
-        for _name, buffer in model.named_buffers():
-            assert buffer.device == device
+        wrong_parameters = {
+            name: str(parameter.device)
+            for name, parameter in model.named_parameters()
+            if parameter.device != device
+        }
+        wrong_buffers = {
+            name: str(buffer.device)
+            for name, buffer in model.named_buffers()
+            if buffer.device != device
+        }
+        assert not wrong_parameters, (str(device), wrong_parameters)
+        assert not wrong_buffers, (str(device), wrong_buffers)
 
         zero = model(control, zero_intervention, cues=cues, steps=2)
         supported = model(control, supported_intervention, cues=cues, steps=2)
