@@ -84,6 +84,7 @@ but they are not the recommended route for a temporal attractor claim.
 - `wld_chromatin_twin_training_v56.py` — response-focused reused-development trainer, training-only perturbed-mean baseline, ten-control ensemble, frozen route audits, restart locks, and sealed-test enforcement.
 - `run_wld_v56_nullaware_smoke.py` — CPU/CUDA synthetic checks for live near-null gradients, gate learning, exact persistence, route normalization, matched controls, and claim boundaries.
 - `run_wld_v56_nullaware_colab.py` — real-data restart-safe entry point using the completed v5.5 artifacts while leaving the v5.3 test partition sealed.
+- `colab_wld_v56_nullaware.py` — paste-ready launcher pinned to the immutable v5.6 source commit and 16 per-file SHA-256 locks; it reuses the durable v5.5 route/module artifacts and resumes 33 development fits from Drive.
 - `wld_v56_nullaware_contract.md` — v5.5 failure diagnosis, v5.6 model/training/control requirements, descriptive development gates, and future confirmation boundary.
 - `docs/legacy_colab_audit.md` — fingerprints, saved outputs, and scientific interpretation of the immutable exploratory notebook.
 - `docs/attractor_state_computational_revision.md` — manuscript-ready computational framing and minimum experimental design.
