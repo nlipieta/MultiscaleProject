@@ -54,7 +54,7 @@ def main() -> None:
     parser.add_argument("--device")
     args = parser.parse_args()
 
-    print("WLD V5.4 GRAPH-ROUTED CHROMATIN RESPONSE DEVELOPMENT", flush=True)
+    print("WLD V5.4.1 RESPONSE-CALIBRATED CHROMATIN DEVELOPMENT", flush=True)
     print(f"Python {platform.python_version()}", flush=True)
     print(f"NumPy {np.__version__} | SciPy {scipy.__version__}", flush=True)
     print(f"PyTorch {torch.__version__} | CUDA {torch.cuda.is_available()}", flush=True)
@@ -143,11 +143,13 @@ def main() -> None:
 
     metrics = report["specificity"]
     print("\n" + "=" * 78, flush=True)
-    print("VERIFIED COMPLETE: WLD V5.4 CHROMATIN RESPONSE DEVELOPMENT", flush=True)
+    print("VERIFIED COMPLETE: WLD V5.4.1 CHROMATIN RESPONSE DEVELOPMENT", flush=True)
     print("=" * 78, flush=True)
     print(f"True-route validation SWD:              {metrics['true_model_swd']:.6f}", flush=True)
     print(f"Persistence validation SWD:             {metrics['persistence_swd']:.6f}", flush=True)
     print(f"True gain over persistence:              {metrics['true_gain_over_persistence']:+.6f}", flush=True)
+    print(f"True response NRMSE:                     {metrics['true_response_nrmse']:.6f}", flush=True)
+    print(f"True response cosine:                    {metrics['true_response_cosine']:.6f}", flush=True)
     print(
         "True advantage over retrained shuffles: "
         f"{metrics['true_advantage_over_retrained_shuffles']:+.6f}",
