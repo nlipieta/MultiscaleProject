@@ -146,6 +146,11 @@ def main() -> None:
         assert report["claims"]["target_identity_in_encoder"] is False
         assert report["architecture"]["direct_neural_context_to_peak_decoder"] is False
         assert len(report["conditions"]) == 2
+        frozen_zero = report["frozen_ablations"]["zero_routes"]["route_supported_targets"]
+        assert abs(frozen_zero["model_swd"] - frozen_zero["persistence_swd"]) < 1e-7
+        assert report["v5_4_repair"][
+            "frozen_ablation_uses_identical_validation_sample_and_projections"
+        ] is True
         # A second call must verify and restore the completed report rather than
         # retraining or opening the test split.
         restored = run_chromatin_response_development(
