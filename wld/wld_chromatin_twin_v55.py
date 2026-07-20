@@ -296,7 +296,7 @@ class HybridChromatinField(nn.Module):
         # A constant channel covers TF-only peaks; module channels carry the
         # mechanistic low-rank structure for complex-linked bins.
         rate_basis = torch.cat(
-            [torch.ones((1, self.num_peaks)), module_peak.abs()], dim=0
+            [module_peak.new_ones((1, self.num_peaks)), module_peak.abs()], dim=0
         )
         self.open_rate = LowRankContextRate(context_dim, rate_basis, initial=0.45)
         self.close_rate = LowRankContextRate(context_dim, rate_basis, initial=0.45)
