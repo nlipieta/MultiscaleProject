@@ -159,6 +159,13 @@ def extract_target(value, targets):
     stripped = re.sub(r"(?:[-_:](?:SG|G)?RNA)?[-_:](?:G)?\d+$", "", text)
     stripped = re.sub(r"^(?:CRISPR[-_:]?)?(?:SGRNA|GRNA|GUIDE|SG)[-_:]", "", stripped)
     stripped = stripped.strip(" _-:.")
+    stripped_canon = canonical(stripped)
+    if (
+        stripped_canon in CONTROL_CANONICAL
+        or "NONTARGET" in stripped_canon
+        or "NEGCTRL" in stripped_canon
+    ):
+        return "NTC"
     if stripped in targets:
         return stripped
     for token in re.findall(r"[A-Z][A-Z0-9.-]{1,24}", text):
@@ -177,62 +184,106 @@ def normalized_key(value, mode):
 
 
 def load_assignment_candidates(path, targets):
-    rows = []
-    with gzip.open(path, "rt", errors="replace") as handle:
-        for line in handle:
-            if line.strip():
-                rows.append(split_fields(line))
-    if not rows:
-        raise RuntimeError(f"Empty guide assignment: {path}")
-    width = Counter(len(row) for row in rows).most_common(1)[0][0]
-    rows = [row for row in rows if len(row) == width]
-    annotated = []
-    for row in rows:
-        found = {extract_target(field, targets) for field in row}
-        found.discard(None)
-        if len(found) == 1:
-            annotated.append((row, next(iter(found))))
-    if len(annotated) < 100:
-        raise RuntimeError(
-            f"Only {len(annotated)} assignment rows had one unambiguous target in {path.name}"
-        )
+    # The GEO *.IDs.mat.txt.gz files are dense CSV matrices, not annotation
+    # tables: row 1 contains guide identities; column 1 contains cell barcodes;
+    # remaining values are guide-read counts. Reconstruct the deposited K562
+    # QC rule using one dominant *guide* (not gene-aggregated counts).
+    screen = "screen1" if "screen1" in path.name.lower() else (
+        "screen2" if "screen2" in path.name.lower() else None
+    )
+    if screen is None:
+        raise RuntimeError(f"Cannot infer CRISPR-sciATAC screen from {path.name}")
+    minimum_total = 100
+    minimum_purity = 0.99 if screen == "screen1" else 0.90
 
-    candidates = []
-    for column in range(width):
-        values = [(row[column].strip(), target) for row, target in annotated if row[column].strip()]
-        if not values:
-            continue
-        target_like = sum(extract_target(value, targets) is not None for value, _ in values)
-        unique = len({value for value, _ in values})
-        # CRISPR-sciATAC cell identifiers are themselves DNA barcode sequences,
-        # so DNA-like values must not be rejected. The correct column is chosen
-        # downstream by exact measured overlap with sampled deposited BED rows.
-        if unique < 50 or target_like / len(values) > 0.2:
-            continue
-        candidates.append(
-            {
-                "column": column,
-                "rows": values,
-                "unique": unique,
-                "unique_ratio": unique / len(values),
-                "width": width,
-            }
+    with gzip.open(path, "rt", errors="replace", newline="") as handle:
+        reader = csv.reader(handle)
+        try:
+            header = next(reader)
+        except StopIteration:
+            raise RuntimeError(f"Empty guide-count matrix: {path}")
+        if len(header) < 4:
+            raise RuntimeError(f"Invalid guide-count matrix header in {path.name}")
+        guide_names = [value.strip() for value in header[1:]]
+        guide_targets = [extract_target(value, targets) for value in guide_names]
+        unknown_guides = [
+            value for value, target in zip(guide_names, guide_targets) if target is None
+        ]
+        if unknown_guides:
+            raise RuntimeError(
+                f"Unrecognized guide headers in {path.name}: {unknown_guides[:20]}"
+            )
+
+        assignments = []
+        stats = Counter()
+        assigned_targets = Counter()
+        seen_barcodes = set()
+        for row in reader:
+            if not row or not any(value.strip() for value in row):
+                continue
+            stats["matrix_rows"] += 1
+            if len(row) != len(header):
+                stats["wrong_width"] += 1
+                continue
+            barcode = row[0].strip()
+            if not barcode or barcode in seen_barcodes:
+                stats["missing_or_duplicate_barcode"] += 1
+                continue
+            try:
+                counts = [int(value) for value in row[1:]]
+            except ValueError:
+                stats["nonnumeric_count"] += 1
+                continue
+            if any(value < 0 for value in counts):
+                stats["negative_count"] += 1
+                continue
+            total = sum(counts)
+            if total < minimum_total:
+                stats["below_total_reads"] += 1
+                continue
+            top_count = max(counts)
+            if top_count <= 0 or counts.count(top_count) != 1:
+                stats["ambiguous_top_guide"] += 1
+                continue
+            purity = top_count / total
+            if purity < minimum_purity:
+                stats["below_dominant_guide_purity"] += 1
+                continue
+            target = guide_targets[counts.index(top_count)]
+            assignments.append((barcode, target))
+            assigned_targets[target] += 1
+            seen_barcodes.add(barcode)
+            stats["assigned_cells"] += 1
+
+    non_control_targets = {target for _barcode, target in assignments if target != "NTC"}
+    if len(assignments) < 100 or len(non_control_targets) < 10:
+        raise RuntimeError(
+            f"Guide-count QC retained only {len(assignments)} cells and "
+            f"{len(non_control_targets)} targets in {path.name}"
         )
-    if not candidates:
-        raise RuntimeError(f"No cell-identifier candidate column in {path.name}")
-    return candidates, {
+    candidate = {
+        "column": 0,
+        "rows": assignments,
+        "unique": len(assignments),
+        "unique_ratio": 1.0,
+        "width": len(header),
+    }
+    return [candidate], {
         "file": path.name,
-        "rows": len(rows),
-        "annotated_rows": len(annotated),
-        "width": width,
-        "candidate_columns": [
-            {
-                "column": value["column"],
-                "unique": value["unique"],
-                "unique_ratio": value["unique_ratio"],
-            }
-            for value in candidates
-        ],
+        "format": "dense_cell_by_guide_count_csv",
+        "screen": screen,
+        "matrix_rows": stats["matrix_rows"],
+        "guide_columns": len(guide_names),
+        "header_targets_including_control": len(set(guide_targets)),
+        "minimum_total_guide_reads": minimum_total,
+        "minimum_dominant_guide_fraction": minimum_purity,
+        "assigned_cells": stats["assigned_cells"],
+        "assigned_non_control_targets": len(non_control_targets),
+        "assigned_control_cells": assigned_targets.get("NTC", 0),
+        "rejection_counts": {
+            key: value for key, value in sorted(stats.items())
+            if key not in {"matrix_rows", "assigned_cells"}
+        },
     }
 
 
@@ -295,7 +346,12 @@ def resolve_alignment(assignment_candidates, bed_rows, bed_width):
                     record["sample_matches"], record["sample_targets"]
                 ) > (best["sample_matches"], best["sample_targets"]):
                     best = record
-    if best is None or best["sample_matches"] < 100 or best["sample_match_fraction"] < 0.2:
+    if (
+        best is None
+        or best["sample_matches"] < 100
+        or best["sample_targets"] < 10
+        or best["sample_match_fraction"] < 0.01
+    ):
         summary = None if best is None else {
             key: value for key, value in best.items() if key != "mapping"
         }
