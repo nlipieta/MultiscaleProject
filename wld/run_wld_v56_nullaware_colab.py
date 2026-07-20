@@ -102,9 +102,28 @@ def main() -> None:
         (args.v53_bundle / "cells.tsv.gz", "v5.3 cell metadata"),
         (args.v53_bundle / "bins.GRCh38.2kb.tsv.gz", "v5.3 response bins"),
         (route_root / "route_manifest.json", "completed v5.5 TF routes"),
+        (route_root / "route_vocab.json", "completed v5.5 TF route vocabulary"),
+        (route_root / "regulator_tf_routes.npz", "completed v5.5 TF route tensors"),
+        (route_root / "regulator_tf_routes.tsv.gz", "completed v5.5 TF route table"),
         (
             module_root / "complex_accessibility_module_manifest.json",
             "completed v5.5 complex modules",
+        ),
+        (
+            module_root / "complex_accessibility_vocab.json",
+            "completed v5.5 complex-module vocabulary",
+        ),
+        (
+            module_root / "complex_accessibility_modules.npz",
+            "completed v5.5 complex-module tensors",
+        ),
+        (
+            module_root / "complex_accessibility_modules.tsv",
+            "completed v5.5 complex-module table",
+        ),
+        (
+            module_root / "complex_module_construction_targets.tsv",
+            "completed v5.5 complex-module construction-target table",
         ),
         (v55_report_path, "completed v5.5 result"),
     ):
@@ -189,11 +208,30 @@ def main() -> None:
         device=args.device,
     )
 
-    if (
-        report.get("claims", {}).get("test_targets_evaluated") is not False
-        or report.get("claims", {}).get("untouched_audit_inference") is not False
-        or report.get("claims", {}).get("digital_twin_claim") is not False
-        or report.get("claims", {}).get("attractor_claim") is not False
+    claims = report.get("claims", {})
+    if any(
+        claims.get(name) is not False
+        for name in (
+            "untouched_audit_inference",
+            "confidence_interval_claim",
+            "p_value_claim",
+            "test_targets_materialized",
+            "test_targets_evaluated",
+            "external_subject_study_evaluated",
+            "ode_time_scale_identified",
+            "fixed_point_claim",
+            "basin_claim",
+            "digital_twin_claim",
+            "attractor_claim",
+        )
+    ) or any(
+        claims.get(name) is not True
+        for name in (
+            "development_only",
+            "validation_targets_previously_used_in_v55",
+            "all_existing_validation_targets_evaluated",
+            "perturbed_mean_baseline_training_only",
+        )
     ):
         raise RuntimeError("v5.6 report crossed its development-only claim boundary")
 
