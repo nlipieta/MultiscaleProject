@@ -1,5 +1,19 @@
 # WLD v5.4 graph-routed chromatin response contract
 
+## v5.4.1 response calibration
+
+The initial v5.4 development run exposed a numerical degeneracy: supported
+response amplitudes were initialized effectively at zero, so absolute-state
+distribution loss selected persistence. It also evaluated frozen route removal
+on a different random validation draw, confounding that effect.
+
+v5.4.1 uses nondegenerate but bounded supported-path initialization, adds an
+unpaired training-target pseudobulk response objective, and selects checkpoints
+with a prespecified combination of relative SWD and response NRMSE. Frozen and
+unmodified evaluations use identical cells and SWD projections. The topology,
+whole-target split, leakage boundary, sealed tests, and claim scope are
+unchanged.
+
 ## Scientific scope
 
 GSE161002 is a single-endpoint CRISPR-sciATAC screen. It can supervise a
