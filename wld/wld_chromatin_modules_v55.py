@@ -109,6 +109,28 @@ def _stream_ranges(z: zipfile.ZipFile, name: str,
     return out
 
 
+def _stream_positions(z: zipfile.ZipFile, name: str,
+                      positions: Sequence[int]) -> Dict[int, int]:
+    """Read only selected values from a one-dimensional NPZ member.
+
+    This is used for CSR row pointers so sealed-row library sizes are never
+    materialized as a full NumPy vector merely to locate train/development rows.
+    The compressed member is traversed sequentially, but unselected values are
+    discarded as uninterpreted bytes.
+    """
+    selected=sorted({int(position) for position in positions})
+    with z.open(name) as f:
+        shape,fortran,dtype=_header(f)
+        if fortran or len(shape)!=1 or (selected and (selected[0]<0 or selected[-1]>=shape[0])):
+            raise RuntimeError(f"Invalid one-dimensional array {name}")
+        result: Dict[int,int]={}; source=0
+        for position in selected:
+            _discard(f,(position-source)*dtype.itemsize)
+            result[position]=int(np.frombuffer(_read_exact(f,dtype.itemsize),dtype=dtype)[0])
+            source=position+1
+    return result
+
+
 def _selected_csr(path: Path, rows: np.ndarray) -> sparse.csr_matrix:
     """Select increasing CSR rows without materializing excluded data values."""
     rows = np.asarray(rows, dtype=np.int64)
@@ -121,12 +143,11 @@ def _selected_csr(path: Path, rows: np.ndarray) -> sparse.csr_matrix:
         fmt = fmt.decode() if isinstance(fmt, bytes) else str(fmt)
         if fmt.lower() != "csr" or len(shape) != 2:
             raise RuntimeError("v5.3 accessibility archive must be two-dimensional CSR")
-        indptr = np.asarray(_small(z, _member(names, "indptr")), dtype=np.int64)
-        if indptr.shape != (shape[0] + 1,):
-            raise RuntimeError("CSR indptr and shape disagree")
         if len(rows) and (rows[0] < 0 or rows[-1] >= shape[0]):
             raise IndexError("Metadata row outside sparse matrix")
-        ranges = [(int(indptr[r]), int(indptr[r+1])) for r in rows]
+        pointer_name=_member(names,"indptr")
+        pointers=_stream_positions(z,pointer_name,[value for row in rows for value in (int(row),int(row)+1)])
+        ranges=[(pointers[int(row)],pointers[int(row)+1]) for row in rows]
         indices = _stream_ranges(z, _member(names, "indices"), ranges)
         data = _stream_ranges(z, _member(names, "data"), ranges)
     lengths = np.asarray([b-a for a, b in ranges], dtype=np.int64)
@@ -354,6 +375,11 @@ def load_v53_sparse_full_bundle(bundle_root: Path, *, prior_root: Optional[Path]
                 "sealed_test_target_rows":frozen_test_target_rows,
                 "sealed_test_ntc_rows":frozen_test_ntc_rows,
                 "materialized_source_rows":len(metadata),
+                "test_metadata_rows_read_only_for_split_integrity":sealed,
+                "test_metadata_fragments_field_used":False,
+                "test_csr_data_or_indices_materialized":False,
+                "test_csr_row_pointer_values_materialized":False,
+                "csr_row_pointer_selection":"selected train/development endpoints streamed; unselected pointers discarded as bytes",
                 "test_values_materialized":False}
     return SparseFullChromatinBundle(matrix,bins,anchors,targets,screens,splits,
                                      source_rows,groups,provenance,sealed)
