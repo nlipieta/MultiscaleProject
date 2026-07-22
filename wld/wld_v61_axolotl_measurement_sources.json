@@ -1,0 +1,485 @@
+{
+  "schema_version": "6.1.0",
+  "purpose": "Conservative registry of unsealed, deposited axolotl limb-regeneration measurements for development-only corpus construction. Raw measurements remain study- and assembly-specific until an audited harmonization step.",
+  "sealed_exclusions": [
+    "GSE315993"
+  ],
+  "allowed_hosts": [
+    "ftp.ncbi.nlm.nih.gov",
+    "www.ncbi.nlm.nih.gov",
+    "ncbi.nlm.nih.gov"
+  ],
+  "policy": {
+    "development_only": true,
+    "group_split_before_feature_selection": true,
+    "cell_or_spot_random_split_forbidden": true,
+    "raw_or_deposited_counts_preferred": true,
+    "rna_is_supervision_not_encoder_identity": true,
+    "cell_type_cluster_embedding_and_pseudotime_are_not_encoder_inputs": true,
+    "cross_study_gene_or_coordinate_harmonization_requires_an_explicit_audit": true,
+    "cross_assay_pairing_requires_a_deposited_identifier_crosswalk": true,
+    "unknown_context_remains_unknown": true,
+    "publisher_checksums_available": false
+  },
+  "studies": [
+    {
+      "accession": "GSE182296",
+      "role": "measured_retinoid_cue_rna_development_train",
+      "default_download": true,
+      "adapter": "bulk_gene_table",
+      "species": "Ambystoma mexicanum",
+      "source_assembly": "AmexG_v3.0.0",
+      "measurement_level": "bulk forelimb blastema mesenchyme RNA-seq; one deposited biological sample per matrix column",
+      "metadata_url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE182296",
+      "split_policy": {
+        "mode": "study_locked_development_train",
+        "group_field": "sample_accession",
+        "stratify_fields": [
+          "condition"
+        ],
+        "cell_level_split_forbidden": true,
+        "note": "Replicates remain independent biological groups. This study may supply training folds only; it is not a held-out test."
+      },
+      "sample_map": [
+        {"sample_accession": "GSM5526293", "matrix_column_tokens": ["dmso_rep1", "GSM5526293"], "condition": "DMSO vehicle", "cue": "vehicle", "dose": null, "replicate": 1},
+        {"sample_accession": "GSM5526294", "matrix_column_tokens": ["dmso_rep2", "GSM5526294"], "condition": "DMSO vehicle", "cue": "vehicle", "dose": null, "replicate": 2},
+        {"sample_accession": "GSM5526295", "matrix_column_tokens": ["dmso_rep3", "GSM5526295"], "condition": "DMSO vehicle", "cue": "vehicle", "dose": null, "replicate": 3},
+        {"sample_accession": "GSM5526296", "matrix_column_tokens": ["dmso_rep4", "GSM5526296"], "condition": "DMSO vehicle", "cue": "vehicle", "dose": null, "replicate": 4},
+        {"sample_accession": "GSM5526297", "matrix_column_tokens": ["dmso_rep5", "GSM5526297"], "condition": "DMSO vehicle", "cue": "vehicle", "dose": null, "replicate": 5},
+        {"sample_accession": "GSM5526298", "matrix_column_tokens": ["dmso_rep6", "GSM5526298"], "condition": "DMSO vehicle", "cue": "vehicle", "dose": null, "replicate": 6},
+        {"sample_accession": "GSM5526299", "matrix_column_tokens": ["am580_rep1", "GSM5526299"], "condition": "RAR-alpha-selective agonist", "cue": "Am580", "dose": {"value": 25, "unit": "nM", "route": "systemic"}, "replicate": 1},
+        {"sample_accession": "GSM5526300", "matrix_column_tokens": ["am580_rep2", "GSM5526300"], "condition": "RAR-alpha-selective agonist", "cue": "Am580", "dose": {"value": 25, "unit": "nM", "route": "systemic"}, "replicate": 2},
+        {"sample_accession": "GSM5526301", "matrix_column_tokens": ["am580_rep3", "GSM5526301"], "condition": "RAR-alpha-selective agonist", "cue": "Am580", "dose": {"value": 25, "unit": "nM", "route": "systemic"}, "replicate": 3},
+        {"sample_accession": "GSM5526302", "matrix_column_tokens": ["am580_rep4", "GSM5526302"], "condition": "RAR-alpha-selective agonist", "cue": "Am580", "dose": {"value": 25, "unit": "nM", "route": "systemic"}, "replicate": 4},
+        {"sample_accession": "GSM5526303", "matrix_column_tokens": ["am580_rep5", "GSM5526303"], "condition": "RAR-alpha-selective agonist", "cue": "Am580", "dose": {"value": 25, "unit": "nM", "route": "systemic"}, "replicate": 5},
+        {"sample_accession": "GSM5526304", "matrix_column_tokens": ["am580_rep6", "GSM5526304"], "condition": "RAR-alpha-selective agonist", "cue": "Am580", "dose": {"value": 25, "unit": "nM", "route": "systemic"}, "replicate": 6}
+      ],
+      "context": {
+        "tissue": "forelimb blastema mesenchyme with epidermis removed",
+        "amputation_level": "mid-zeugopod",
+        "treatment_start": "24 hours post amputation",
+        "treatment_duration": {"value": 5, "unit": "day"},
+        "collection": "24 hours after treatment",
+        "time_dpa": null,
+        "time_note": "The registry does not convert the deposited protocol sequence into a computed dpa value."
+      },
+      "artifacts": [
+        {
+          "artifact_id": "gse182296_raw_gene_counts",
+          "role": "raw_gene_counts",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE182nnn/GSE182296/suppl/GSE182296_am580_featureCounts_raw_counts.txt.gz",
+          "filename": "GSE182296_am580_featureCounts_raw_counts.txt.gz",
+          "content_kind": "gzip_featurecounts_gene_table",
+          "checksum": null
+        }
+      ]
+    },
+    {
+      "accession": "GSE184948",
+      "role": "measured_tig1_regulator_rna_development_train",
+      "default_download": true,
+      "adapter": "bulk_gene_table",
+      "species": "Ambystoma mexicanum",
+      "source_assembly": "AmexG_v6.0-DD (deposited label)",
+      "measurement_level": "Smart-seq2 RNA-seq from approximately 300 FACS-isolated distal blastema cells per deposited sample",
+      "metadata_url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE184948",
+      "split_policy": {
+        "mode": "study_locked_development_train",
+        "group_field": "sample_accession",
+        "stratify_fields": [
+          "construct",
+          "time_post_transfection_days"
+        ],
+        "cell_level_split_forbidden": true,
+        "note": "The 300-cell preparations are sample-level observations, not 300 independent single-cell groups."
+      },
+      "sample_map": [
+        {"sample_accession": "GSM5602253", "matrix_column_tokens": ["T1Wt3d_DP_R1", "GSM5602253"], "construct": "Tig1 wild type", "time_post_transfection_days": 3, "replicate": 1},
+        {"sample_accession": "GSM5602254", "matrix_column_tokens": ["T1Mut3d_DP_R1", "GSM5602254"], "construct": "Tig1 P155A mutant", "time_post_transfection_days": 3, "replicate": 1},
+        {"sample_accession": "GSM5602255", "matrix_column_tokens": ["CTRL3d_R1", "GSM5602255"], "construct": "non-transfected control", "time_post_transfection_days": 3, "replicate": 1},
+        {"sample_accession": "GSM5602256", "matrix_column_tokens": ["CTRL8d_R1", "GSM5602256"], "construct": "non-transfected control", "time_post_transfection_days": 8, "replicate": 1},
+        {"sample_accession": "GSM5602257", "matrix_column_tokens": ["T1Wt8d_DP_R1", "GSM5602257"], "construct": "Tig1 wild type", "time_post_transfection_days": 8, "replicate": 1},
+        {"sample_accession": "GSM5602258", "matrix_column_tokens": ["T1Mut8d_DP_R1", "GSM5602258"], "construct": "Tig1 P155A mutant", "time_post_transfection_days": 8, "replicate": 1},
+        {"sample_accession": "GSM5602259", "matrix_column_tokens": ["T1Wt3d_DP_R2", "GSM5602259"], "construct": "Tig1 wild type", "time_post_transfection_days": 3, "replicate": 2},
+        {"sample_accession": "GSM5602260", "matrix_column_tokens": ["T1Mut3d_DP_R2", "GSM5602260"], "construct": "Tig1 P155A mutant", "time_post_transfection_days": 3, "replicate": 2},
+        {"sample_accession": "GSM5602261", "matrix_column_tokens": ["CTRL3d_R2", "GSM5602261"], "construct": "non-transfected control", "time_post_transfection_days": 3, "replicate": 2},
+        {"sample_accession": "GSM5602262", "matrix_column_tokens": ["T1Wt3d_DP_R3", "GSM5602262"], "construct": "Tig1 wild type", "time_post_transfection_days": 3, "replicate": 3},
+        {"sample_accession": "GSM5602263", "matrix_column_tokens": ["T1Mut3d_DP_R3", "GSM5602263"], "construct": "Tig1 P155A mutant", "time_post_transfection_days": 3, "replicate": 3},
+        {"sample_accession": "GSM5602264", "matrix_column_tokens": ["CTRL3d_R3", "GSM5602264"], "construct": "non-transfected control", "time_post_transfection_days": 3, "replicate": 3},
+        {"sample_accession": "GSM5602265", "matrix_column_tokens": ["T1Wt8d_DP_R2", "GSM5602265"], "construct": "Tig1 wild type", "time_post_transfection_days": 8, "replicate": 2},
+        {"sample_accession": "GSM5602266", "matrix_column_tokens": ["T1Mut8d_DP_R2", "GSM5602266"], "construct": "Tig1 P155A mutant", "time_post_transfection_days": 8, "replicate": 2},
+        {"sample_accession": "GSM5602267", "matrix_column_tokens": ["CTRL8d_R2", "GSM5602267"], "construct": "non-transfected control", "time_post_transfection_days": 8, "replicate": 2},
+        {"sample_accession": "GSM5602268", "matrix_column_tokens": ["T1Wt8d_DP_R3", "GSM5602268"], "construct": "Tig1 wild type", "time_post_transfection_days": 8, "replicate": 3},
+        {"sample_accession": "GSM5602269", "matrix_column_tokens": ["T1Mut8d_DP_R3", "GSM5602269"], "construct": "Tig1 P155A mutant", "time_post_transfection_days": 8, "replicate": 3},
+        {"sample_accession": "GSM5602270", "matrix_column_tokens": ["CTRL8d_R3", "GSM5602270"], "construct": "non-transfected control", "time_post_transfection_days": 8, "replicate": 3}
+      ],
+      "context": {
+        "tissue": "Hoxa13-positive distal forelimb blastema cells",
+        "cue_delivery": "construct electroporation",
+        "time_axis": "days post transfection, not days post amputation"
+      },
+      "artifacts": [
+        {
+          "artifact_id": "gse184948_featurecounts",
+          "role": "raw_gene_counts",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE184nnn/GSE184948/suppl/GSE184948_bfx1392.AmexG_v6_DD.eAmexG_v6_DD.txt.gz",
+          "filename": "GSE184948_bfx1392.AmexG_v6_DD.eAmexG_v6_DD.txt.gz",
+          "content_kind": "gzip_featurecounts_gene_table",
+          "checksum": null
+        }
+      ]
+    },
+    {
+      "accession": "GSE272731",
+      "role": "measured_retinoid_metabolism_rna_development_validation",
+      "default_download": true,
+      "adapter": "bulk_gene_table",
+      "species": "Ambystoma mexicanum",
+      "source_assembly": "AmexG_v6.0-DD genome with AmexT_v47 transcriptome (deposited labels)",
+      "measurement_level": "bulk RNA-seq; each deposited sample pools three blastemas",
+      "metadata_url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE272731",
+      "split_policy": {
+        "mode": "whole_study_unsealed_development_validation",
+        "group_field": "sample_accession",
+        "stratify_fields": [
+          "amputation_level",
+          "condition",
+          "dose"
+        ],
+        "cell_level_split_forbidden": true,
+        "note": "This whole study is reserved as an unsealed development validation transfer panel; it is not a final test."
+      },
+      "sample_map": [
+        {"sample_accession": "GSM8409790", "matrix_column_tokens": ["0.1uM", "TAL", "Distal", "rep1", "GSM8409790"], "condition": "talarozole", "dose": {"value": 0.1, "unit": "uM"}, "amputation_level": "distal mid-carpal", "time_dpa": 14, "replicate": 1, "blastemas_pooled": 3},
+        {"sample_accession": "GSM8409791", "matrix_column_tokens": ["0.1uM", "TAL", "Distal", "rep2", "GSM8409791"], "condition": "talarozole", "dose": {"value": 0.1, "unit": "uM"}, "amputation_level": "distal mid-carpal", "time_dpa": 14, "replicate": 2, "blastemas_pooled": 3},
+        {"sample_accession": "GSM8409792", "matrix_column_tokens": ["0.1uM", "TAL", "Distal", "rep3", "GSM8409792"], "condition": "talarozole", "dose": {"value": 0.1, "unit": "uM"}, "amputation_level": "distal mid-carpal", "time_dpa": 14, "replicate": 3, "blastemas_pooled": 3},
+        {"sample_accession": "GSM8409793", "matrix_column_tokens": ["1uM", "TAL", "Distal", "rep1", "GSM8409793"], "condition": "talarozole", "dose": {"value": 1.0, "unit": "uM"}, "amputation_level": "distal mid-carpal", "time_dpa": 14, "replicate": 1, "blastemas_pooled": 3},
+        {"sample_accession": "GSM8409794", "matrix_column_tokens": ["1uM", "TAL", "Distal", "rep2", "GSM8409794"], "condition": "talarozole", "dose": {"value": 1.0, "unit": "uM"}, "amputation_level": "distal mid-carpal", "time_dpa": 14, "replicate": 2, "blastemas_pooled": 3},
+        {"sample_accession": "GSM8409795", "matrix_column_tokens": ["1uM", "TAL", "Distal", "rep3", "GSM8409795"], "condition": "talarozole", "dose": {"value": 1.0, "unit": "uM"}, "amputation_level": "distal mid-carpal", "time_dpa": 14, "replicate": 3, "blastemas_pooled": 3},
+        {"sample_accession": "GSM8409799", "matrix_column_tokens": ["Control", "DMSO", "Distal", "rep1", "GSM8409799"], "condition": "DMSO vehicle", "dose": null, "amputation_level": "distal mid-carpal", "time_dpa": 14, "replicate": 1, "blastemas_pooled": 3},
+        {"sample_accession": "GSM8409800", "matrix_column_tokens": ["Control", "DMSO", "Distal", "rep2", "GSM8409800"], "condition": "DMSO vehicle", "dose": null, "amputation_level": "distal mid-carpal", "time_dpa": 14, "replicate": 2, "blastemas_pooled": 3},
+        {"sample_accession": "GSM8409801", "matrix_column_tokens": ["Control", "DMSO", "Distal", "rep3", "GSM8409801"], "condition": "DMSO vehicle", "dose": null, "amputation_level": "distal mid-carpal", "time_dpa": 14, "replicate": 3, "blastemas_pooled": 3},
+        {"sample_accession": "GSM8409802", "matrix_column_tokens": ["Control", "DMSO", "Proximal", "rep1", "GSM8409802"], "condition": "DMSO vehicle", "dose": null, "amputation_level": "proximal upper humerus", "time_dpa": 14, "replicate": 1, "blastemas_pooled": 3},
+        {"sample_accession": "GSM8409803", "matrix_column_tokens": ["Control", "DMSO", "Proximal", "rep2", "GSM8409803"], "condition": "DMSO vehicle", "dose": null, "amputation_level": "proximal upper humerus", "time_dpa": 14, "replicate": 2, "blastemas_pooled": 3},
+        {"sample_accession": "GSM8409804", "matrix_column_tokens": ["Control", "DMSO", "Proximal", "rep3", "GSM8409804"], "condition": "DMSO vehicle", "dose": null, "amputation_level": "proximal upper humerus", "time_dpa": 14, "replicate": 3, "blastemas_pooled": 3}
+      ],
+      "artifacts": [
+        {
+          "artifact_id": "gse272731_salmon_gene_counts",
+          "role": "deposited_gene_counts",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE272nnn/GSE272731/suppl/GSE272731_salmon.gene.counts.matrix.txt.gz",
+          "filename": "GSE272731_salmon.gene.counts.matrix.txt.gz",
+          "content_kind": "gzip_salmon_gene_count_table",
+          "checksum": null
+        }
+      ]
+    },
+    {
+      "accession": "GSE121737",
+      "role": "single_cell_regeneration_timecourse_development",
+      "default_download": true,
+      "adapter": "dense_sc_barcode_maps",
+      "species": "Ambystoma mexicanum",
+      "source_assembly": "N/A genome; Axolotl.Trinity.CellReports2017 transcriptome",
+      "measurement_level": "inDrops single-cell RNA counts from destructive, independently sampled limb specimens",
+      "metadata_url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE121737",
+      "split_policy": {
+        "mode": "group_first_stage_stratified_development",
+        "group_field": "experimental_unit_id",
+        "stratify_fields": [
+          "stage"
+        ],
+        "validation_fraction": 0.25,
+        "seed": 61,
+        "cell_level_split_forbidden": true,
+        "feature_selection_fit_partition": "train_only",
+        "note": "Matrix-pool labels are namespaced before splitting because S_1 through S_5 recur in two deposited pools."
+      },
+      "sample_map": [
+        {"experimental_unit_id": "GSE121737:early_medium:S_1", "matrix_scope": "early_medium", "deposited_sample_label": "S_1", "barcode_prefix": "S1", "stage": "medium-bud blastema", "time_dpa": 23},
+        {"experimental_unit_id": "GSE121737:early_medium:S_2", "matrix_scope": "early_medium", "deposited_sample_label": "S_2", "barcode_prefix": "S2", "stage": "medium-bud blastema", "time_dpa": 23},
+        {"experimental_unit_id": "GSE121737:early_medium:S_3", "matrix_scope": "early_medium", "deposited_sample_label": "S_3", "barcode_prefix": "S3", "stage": "early-bud blastema", "time_dpa": 14},
+        {"experimental_unit_id": "GSE121737:early_medium:S_4", "matrix_scope": "early_medium", "deposited_sample_label": "S_4", "barcode_prefix": "S4", "stage": "medium-bud blastema", "time_dpa": 23},
+        {"experimental_unit_id": "GSE121737:early_medium:S_5", "matrix_scope": "early_medium", "deposited_sample_label": "S_5", "barcode_prefix": "S5", "stage": "early-bud blastema", "time_dpa": 14},
+        {"experimental_unit_id": "GSE121737:wound_medium:N_1", "matrix_scope": "wound_medium", "deposited_sample_label": "N_1", "barcode_prefix": "N1", "stage": "medium-bud blastema", "time_dpa": 23},
+        {"experimental_unit_id": "GSE121737:wound_medium:N_2", "matrix_scope": "wound_medium", "deposited_sample_label": "N_2", "barcode_prefix": "N2", "stage": "medium-bud blastema", "time_dpa": 23},
+        {"experimental_unit_id": "GSE121737:wound_medium:N_3", "matrix_scope": "wound_medium", "deposited_sample_label": "N_3", "barcode_prefix": "N3", "stage": "medium-bud blastema", "time_dpa": 23},
+        {"experimental_unit_id": "GSE121737:wound_medium:N_4", "matrix_scope": "wound_medium", "deposited_sample_label": "N_4", "barcode_prefix": "N4", "stage": "wound healing", "time_dpa": 3},
+        {"experimental_unit_id": "GSE121737:wound_medium:N_5", "matrix_scope": "wound_medium", "deposited_sample_label": "N_5", "barcode_prefix": "N5", "stage": "wound healing", "time_dpa": 3},
+        {"experimental_unit_id": "GSE121737:wound_medium:N_6", "matrix_scope": "wound_medium", "deposited_sample_label": "N_6", "barcode_prefix": "N6", "stage": "wound healing", "time_dpa": 3},
+        {"experimental_unit_id": "GSE121737:intact_contra:S_1", "matrix_scope": "intact_contra", "deposited_sample_label": "S_1", "barcode_prefix": "S1", "stage": "intact homeostatic limb", "time_dpa": null},
+        {"experimental_unit_id": "GSE121737:intact_contra:S_2", "matrix_scope": "intact_contra", "deposited_sample_label": "S_2", "barcode_prefix": "S2", "stage": "intact homeostatic limb", "time_dpa": null},
+        {"experimental_unit_id": "GSE121737:intact_contra:S_3", "matrix_scope": "intact_contra", "deposited_sample_label": "S_3", "barcode_prefix": "S3", "stage": "contralateral intact limb", "time_dpa": null, "contralateral_collection_context_dpa": 14},
+        {"experimental_unit_id": "GSE121737:intact_contra:S_4", "matrix_scope": "intact_contra", "deposited_sample_label": "S_4", "barcode_prefix": "S4", "stage": "contralateral intact limb", "time_dpa": null, "contralateral_collection_context_dpa": 14},
+        {"experimental_unit_id": "GSE121737:intact_contra:S_5", "matrix_scope": "intact_contra", "deposited_sample_label": "S_5", "barcode_prefix": "S5", "stage": "contralateral intact limb", "time_dpa": null, "contralateral_collection_context_dpa": 14}
+      ],
+      "pairing": {
+        "mode": "unpaired_population_across_specimens_and_time",
+        "within_artifact_relation": "deposited cell-name/barcode maps only",
+        "fabricated_cell_trajectory_pairing_forbidden": true
+      },
+      "artifacts": [
+        {
+          "artifact_id": "gse121737_early_medium_barcodes",
+          "role": "cell_barcode_map",
+          "matrix_scope": "early_medium",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE121nnn/GSE121737/suppl/GSE121737_Early_bud_and_medium_bud_cell_name_and_barcode.txt.gz",
+          "filename": "GSE121737_Early_bud_and_medium_bud_cell_name_and_barcode.txt.gz",
+          "content_kind": "gzip_two_column_cell_barcode_map",
+          "checksum": null
+        },
+        {
+          "artifact_id": "gse121737_early_medium_counts",
+          "role": "single_cell_gene_counts",
+          "matrix_scope": "early_medium",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE121nnn/GSE121737/suppl/GSE121737_early_and_medium_bud.repGene.txt.gz",
+          "filename": "GSE121737_early_and_medium_bud.repGene.txt.gz",
+          "content_kind": "gzip_dense_count_table_orientation_to_verify",
+          "checksum": null
+        },
+        {
+          "artifact_id": "gse121737_wound_medium_barcodes",
+          "role": "cell_barcode_map",
+          "matrix_scope": "wound_medium",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE121nnn/GSE121737/suppl/GSE121737_wound_healing_and_medium_bud_cell_name_and_barcode.txt.gz",
+          "filename": "GSE121737_wound_healing_and_medium_bud_cell_name_and_barcode.txt.gz",
+          "content_kind": "gzip_two_column_cell_barcode_map",
+          "checksum": null
+        },
+        {
+          "artifact_id": "gse121737_wound_medium_counts",
+          "role": "single_cell_gene_counts",
+          "matrix_scope": "wound_medium",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE121nnn/GSE121737/suppl/GSE121737_wound_healing_and_medium_bud.repGene.txt.gz",
+          "filename": "GSE121737_wound_healing_and_medium_bud.repGene.txt.gz",
+          "content_kind": "gzip_dense_count_table_orientation_to_verify",
+          "checksum": null
+        },
+        {
+          "artifact_id": "gse121737_intact_contra_barcodes",
+          "role": "cell_barcode_map",
+          "matrix_scope": "intact_contra",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE121nnn/GSE121737/suppl/GSE121737_Intact_contra_cell_name_and_barcode.txt.gz",
+          "filename": "GSE121737_Intact_contra_cell_name_and_barcode.txt.gz",
+          "content_kind": "gzip_two_column_cell_barcode_map",
+          "checksum": null
+        },
+        {
+          "artifact_id": "gse121737_intact_contra_counts",
+          "role": "single_cell_gene_counts",
+          "matrix_scope": "intact_contra",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE121nnn/GSE121737/suppl/GSE121737_intact_contralateral_cell_by_gene.repGene.txt.gz",
+          "filename": "GSE121737_intact_contralateral_cell_by_gene.repGene.txt.gz",
+          "content_kind": "gzip_dense_count_table_orientation_to_verify",
+          "checksum": null
+        }
+      ]
+    },
+    {
+      "accession": "GSE243225",
+      "role": "single_specimen_spatial_rna_development_reference",
+      "default_download": true,
+      "adapter": "visium_bundle",
+      "species": "Ambystoma mexicanum",
+      "source_assembly": "AmexG_v6_DD (deposited label)",
+      "measurement_level": "10x Visium spot-level RNA counts and deposited histology coordinates from one specimen",
+      "metadata_url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE243225",
+      "split_policy": {
+        "mode": "single_specimen_reference_only",
+        "group_field": "sample_accession",
+        "spot_level_split_forbidden": true,
+        "note": "The sole specimen cannot support a biological validation split. Spots stay together and may condition development representations only."
+      },
+      "sample_map": [
+        {
+          "sample_accession": "GSM7781044",
+          "experimental_unit_id": "GSE243225:GSM7781044",
+          "tissue": "5 dpa regenerating lower arm",
+          "amputation_level": "calcified lower arm",
+          "time_dpa": 5,
+          "animal_length_cm": 8.5,
+          "biological_replicate": 1
+        }
+      ],
+      "pairing": {
+        "mode": "same_spot_exact_after_schema_verification",
+        "identifier": "deposited Visium spot barcode",
+        "expression_similarity_pairing_forbidden": true
+      },
+      "artifacts": [
+        {
+          "artifact_id": "gse243225_visium_matrix",
+          "role": "spot_gene_counts",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM7781nnn/GSM7781044/suppl/GSM7781044_matrix.mtx.gz",
+          "filename": "GSM7781044_matrix.mtx.gz",
+          "content_kind": "gzip_matrix_market",
+          "checksum": null
+        },
+        {
+          "artifact_id": "gse243225_visium_features",
+          "role": "gene_features",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM7781nnn/GSM7781044/suppl/GSM7781044_features.tsv.gz",
+          "filename": "GSM7781044_features.tsv.gz",
+          "content_kind": "gzip_tsv",
+          "checksum": null
+        },
+        {
+          "artifact_id": "gse243225_visium_barcodes",
+          "role": "spot_barcodes",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM7781nnn/GSM7781044/suppl/GSM7781044_barcodes.tsv.gz",
+          "filename": "GSM7781044_barcodes.tsv.gz",
+          "content_kind": "gzip_tsv",
+          "checksum": null
+        },
+        {
+          "artifact_id": "gse243225_visium_positions",
+          "role": "spot_coordinates",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM7781nnn/GSM7781044/suppl/GSM7781044_tissue_positions_list.csv.gz",
+          "filename": "GSM7781044_tissue_positions_list.csv.gz",
+          "content_kind": "gzip_csv",
+          "checksum": null
+        },
+        {
+          "artifact_id": "gse243225_visium_scalefactors",
+          "role": "spatial_scalefactors",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM7781nnn/GSM7781044/suppl/GSM7781044_scalefactors_json.json.gz",
+          "filename": "GSM7781044_scalefactors_json.json.gz",
+          "content_kind": "gzip_json",
+          "checksum": null
+        },
+        {
+          "artifact_id": "gse243225_visium_hires_image",
+          "role": "histology_image",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM7781nnn/GSM7781044/suppl/GSM7781044_tissue_hires_image.png.gz",
+          "filename": "GSM7781044_tissue_hires_image.png.gz",
+          "content_kind": "gzip_png",
+          "checksum": null
+        },
+        {
+          "artifact_id": "gse243225_visium_lowres_image",
+          "role": "histology_image_low_resolution",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM7781nnn/GSM7781044/suppl/GSM7781044_tissue_lowres_image.png.gz",
+          "filename": "GSM7781044_tissue_lowres_image.png.gz",
+          "content_kind": "gzip_png",
+          "checksum": null
+        }
+      ]
+    },
+    {
+      "accession": "GSE217591",
+      "role": "positional_connective_tissue_cutandtag_acquisition_plan",
+      "default_download": false,
+      "adapter": "acquisition_plan_only",
+      "species": "Ambystoma mexicanum",
+      "source_assembly": "AmexG_6 (deposited label)",
+      "measurement_level": "FACS-isolated connective-tissue CUT&Tag bigWig profiles; 63 deposited libraries",
+      "metadata_url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE217591",
+      "split_policy": {
+        "mode": "defer_until_exact_sample_manifest_materialized",
+        "group_field": "biological specimen identifier encoded in deposited sample title",
+        "cell_level_split_forbidden": true,
+        "cross_assay_pairing_forbidden_without_crosswalk": true
+      },
+      "sample_list": {
+        "deposited_count": 63,
+        "marks": ["IgG", "H3K4me1", "H3K4me3", "H3K27me3"],
+        "mature_anatomy": ["upper arm", "lower arm", "hand"],
+        "regeneration_stages": ["5 dpa upper-arm blastema", "9 dpa upper-arm blastema", "13 dpa proximal upper-arm blastema", "13 dpa distal upper-arm blastema"],
+        "materialization_requirement": "Parse GEO MINiML/sample records and retain terminal biological specimen identifiers before any split or cross-modality relation."
+      },
+      "artifacts": [
+        {
+          "artifact_id": "gse217591_processed_bigwig_tar",
+          "role": "processed_cutandtag_bigwigs",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE217nnn/GSE217591/suppl/GSE217591_RAW.tar",
+          "filename": "GSE217591_RAW.tar",
+          "content_kind": "tar_bigwig",
+          "checksum": null
+        }
+      ],
+      "limitations": [
+        "The approximately 15 GB processed archive is not a default v6.1 download.",
+        "BigWig signal is not a raw count matrix and requires a frozen genomic-bin or peak quantification plan.",
+        "A histone-mark profile is not automatically paired to an ATAC or RNA library that has a similar anatomical label."
+      ]
+    },
+    {
+      "accession": "GSE217592",
+      "role": "positional_connective_tissue_atac_acquisition_plan",
+      "default_download": false,
+      "adapter": "acquisition_plan_only",
+      "species": "Ambystoma mexicanum",
+      "source_assembly": "AmexG_6 (deposited label)",
+      "measurement_level": "connective-tissue ATAC-seq bigWig profiles; 34 deposited libraries",
+      "metadata_url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE217592",
+      "split_policy": {
+        "mode": "defer_until_exact_sample_manifest_materialized",
+        "group_field": "biological specimen identifier encoded in deposited sample title",
+        "cell_level_split_forbidden": true,
+        "cross_assay_pairing_forbidden_without_crosswalk": true
+      },
+      "sample_list": {
+        "deposited_count": 34,
+        "mature_anatomy": ["upper arm", "lower arm", "hand"],
+        "regeneration_stages": ["5 dpa upper-arm blastema", "9 dpa upper-arm blastema", "13 dpa proximal upper-arm blastema", "13 dpa distal upper-arm blastema"],
+        "embryonic_positions": ["stage 40", "stage 44 proximal", "stage 44 distal"],
+        "materialization_requirement": "Parse GEO MINiML/sample records, specimen IDs, and exact bigWig filenames before enabling acquisition."
+      },
+      "artifacts": [
+        {
+          "artifact_id": "gse217592_processed_bigwig_tar",
+          "role": "processed_atac_bigwigs",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE217nnn/GSE217592/suppl/GSE217592_RAW.tar",
+          "filename": "GSE217592_RAW.tar",
+          "content_kind": "tar_bigwig",
+          "checksum": null
+        }
+      ],
+      "limitations": [
+        "The approximately 20.9 GB processed archive is not a default v6.1 download.",
+        "These are population accessibility profiles, not per-cell chromatin states.",
+        "A similar specimen label across ATAC, CUT&Tag, and RNA does not establish a deposited cross-assay pairing."
+      ]
+    },
+    {
+      "accession": "GSE217593",
+      "role": "positional_connective_tissue_rna_acquisition_plan",
+      "default_download": false,
+      "adapter": "acquisition_plan_only",
+      "species": "Ambystoma mexicanum",
+      "source_assembly": "AmexG_6 (deposited label)",
+      "measurement_level": "connective-tissue RNA-seq bigWig profiles; 16 deposited libraries",
+      "metadata_url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE217593",
+      "split_policy": {
+        "mode": "defer_until_exact_sample_manifest_materialized",
+        "group_field": "biological specimen identifier encoded in deposited sample title",
+        "cell_level_split_forbidden": true,
+        "cross_assay_pairing_forbidden_without_crosswalk": true
+      },
+      "sample_list": [
+        {"stage": "mature hand", "deposited_samples": ["GSM6722195", "GSM6722196"]},
+        {"stage": "mature upper arm", "deposited_samples": ["GSM6722197", "GSM6722198", "GSM6722199", "GSM6722200"]},
+        {"stage": "5 dpa upper-arm blastema", "deposited_samples": ["GSM6722201", "GSM6722202"]},
+        {"stage": "9 dpa upper-arm blastema", "deposited_samples": ["GSM6722203", "GSM6722204"]},
+        {"stage": "13 dpa distal upper-arm blastema", "deposited_samples": ["GSM6722205", "GSM6722206"]},
+        {"stage": "13 dpa proximal upper-arm blastema", "deposited_samples": ["GSM6722207", "GSM6722208"]},
+        {"stage": "mature lower arm", "deposited_samples": ["GSM7818612", "GSM7818613"]}
+      ],
+      "artifacts": [
+        {
+          "artifact_id": "gse217593_processed_bigwig_tar",
+          "role": "processed_rna_bigwigs",
+          "url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE217nnn/GSE217593/suppl/GSE217593_RAW.tar",
+          "filename": "GSE217593_RAW.tar",
+          "content_kind": "tar_bigwig",
+          "checksum": null
+        }
+      ],
+      "limitations": [
+        "The approximately 724.6 MB processed archive is staged but not a default v6.1 download.",
+        "BigWig coverage is not a deposited gene-count matrix.",
+        "No cross-assay exact pairing is asserted from anatomical or specimen-name similarity."
+      ]
+    }
+  ]
+}
