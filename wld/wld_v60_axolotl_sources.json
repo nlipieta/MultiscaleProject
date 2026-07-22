@@ -1,0 +1,257 @@
+{
+  "schema_version": "6.0.0",
+  "purpose": "Metadata-only source registry for an atlas-conditioned axolotl limb-regeneration virtual-tissue prototype.",
+  "canonical_fields": [
+    "study", "biosample", "donor", "species", "assembly", "tissue",
+    "anatomy", "stage", "condition", "perturbation", "dose", "time",
+    "assay", "modality", "pairing", "spatial_relation", "source_url",
+    "checksum", "license"
+  ],
+  "official_host_allowlist": [
+    "www.ncbi.nlm.nih.gov", "ncbi.nlm.nih.gov", "pmc.ncbi.nlm.nih.gov",
+    "data.mendeley.com", "jaspar.elixir.no", "omnipathdb.org",
+    "www.omnipathdb.org", "mips.helmholtz-muenchen.de",
+    "data.4dnucleome.org"
+  ],
+  "policy": {
+    "metadata_only": true,
+    "large_count_downloads_allowed": false,
+    "unknown_values_must_be_null": true,
+    "fabricated_pairing_forbidden": true,
+    "cell_identity_labels_are_encoder_inputs": false,
+    "gse315993_measurement_values_sealed": true,
+    "gse315993_metadata_audit_allowed": true
+  },
+  "studies": [
+    {
+      "study": "GSE106269",
+      "split": "development_reference",
+      "metadata_url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE106269",
+      "measurement_value_urls": [],
+      "expected_organism": "Ambystoma mexicanum",
+      "limitations": ["No coordinate-level spatial assay is deposited in this series.", "Individual-animal identifiers are not asserted by this registry."],
+      "records": [{
+        "record_id": "GSE106269_scrna_lineage",
+        "study": "GSE106269", "biosample": null, "donor": null,
+        "species": "Ambystoma mexicanum", "assembly": "Axolotl transcriptome Am_2.2",
+        "tissue": "adult forelimb", "anatomy": "connective tissue and regeneration blastema",
+        "stage": "multiple homeostatic and regeneration states", "condition": "limb regeneration",
+        "perturbation": "forelimb amputation", "dose": null, "time": null,
+        "assay": "single-cell RNA-seq with reporter lineage tracking", "modality": "RNA",
+        "pairing": {"mode": "lineage_experiment_no_per_cell_crosswalk", "evidence_type": "deposited_study_design", "evidence": "Reporter lineage experiments are part of the deposited study design, but this metadata registry does not establish a per-cell lineage-to-transcriptome crosswalk.", "identifier_fields": [], "crosswalk_fields": [], "verification_status": "metadata_declared_unverified", "schema_materialized": false, "fabricated": false, "expression_similarity_used": false, "cell_label_matching_used": false},
+        "spatial_relation": {"kind": "proximal_distal_lineage_contribution", "observed": true, "inferred": false, "note": "Lineage contribution is anatomical rather than coordinate-resolved spatial transcriptomics."},
+        "source_url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE106269", "checksum": null, "license": null
+      }]
+    },
+    {
+      "study": "GSE121737",
+      "split": "development_reference",
+      "metadata_url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE121737",
+      "measurement_value_urls": [],
+      "expected_organism": "Ambystoma mexicanum",
+      "limitations": ["Destructive samples are population observations, not longitudinally paired cells.", "The GEO series pools multiple biological samples within deposited GSM records."],
+      "records": [{
+        "record_id": "GSE121737_scrna_timecourse",
+        "study": "GSE121737", "biosample": null, "donor": null,
+        "species": "Ambystoma mexicanum", "assembly": null,
+        "tissue": "forelimb", "anatomy": "homeostatic and regenerating limb",
+        "stage": ["intact", "contralateral intact", "wound healing", "early-bud blastema", "medium-bud blastema"],
+        "condition": "homeostasis and limb regeneration", "perturbation": "limb amputation", "dose": null,
+        "time": [{"value": 0, "unit": "day", "relation": "homeostatic"}, {"value": 3, "unit": "day", "relation": "post_amputation"}, {"value": 14, "unit": "day", "relation": "post_amputation"}, {"value": 23, "unit": "day", "relation": "post_amputation"}],
+        "assay": "inDrops single-cell RNA-seq", "modality": "RNA",
+        "pairing": {"mode": "unpaired_population", "evidence_type": null, "evidence": "Timepoints contain independently sampled cell populations; no cell trajectory pairing is asserted.", "identifier_fields": [], "crosswalk_fields": [], "verification_status": "not_applicable", "schema_materialized": false, "fabricated": false, "expression_similarity_used": false, "cell_label_matching_used": false},
+        "spatial_relation": {"kind": "not_spatial_assay", "observed": false, "inferred": false, "note": null},
+        "source_url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE121737", "checksum": null, "license": null
+      }]
+    },
+    {
+      "study": "PRJNA589484",
+      "split": "development_reference",
+      "metadata_url": "https://www.ncbi.nlm.nih.gov/bioproject/PRJNA589484",
+      "measurement_value_urls": [],
+      "expected_organism": "Ambystoma mexicanum",
+      "limitations": ["Destructive timepoints are not longitudinal measurements of the same cells.", "Cell composition can change strongly across regeneration stages.", "The eight stages comprise 41,376 cells in aggregate; they are not repeated measurements of the same cells."],
+      "records": [{
+        "record_id": "PRJNA589484_scrna_8stage",
+        "study": "PRJNA589484", "biosample": null, "donor": null,
+        "species": "Ambystoma mexicanum", "assembly": null,
+        "tissue": "upper arm", "anatomy": "homeostatic and regenerating limb tissue",
+        "stage": ["homeostatic", "trauma", "wound healing", "early-bud blastema", "mid-bud blastema", "late-bud blastema", "palette", "re-differentiated"],
+        "condition": "homeostasis and limb regeneration", "perturbation": "limb amputation", "dose": null,
+        "time": [{"value": 0, "unit": "hour", "relation": "homeostatic"}, {"value": 3, "unit": "hour", "relation": "post_amputation"}, {"value": 1, "unit": "day", "relation": "post_amputation"}, {"value": 3, "unit": "day", "relation": "post_amputation"}, {"value": 7, "unit": "day", "relation": "post_amputation"}, {"value": 14, "unit": "day", "relation": "post_amputation"}, {"value": 22, "unit": "day", "relation": "post_amputation"}, {"value": 33, "unit": "day", "relation": "post_amputation"}],
+        "cell_count": 41376,
+        "assay": "single-cell RNA-seq", "modality": "RNA",
+        "pairing": {"mode": "unpaired_population", "evidence_type": null, "evidence": "Eight independently sampled stages; no synthetic cell-to-cell temporal pairing.", "identifier_fields": [], "crosswalk_fields": [], "verification_status": "not_applicable", "schema_materialized": false, "fabricated": false, "expression_similarity_used": false, "cell_label_matching_used": false},
+        "spatial_relation": {"kind": "anatomical_region_only", "observed": true, "inferred": false, "note": "Upper-arm sampling is known; coordinate-level positions are not measured."},
+        "source_url": "https://www.ncbi.nlm.nih.gov/bioproject/PRJNA589484", "checksum": null, "license": null
+      }]
+    },
+    {
+      "study": "PRJNA682840",
+      "split": "development_reference",
+      "metadata_url": "https://www.ncbi.nlm.nih.gov/bioproject/PRJNA682840",
+      "measurement_value_urls": [],
+      "expected_organism": "Ambystoma mexicanum",
+      "limitations": ["Bulk ATAC-seq mixes cell types; accessibility changes can reflect cell-composition shifts rather than within-cell regulatory change.", "It cannot assign an accessible element to a cell type without external evidence.", "Three biological replicates were collected per stage; one 3-hour replicate was excluded in the source study's downstream correlation analysis."],
+      "bulk_atac_cell_composition_limitation": true,
+      "records": [{
+        "record_id": "PRJNA682840_bulk_atac_8stage",
+        "study": "PRJNA682840", "biosample": null, "donor": null,
+        "species": "Ambystoma mexicanum", "assembly": "GCA_002915635.2",
+        "tissue": "lower forearm", "anatomy": "homeostatic and regenerating limb tissue",
+        "stage": ["homeostatic", "trauma", "wound healing", "early-bud blastema", "mid-bud blastema", "late-bud blastema", "palette", "re-differentiated"],
+        "condition": "homeostasis and limb regeneration", "perturbation": "limb amputation", "dose": null,
+        "time": [{"value": 0, "unit": "hour", "relation": "homeostatic"}, {"value": 3, "unit": "hour", "relation": "post_amputation"}, {"value": 1, "unit": "day", "relation": "post_amputation"}, {"value": 3, "unit": "day", "relation": "post_amputation"}, {"value": 7, "unit": "day", "relation": "post_amputation"}, {"value": 14, "unit": "day", "relation": "post_amputation"}, {"value": 22, "unit": "day", "relation": "post_amputation"}, {"value": 33, "unit": "day", "relation": "post_amputation"}],
+        "assay": "bulk Omni-ATAC-seq; three biological replicates per stage", "modality": "ATAC",
+        "pairing": {"mode": "single_modality_not_applicable", "evidence_type": null, "evidence": "Bulk assay; no single-cell or cross-modal pairing is claimed.", "identifier_fields": [], "crosswalk_fields": [], "verification_status": "not_applicable", "schema_materialized": false, "fabricated": false, "expression_similarity_used": false, "cell_label_matching_used": false},
+        "spatial_relation": {"kind": "anatomical_region_only", "observed": true, "inferred": false, "note": "Lower-forearm tissue, not coordinate-resolved chromatin."},
+        "source_url": "https://www.ncbi.nlm.nih.gov/bioproject/PRJNA682840", "checksum": null, "license": null
+      }]
+    },
+    {
+      "study": "GSE243225",
+      "split": "development_reference",
+      "metadata_url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE243225",
+      "measurement_value_urls": [],
+      "expected_organism": "Ambystoma mexicanum",
+      "limitations": ["One deposited 5-dpa spatial specimen does not establish between-animal or between-stage replication.", "Spatial coordinates are observations only after deposited spot/image relations are schema-verified."],
+      "spatial_biological_replication_sufficient": false,
+      "records": [{
+        "record_id": "GSE243225_visium_5dpa",
+        "study": "GSE243225", "biosample": "GSM7781044", "donor": null,
+        "species": "Ambystoma mexicanum", "assembly": null,
+        "tissue": "lower arm", "anatomy": "calcified lower-arm amputation plane",
+        "stage": "5 dpa regeneration", "condition": "limb regeneration", "perturbation": "limb amputation", "dose": null,
+        "time": {"value": 5, "unit": "day", "relation": "post_amputation"},
+        "assay": "10x Visium spatial transcriptomics", "modality": "spatial RNA",
+        "pairing": {"mode": "same_spot_exact", "evidence_type": "deposited_spot_barcode_to_coordinate", "evidence": "A deposited Visium spot-barcode-to-coordinate relation is declared, but its schema is not materialized or verified in this metadata-only stage.", "identifier_fields": ["deposited_spot_barcode"], "crosswalk_fields": ["deposited_spot_barcode_to_coordinate_record"], "verification_status": "metadata_declared_unverified", "schema_materialized": false, "fabricated": false, "expression_similarity_used": false, "cell_label_matching_used": false},
+        "spatial_relation": {"kind": "visium_spot_to_histology", "observed": true, "inferred": false, "note": "Single 5-dpa specimen; no biological spatial replicate."},
+        "source_url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE243225", "checksum": null, "license": null
+      }]
+    },
+    {
+      "study": "GSE315993",
+      "split": "sealed_external_test",
+      "metadata_url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE315993",
+      "measurement_value_urls": [],
+      "expected_organism": "Ambystoma mexicanum",
+      "measurement_values_sealed": true,
+      "metadata_audit_only": true,
+      "limitations": ["One deposited spatial sample at each of intact, 3, 7 and 14 dpa limits biological-replicate inference.", "Measurement matrices, images and coordinates are sealed external validation values and are not downloaded by v6 metadata audit."],
+      "spatial_biological_replication_sufficient": false,
+      "records": [{
+        "record_id": "GSE315993_visium_external",
+        "study": "GSE315993", "biosample": ["GSM9442324", "GSM9442325", "GSM9442326", "GSM9442327"], "donor": null,
+        "species": "Ambystoma mexicanum", "assembly": null,
+        "tissue": "forelimb", "anatomy": "cryosections of intact and regenerating limbs",
+        "stage": ["intact", "3 dpa", "7 dpa", "14 dpa"], "condition": "homeostasis and limb regeneration", "perturbation": "limb amputation", "dose": null,
+        "time": [{"value": 0, "unit": "day", "relation": "homeostatic"}, {"value": 3, "unit": "day", "relation": "post_amputation"}, {"value": 7, "unit": "day", "relation": "post_amputation"}, {"value": 14, "unit": "day", "relation": "post_amputation"}],
+        "assay": "10x Visium spatial transcriptomics", "modality": "spatial RNA",
+        "pairing": {"mode": "same_spot_exact", "evidence_type": "deposited_spot_barcode_to_coordinate", "evidence": "The sealed series declares Visium spot relations, but v6 does not materialize or verify its spot identifiers, coordinates, images, or values.", "identifier_fields": ["planned_deposited_spot_barcode"], "crosswalk_fields": ["planned_spot_barcode_to_coordinate_record"], "verification_status": "metadata_declared_unverified", "schema_materialized": false, "fabricated": false, "expression_similarity_used": false, "cell_label_matching_used": false},
+        "spatial_relation": {"kind": "visium_spot_to_histology", "observed": true, "inferred": false, "note": "Independent external spatial series with one deposited sample per stage."},
+        "source_url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE315993", "checksum": null, "license": null
+      }]
+    }
+  ],
+  "reference_atlas_sources": [
+    {
+      "record_id": "GSE149683_fetal_human_sciatac", "candidate_only": true, "download_in_v60": false,
+      "study": "GSE149683", "biosample": null, "donor": null, "species": "Homo sapiens", "assembly": null,
+      "tissue": "53 fetal samples across 15 organs", "anatomy": "multi-organ", "stage": "estimated gestational age 89-125 days",
+      "condition": null, "perturbation": null, "dose": null, "time": null, "assay": "sci-ATAC-seq3", "modality": "ATAC",
+      "pairing": {"mode": "single_modality_not_applicable", "evidence_type": null, "evidence": "Single-modality accessibility atlas; no cross-modal pairing claimed.", "identifier_fields": [], "crosswalk_fields": [], "verification_status": "not_applicable", "schema_materialized": false, "fabricated": false, "expression_similarity_used": false, "cell_label_matching_used": false},
+      "spatial_relation": {"kind": "anatomical_region_only", "observed": true, "inferred": false, "note": "Organ identity, not coordinate-resolved space."},
+      "source_url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE149683", "checksum": null, "license": null,
+      "related_accessions": ["PRJNA629599"]
+    },
+    {
+      "record_id": "doi_yv4fzv6cnm_1_human_accessibility", "candidate_only": true, "download_in_v60": false,
+      "study": "10.17632/yv4fzv6cnm.1", "biosample": null, "donor": null, "species": "Homo sapiens", "assembly": null,
+      "tissue": "30 adult and 15 fetal tissue types", "anatomy": "multi-organ", "stage": "adult and fetal",
+      "condition": null, "perturbation": null, "dose": null, "time": null, "assay": "single-nucleus chromatin accessibility atlas", "modality": "ATAC",
+      "pairing": {"mode": "single_modality_not_applicable", "evidence_type": null, "evidence": "Accessibility atlas; no cross-modal same-cell pairing claimed.", "identifier_fields": [], "crosswalk_fields": [], "verification_status": "not_applicable", "schema_materialized": false, "fabricated": false, "expression_similarity_used": false, "cell_label_matching_used": false},
+      "spatial_relation": {"kind": "anatomical_region_only", "observed": true, "inferred": false, "note": "Tissue identity, not coordinate-resolved space."},
+      "source_url": "https://data.mendeley.com/datasets/yv4fzv6cnm/1", "checksum": null, "license": "CC BY 4.0"
+    },
+    {
+      "record_id": "GSE158013_tea_seq", "candidate_only": true, "download_in_v60": false,
+      "study": "GSE158013", "biosample": null, "donor": null, "species": "Homo sapiens", "assembly": "GRCh38",
+      "tissue": "peripheral blood mononuclear cells", "anatomy": "peripheral blood", "stage": null,
+      "condition": null, "perturbation": null, "dose": null, "time": null, "assay": "TEA-seq", "modality": "RNA+ATAC+surface protein",
+      "pairing": {"mode": "same_cell_exact", "evidence_type": "deposited_barcode_identity", "evidence": "TEA-seq declares same-cell modalities; exact barcode identity must be materialized and verified during a later ingestion stage.", "identifier_fields": ["deposited_cell_barcode"], "crosswalk_fields": ["same_droplet_barcode_across_rna_atac_protein"], "verification_status": "metadata_declared_unverified", "schema_materialized": false, "fabricated": false, "expression_similarity_used": false, "cell_label_matching_used": false},
+      "spatial_relation": {"kind": "not_spatial_assay", "observed": false, "inferred": false, "note": null},
+      "source_url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE158013", "checksum": null, "license": null
+    },
+    {
+      "record_id": "GSE194122_bmmc_multiome", "candidate_only": true, "download_in_v60": false,
+      "study": "GSE194122", "biosample": null, "donor": null, "species": "Homo sapiens", "assembly": "GRCh38",
+      "tissue": "bone marrow mononuclear cells", "anatomy": "bone marrow", "stage": "adult",
+      "condition": "healthy", "perturbation": null, "dose": null, "time": null, "assay": "10x Multiome ATAC + Gene Expression", "modality": "RNA+ATAC",
+      "pairing": {"mode": "same_cell_exact", "evidence_type": "deposited_barcode_identity", "evidence": "Multiome declares same-nucleus RNA and ATAC; exact deposited barcode identity remains unverified until schema materialization.", "identifier_fields": ["deposited_nucleus_barcode"], "crosswalk_fields": ["same_nucleus_barcode_across_rna_atac"], "verification_status": "metadata_declared_unverified", "schema_materialized": false, "fabricated": false, "expression_similarity_used": false, "cell_label_matching_used": false},
+      "spatial_relation": {"kind": "not_spatial_assay", "observed": false, "inferred": false, "note": null},
+      "source_url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE194122", "checksum": null, "license": null
+    }
+  ],
+  "mechanistic_prior_sources": [
+    {
+      "source_id": "JASPAR2024",
+      "prior_type": "sequence_motif_binding",
+      "transfer_status": "reference_transferred_candidate_support_only",
+      "axolotl_observation": false,
+      "metadata_only": true,
+      "download_in_v60": false,
+      "source_url": "https://jaspar.elixir.no/",
+      "checksum": null,
+      "license": null,
+      "limitations": ["A motif match indicates sequence compatibility, not TF abundance, occupancy, direction, or causal regulation in axolotl limb cells."]
+    },
+    {
+      "source_id": "CollecTRI_via_OmniPath",
+      "prior_type": "curated_signed_tf_regulation",
+      "transfer_status": "reference_transferred_candidate_support_only",
+      "axolotl_observation": false,
+      "metadata_only": true,
+      "download_in_v60": false,
+      "source_url": "https://omnipathdb.org/",
+      "checksum": null,
+      "license": null,
+      "limitations": ["Curated human regulatory signs require orthology and context validation; they are not axolotl observations."]
+    },
+    {
+      "source_id": "OmniPath",
+      "prior_type": "signaling_and_protein_interactions",
+      "transfer_status": "reference_transferred_candidate_support_only",
+      "axolotl_observation": false,
+      "metadata_only": true,
+      "download_in_v60": false,
+      "source_url": "https://omnipathdb.org/",
+      "checksum": null,
+      "license": null,
+      "limitations": ["A curated signaling or PPI edge is only a possible route; cell-specific protein availability and activity remain unobserved unless measured."]
+    },
+    {
+      "source_id": "CORUM",
+      "prior_type": "protein_complex_membership",
+      "transfer_status": "reference_transferred_candidate_support_only",
+      "axolotl_observation": false,
+      "metadata_only": true,
+      "download_in_v60": false,
+      "source_url": "https://mips.helmholtz-muenchen.de/corum/",
+      "checksum": null,
+      "license": null,
+      "limitations": ["Reference complex membership does not establish complex assembly or stoichiometry in a specific axolotl cell."]
+    },
+    {
+      "source_id": "4DN_Data_Portal",
+      "prior_type": "contact_and_hic_reference",
+      "transfer_status": "reference_transferred_candidate_support_only",
+      "axolotl_observation": false,
+      "metadata_only": true,
+      "download_in_v60": false,
+      "source_url": "https://data.4dnucleome.org/",
+      "checksum": null,
+      "license": null,
+      "limitations": ["Cross-species or cross-tissue contact maps are candidate support only and cannot be represented as observed axolotl enhancer-promoter contacts."]
+    }
+  ]
+}
